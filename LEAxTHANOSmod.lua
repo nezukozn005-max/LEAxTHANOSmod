@@ -1,9 +1,6 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE - COMPLETE MONOLITHIC EDITION (V20.0)
--- Tüm Sistemler Entegre Edilmiştir: Bypass, Anti-Kick, Anti-Detect, Reset Koruması,
--- Server Finder, ESP, Baseye Dönüş, Küp, Noclip ve Modern Minimalist PUBG Arayüzü.
+-- LEA MOD ULTIMATE - PART 1 / 2 (CORE, SECURITY, UI & SERVER FINDER)
 -- ==============================================================================
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -14,9 +11,6 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- ==============================================================================
--- BÖLÜM 1: GELİŞMİŞ GLOBAL DURUM (STATE) VE YÖNETCİLERİ
--- ==============================================================================
 getgenv().LeaModGlobalState = {
     Mode = "NONE",
     Speed = 22,
@@ -39,46 +33,29 @@ getgenv().LeaModGlobalState = {
 
 local State = getgenv().LeaModGlobalState
 
--- ==============================================================================
--- BÖLÜM 2: ANTI-DETECT, ANTI-KICK VE METATABLE KORUMA MOTORU
--- ==============================================================================
-local function InitializeSecurityEngine()
-    pcall(function()
-        if not State.AntiDetectActive then return end
-        
-        local mt = getrawmetatable(game)
-        setreadonly(mt, false)
-        local oldNamecall = mt.__namecall
-        
-        mt.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            local args = {...}
-            
-            -- Anti-Kick: Sunucudan atma komutlarını engelle
-            if State.AntiKickActive and (method == "Kick" or method == "kick") then
+-- 1) ANTI-DETECT VE ANTI-KICK MOTORU
+pcall(function()
+    if not State.AntiDetectActive then return end
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldNamecall = mt.__namecall
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if State.AntiKickActive and (method == "Kick" or method == "kick") then
+            return nil
+        end
+        if method == "FireServer" or method == "InvokeServer" then
+            local remoteName = tostring(self):lower()
+            if remoteName:find("anticheat") or remoteName:find("ban") or remoteName:find("detect") or remoteName:find("report") or remoteName:find("security") then
                 return nil
             end
-            
-            -- Anti-Detect: Sahte raporları ve anti-cheat loglarını sustur
-            if method == "FireServer" or method == "InvokeServer" then
-                local remoteName = tostring(self):lower()
-                if remoteName:find("anticheat") or remoteName:find("ban") or remoteName:find("detect") or remoteName:find("report") or remoteName:find("security") then
-                    return nil
-                end
-            end
-            
-            return oldNamecall(self, ...)
-        end)
-        
-        setreadonly(mt, true)
+        end
+        return oldNamecall(self, ...)
     end)
-end
+    setreadonly(mt, true)
+end)
 
-InitializeSecurityEngine()
-
--- ==============================================================================
--- BÖLÜM 3: GÜVENLİ GUI PARENT VE ESKİ KALINTI TEMİZLİĞİ
--- ==============================================================================
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
     if success and parent then return parent end
@@ -95,9 +72,7 @@ ScreenGui.Name = "LeaModMonolithicGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = GetGuiParent()
 
--- ==============================================================================
--- BÖLÜM 4: MODERN MINIMALIST PUBG TARZI ARAYÜZ (UI TASARIMI)
--- ==============================================================================
+-- 2) ANA MENÜ (UI)
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 150, 0, 340)
 MainFrame.Position = UDim2.new(1, -165, 0.5, -170)
@@ -123,7 +98,6 @@ HeaderTitle.TextColor3 = Color3.fromRGB(0, 255, 200)
 HeaderTitle.TextSize = 11
 HeaderTitle.Font = Enum.Font.GothamBold
 
--- Aç/Kapat Butonu
 local ToggleMenuBtn = Instance.new("TextButton", ScreenGui)
 ToggleMenuBtn.Size = UDim2.new(0, 42, 0, 26)
 ToggleMenuBtn.Position = UDim2.new(1, -55, 0, 10)
@@ -157,9 +131,7 @@ local function CreateButton(posY, text, callback)
     return btn
 end
 
--- ==============================================================================
--- BÖLÜM 5: POTATO GRAPHICS VE RESET KORUMASI MOTORU
--- ==============================================================================
+-- 3) POTATO GRAPHICS & RESET KORUMASI
 local function ApplyPotatoGraphics(state)
     pcall(function()
         for _, descendant in ipairs(Workspace:GetDescendants()) do
@@ -178,8 +150,6 @@ end
 
 local function SetupCharacterLifecycle(char)
     State.Mode = "NONE"
-    
-    -- Reset Koruması: Oyun içi diğer sistemlerin sizi öldürmesini engeller
     pcall(function()
         local hum = char:WaitForChild("Humanoid", 5)
         if hum then
@@ -190,8 +160,6 @@ local function SetupCharacterLifecycle(char)
             end
         end
     end)
-
-    -- Base (Spawn) Noktasını Güvenli Kaydetme
     task.spawn(function()
         local hrp = char:WaitForChild("HumanoidRootPart", 10)
         if hrp then 
@@ -203,9 +171,7 @@ end
 if LocalPlayer.Character then SetupCharacterLifecycle(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(SetupCharacterLifecycle)
 
--- ==============================================================================
--- BÖLÜM 6: RARE PET SERVER FINDER PENCERESİ
--- ==============================================================================
+-- 4) RARE PET SERVER FINDER PENCERESİ
 local FinderFrame = Instance.new("Frame", ScreenGui)
 FinderFrame.Size = UDim2.new(0, 260, 0, 230)
 FinderFrame.Position = UDim2.new(0.5, -130, 0.5, -115)
@@ -285,7 +251,6 @@ saCorner.CornerRadius = UDim.new(0, 5)
 local function TriggerServerSearch()
     if State.IsSearchingServers then return end
     State.IsSearchingServers = true
-    
     FinderStatus.Text = "🔎 Durum: Sunucular taranıyor..."
     FinderStatus.TextColor3 = Color3.fromRGB(200, 200, 50)
     FinderPetVal.Text = "🐾 Pet Değeri: Kontrol ediliyor..."
@@ -325,10 +290,7 @@ local function TriggerServerSearch()
     end)
 end
 
-SearchAgainBtn.MouseButton1Click:Connect(function()
-    TriggerServerSearch()
-end)
-
+SearchAgainBtn.MouseButton1Click:Connect(function() TriggerServerSearch() end)
 QuickJoinBtn.MouseButton1Click:Connect(function()
     if State.TargetServerId then
         FinderStatus.Text = "🔄 Katılınıyor..."
@@ -342,9 +304,7 @@ QuickJoinBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ==============================================================================
--- BÖLÜM 7: MENÜ BUTONLARININ YERLEŞTİRİLMESİ
--- ==============================================================================
+-- 5) MENÜ BUTONLARI
 UIButtons.Target = CreateButton(35, "🎯 TAKİP OFF", function()
     State.Mode = (State.Mode == "TARGET" and "NONE" or "TARGET")
     UIButtons.Target.Text = (State.Mode == "TARGET") and "🎯 TAKİP ON" or "🎯 TAKİP OFF"
@@ -390,9 +350,7 @@ end)
 
 UIButtons.FinderToggle = CreateButton(231, "🌐 PET FINDER", function()
     FinderFrame.Visible = not FinderFrame.Visible
-    if FinderFrame.Visible then
-        TriggerServerSearch()
-    end
+    if FinderFrame.Visible then TriggerServerSearch() end
 end)
 
 UIButtons.Aura = CreateButton(259, "⚔️ AURA OFF", function()
@@ -401,7 +359,6 @@ UIButtons.Aura = CreateButton(259, "⚔️ AURA OFF", function()
     UIButtons.Aura.BackgroundColor3 = State.KillAura and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
 end)
 
--- ÖZEL RESET KORUMASINI AŞARAK ÖLDÜREN BUTON
 CreateButton(287, "🔄 RESET", function()
     State.BypassReset = true
     pcall(function() 
@@ -413,9 +370,12 @@ CreateButton(287, "🔄 RESET", function()
     end)
 end)
 
+print("✅ LEA MOD - PART 1 (YÜKLENDİ)")
 -- ==============================================================================
--- BÖLÜM 8: ESP (HIGHLIGHT) SİSTEMİ
+-- LEA MOD ULTIMATE - PART 2 / 2 (PHYSICS, ESP, MOVEMENT & ENGINE LOOPS)
 -- ==============================================================================
+
+-- 1) ESP SİSTEMİ (HIGHLIGHT)
 task.spawn(function()
     while task.wait(0.6) do
         pcall(function()
@@ -441,9 +401,7 @@ task.spawn(function()
     end
 end)
 
--- ==============================================================================
--- BÖLÜM 9: FİZİK VE OYUN MOTORU (NOCLIP, BASE, TARGET, CUBE)
--- ==============================================================================
+-- 2) NOCLIP FİZİK DÖNGÜSÜ
 RunService.Stepped:Connect(function()
     if State.Noclip and LocalPlayer.Character then
         pcall(function()
@@ -456,6 +414,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
+-- 3) ANA HAREKET VE OYUN MANTIĞI DÖNGÜSÜ
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -475,8 +434,6 @@ RunService.Heartbeat:Connect(function(dt)
             else
                 char:PivotTo(CFrame.new(State.SpawnPos))
                 State.Mode = "NONE"
-                UIButtons.Base.Text = "🏠 BASE OFF"
-                UIButtons.Base.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
             end
         end)
 
@@ -487,7 +444,6 @@ RunService.Heartbeat:Connect(function(dt)
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character then
                     local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local eHum = p.Character:FindFirstChildOfClass("Humanoi                    local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
                     local eHum = p.Character:FindFirstChildOfClass("Humanoid")
                     if eHrp and eHum and eHum.Health > 0 then
                         local dist = (eHrp.Position - hrp.Position).Magnitude
@@ -556,5 +512,4 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-print("🚀 LEA MOD ULTIMATE V20.0 - TÜM SİSTEMLER TEK PARÇA EKSİKSİZ YÜKLENDİ!")
-    
+print("🚀 LEA MOD ULTIMATE V20.0 - TÜM SİSTEMLER TAMAMLANDI VE AKTİF!")
