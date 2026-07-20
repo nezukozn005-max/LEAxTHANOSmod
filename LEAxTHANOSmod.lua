@@ -1,10 +1,9 @@
 -- ==============================================================================
--- LEA MOD V16.4 - PART 1 / 2 (BYPASS, CORE & HEARTBEAT ENGINE)
+-- LEA MOD V16.5 - PART 1 / 2 (CORE ENGINE, CUBE & BASE FPS FIX)
 -- ==============================================================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 local function ApplyStrictBypass()
@@ -38,29 +37,39 @@ local UI = {}
 local btnRefs = {}
 
 local function ClearCubes()
-    for _, c in ipairs(State.Cubes) do if c then c:Destroy() end end
+    for _, c in ipairs(State.Cubes) do 
+        if c and c.Parent then c:Destroy() end 
+    end
     State.Cubes = {}
 end
 
-RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function(dt)
     ApplyStrictBypass()
     local char = LocalPlayer.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
+    -- BASE MODU (FPS Düşüşü/Lag Kesin Çözüm)
     if State.Mode == "BASE" and State.SpawnPos then
-        local dir = State.SpawnPos - hrp.Position
-        if dir.Magnitude > 3 then
-            hrp.CFrame = hrp.CFrame + (dir.Unit * math.min(dir.Magnitude, State.Speed * 0.038))
+        local targetCFrame = CFrame.new(State.SpawnPos)
+        local dist = (State.SpawnPos - hrp.Position).Magnitude
+        
+        if dist > 2 then
+            -- Yumuşak taşıma (FPS kilitleyen ağır döngüler kaldırıldı)
+            local moveStep = math.min(dist, State.Speed * dt * 2.5)
+            local dir = (State.SpawnPos - hrp.Position).Unit
+            hrp.CFrame = hrp.CFrame + (dir * moveStep)
             hrp.AssemblyLinearVelocity = Vector3.zero
         else
+            hrp.CFrame = targetCFrame
             hrp.AssemblyLinearVelocity = Vector3.zero
             ClearCubes()
-            hrp.CFrame = CFrame.new(State.SpawnPos)
             State.Mode = "NONE"
-            UI.Update()
+            if UI.Update then UI.Update() end
         end
+
+    -- TARGET (TAKİP) MODU
     elseif State.Mode == "TARGET" then
         local target, minDist = nil, math.huge
         for _, p in ipairs(Players:GetPlayers()) do
@@ -76,7 +85,7 @@ RunService.Heartbeat:Connect(function()
         if target then
             local move = target.Position - hrp.Position
             if move.Magnitude > 4 then
-                hrp.CFrame = hrp.CFrame + (move.Unit * math.min(move.Magnitude, State.Speed * 0.038))
+                hrp.CFrame = hrp.CFrame + (move.Unit * math.min(move.Magnitude, State.Speed * dt * 2.5))
                 hrp.AssemblyLinearVelocity = Vector3.zero
             else
                 hrp.CFrame = CFrame.new(target.Position + Vector3.new(0, 3, 0))
@@ -84,32 +93,48 @@ RunService.Heartbeat:Connect(function()
             end
         else
             State.Mode = "BASE"
-            UI.Update()
+            if UI.Update then UI.Update() end
         end
     end
 
-    if State.Cube and hrp.AssemblyLinearVelocity.Y < -2 and (tick() - State.LastCube > 0.2) then
-        if #State.Cubes >= 8 then 
-            local oldC = table.remove(State.Cubes, 1)
-            if oldC then oldC:Destroy() end 
+    -- CUBE (KÜP) SİSTEMİ (Tamamen Onarıldı)
+    if State.Cube then
+        local velY = hrp.AssemblyLinearVelocity.Y
+        if velY < -1 and (os.clock() - State.LastCube > 0.15) then
+            if #State.Cubes >= 6 then 
+                local oldC = table.remove(State.Cubes, 1)
+                if oldC and oldC.Parent then oldC:Destroy() end 
+            end
+            
+            local cube = Instance.new("Part")
+            cube.Size = Vector3.new(4, 0.5, 4)
+            cube.Position = hrp.Position - Vector3.new(0, 3.2, 0)
+            cube.Anchored = true
+            cube.CanCollide = true
+            cube.Transparency = 0.4
+            cube.Material = Enum.Material.Neon
+            cube.Color = Color3.fromRGB(0, 255, 200)
+            cube.Parent = Workspace
+            
+            table.insert(State.Cubes, cube)
+            State.LastCube = os.clock()
         end
-        local cube = Instance.new("Part")
-        cube.Size = Vector3.new(4, 0.4, 4)
-        cube.Position = hrp.Position - Vector3.new(0, 3, 0)
-        cube.Anchored, cube.CanCollide, cube.Transparency, cube.Material, cube.Color, cube.Parent = true, true, 0.5, Enum.Material.Neon, Color3.fromRGB(0, 255, 200), Workspace
-        table.insert(State.Cubes, cube)
-        State.LastCube = tick()
     end
 
+    -- NOCLIP
     if State.Noclip then
         for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
+            if part:IsA("BasePart") and part.CanCollide then 
+                part.CanCollide = false 
+            end
         end
     end
 end)
 -- ==============================================================================
--- LEA MOD V16.4 - PART 2 / 2 (UI, BUTTONS & CHARACTER HANDLER)
+-- LEA MOD V16.5 - PART 2 / 2 (UI, TOGGLE MENÜ & EKRAN ORTASI BAŞLIK)
 -- ==============================================================================
+
+local isMenuOpen = true
 
 function UI.Update()
     pcall(function()
@@ -117,11 +142,11 @@ function UI.Update()
         
         local isTarget = (State.Mode == "TARGET")
         btnRefs.Target.Text = isTarget and "🎯 TAKİP ON" or "🎯 TAKİP OFF"
-        btnRefs.Target.BackgroundColor3 = isTargetActiveColor(isTarget)
+        btnRefs.Target.BackgroundColor3 = isTarget and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(255, 50, 80)
 
         local isBase = (State.Mode == "BASE")
         btnRefs.Base.Text = isBase and "🏠 BASE ON" or "🏠 BASE OFF"
-        btnRefs.Base.BackgroundColor3 = isBaseActiveColor(isBase)
+        btnRefs.Base.BackgroundColor3 = isBase and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 150, 0)
 
         btnRefs.S16.Text = (State.Speed == 16) and "⚡ HIZ: 16 [ON]" or "⚡ HIZ: 16"
         btnRefs.S16.BackgroundColor3 = (State.Speed == 16) and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(70, 70, 90)
@@ -140,14 +165,6 @@ function UI.Update()
     end)
 end
 
-function isTargetActiveColor(active)
-    return active and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(255, 50, 80)
-end
-
-function isBaseActiveColor(active)
-    return active and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 150, 0)
-end
-
 function UI.Init()
     pcall(function()
         local pg = LocalPlayer:WaitForChild("PlayerGui", 10)
@@ -158,21 +175,37 @@ function UI.Init()
         sg.Name = "LeaModGUI"
         sg.ResetOnSpawn = false
 
+        -- Ekranın Tam Ortasının Üstüne Gelecek Başlık
         local title = Instance.new("TextLabel", sg)
-        title.Size = UDim2.new(0, 240, 0, 15)
-        title.Position = UDim2.new(1, -125, 0, -2)
+        title.Size = UDim2.new(0, 300, 0, 20)
+        title.Position = UDim2.new(0.5, -150, 0, 5)
         title.BackgroundTransparency = 1
-        title.Text = "LEA MOD V16.4 [STABLE]"
+        title.Text = "LEA MOD V16.5 [STABLE]"
         title.TextColor3 = Color3.fromRGB(0, 255, 200)
-        title.TextSize = 10
+        title.TextSize = 14
         title.Font = Enum.Font.GothamBold
         
         local stroke = Instance.new("UIStroke", title)
         stroke.Thickness = 2
+        stroke.Color = Color3.fromRGB(0, 0, 0)
 
+        -- Sağ Üst Menü Aç/Kapat (Toggle) Butonu
+        local toggleBtn = Instance.new("TextButton", sg)
+        toggleBtn.Size = UDim2.new(0, 50, 0, 26)
+        toggleBtn.Position = UDim2.new(1, -60, 0, 10)
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
+        toggleBtn.Text = "LEA"
+        toggleBtn.TextColor3 = Color3.fromRGB(20, 20, 30)
+        toggleBtn.TextSize = 11
+        toggleBtn.Font = Enum.Font.GothamBold
+
+        local toggleCorner = Instance.new("UICorner", toggleBtn)
+        toggleCorner.CornerRadius = UDim.new(0, 6)
+
+        -- Ana Menü Kutusu
         local frame = Instance.new("Frame", sg)
         frame.Size = UDim2.new(0, 115, 0, 260)
-        frame.Position = UDim2.new(1, -125, 0, 14)
+        frame.Position = UDim2.new(1, -125, 0, 42)
         frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
         frame.BackgroundTransparency = 0.25
         frame.BorderSizePixel = 0
@@ -184,6 +217,13 @@ function UI.Init()
         local fstroke = Instance.new("UIStroke", frame)
         fstroke.Color = Color3.fromRGB(0, 255, 200)
         fstroke.Thickness = 1.5
+
+        -- Menü Açma / Kapama Mantığı
+        toggleBtn.MouseButton1Click:Connect(function()
+            isMenuOpen = not isMenuOpen
+            frame.Visible = isMenuOpen
+            toggleBtn.BackgroundColor3 = isMenuOpen and Color3.fromRGB(0, 255, 200) or Color3.fromRGB(255, 50, 80)
+        end)
 
         local function mkBtn(posY, txt, cb)
             local btn = Instance.new("TextButton", frame)
@@ -280,4 +320,5 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(OnCharLoaded)
 
-print("⭐ LEA MOD V16.4 - FULL ÇALIŞAN SÜRÜM YÜKLENDİ!")
+print("⭐ LEA MOD V16.5 - PART 2 TAMAMLANDI VE YÜKLENDİ!")
+
