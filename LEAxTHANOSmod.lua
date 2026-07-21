@@ -97,15 +97,16 @@ local function UpdateCube(RootPart, Humanoid)
 end
 
 -- ==============================================================================
--- 3. RESET & ÖLÜM KORUMASI (STABLE RECOVERY)
+-- 3. RESET KORUMASI VE KARARLILIK SAĞLAYICI (İSTENEN YENİ SİSTEM)
 -- ==============================================================================
-local function SetupResetProtection(char)
-    local humanoid = char:WaitForChild("Humanoid", 5)
+local function SetupResetProtection(newChar)
+    local humanoid = newChar:WaitForChild("Humanoid", 5)
+    
     if humanoid then
-        pcall(function()
-            humanoid.BreakJointsOnDeath = false
-        end)
+        -- Ölüm anında parçaların ayrılmasını engellemeye çalış
+        humanoid.BreakJointsOnDeath = false
         
+        -- Can sıfırlandığında müdahale
         local healthConn = humanoid.HealthChanged:Connect(function(health)
             if health <= 0 then
                 CancelActiveTweens()
@@ -113,9 +114,27 @@ local function SetupResetProtection(char)
                 State.Fly = false
                 State.CubeActive = false
                 ClearCubes()
+                pcall(function()
+                    humanoid.Health = 100
+                end)
             end
         end)
         table.insert(State.Connections, healthConn)
+        
+        -- Periyodik kalkan (ForceField) yenileme döngüsü
+        task.spawn(function()
+            while newChar and newChar.Parent do
+                pcall(function()
+                    local forceField = newChar:FindFirstChildOfClass("ForceField")
+                    if not forceField then
+                        forceField = Instance.new("ForceField")
+                        forceField.Parent = newChar
+                    end
+                    forceField.Visible = false -- Görünmez yap
+                end)
+                task.wait(0.5)
+            end
+        end)
     end
 end
 
@@ -125,7 +144,41 @@ end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
 
 -- ==============================================================================
--- 4. MOBİL UYUMLU ARAYÜZ (GUI - Genişletilmiş Ölçü: 125x170)
+-- 4. SERBEST HAREKET (SÜZÜLME / UÇMA) MANTIĞI (İSTENEN YENİ SİSTEM)
+-- ==============================================================================
+local function StopFly(humanoid, rootPart)
+    if humanoid then
+        humanoid.PlatformStand = false
+        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+    if rootPart then
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+    end
+end
+
+local function UpdateFly(humanoid, rootPart)
+    if not State.Fly or not rootPart or not humanoid then return end
+
+    humanoid.PlatformStand = true
+    local cam = Workspace.CurrentCamera
+    local moveDir = humanoid.MoveDirection
+
+    if moveDir.Magnitude > 0 then
+        local camCFrame = cam.CFrame
+        -- Kamera açısına göre yatay/dikey hareket vektörünün hesaplanması
+        local targetDir = (camCFrame.RightVector * moveDir.X) + (camCFrame.LookVector * moveDir.Z)
+        
+        if targetDir.Magnitude > 0 then
+            rootPart.AssemblyLinearVelocity = targetDir.Unit * State.FlySpeed
+        end
+    else
+        -- Girdi kesildiğinde kaymayı önlemek için hızı anında sıfırlama
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+    end
+end
+
+-- ==============================================================================
+-- 5. MOBİL UYUMLU ARAYÜZ (GUI - Genişletilmiş Ölçü: 125x170)
 -- ==============================================================================
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
@@ -250,7 +303,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==============================================================================
--- 5. BUTONLAR VE HAREKET KONTROLÜ (ÇAKIŞMA ÖNLEYİCİ MİMARİ)
+-- 6. BUTONLAR VE HAREKET KONTROLÜ (ÇAKIŞMA ÖNLEYİCİ MİMARİ)
 -- ==============================================================================
 local FlyButtonRef, NoclipButtonRef
 
@@ -313,28 +366,21 @@ end
 
 State.TweenStorage.SafeMoveTo = SafeMoveTo
 
--- Menü Butonları (Fly ve Noclip Çakışma Koruması Entegre Edildi)
+-- Menü Butonları (Fly ve Noclip Bağımsız Hale Getirildi)
 FlyButtonRef = CreateMenuButton(1, "🚀 FLY OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
-    if on and State.Noclip then
-        State.Noclip = false
-        if NoclipButtonRef then
-            NoclipButtonRef.Text = "🛡️ NOCLIP OFF"
-            TweenService:Create(NoclipButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(65, 35, 35)}):Play()
-        end
-    end
     State.Fly = on
     btn.Text = on and "🚀 FLY ON" or "🚀 FLY OFF"
-    if on then State.Mode = "NONE" end
+    if on then
+        State.Mode = "NONE"
+    else
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        StopFly(hum, hrp)
+    end
 end)
 
 NoclipButtonRef = CreateMenuButton(2, "🛡️ NOCLIP OFF", Color3.fromRGB(65, 35, 35), Color3.fromRGB(0, 180, 90), function(on, btn)
-    if on and State.Fly then
-        State.Fly = false
-        if FlyButtonRef then
-            FlyButtonRef.Text = "🚀 FLY OFF"
-            TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
-        end
-    end
     State.Noclip = on
     btn.Text = on and "🛡️ NOCLIP ON" or "🛡️ NOCLIP OFF"
 end)
@@ -353,6 +399,8 @@ CreateMenuButton(4, "🏠 BASE OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(
             FlyButtonRef.Text = "🚀 FLY OFF"
             TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
         end
+        local char = LocalPlayer.Character
+        StopFly(char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart"))
     else
         State.Mode = "NONE"
         CancelActiveTweens()
@@ -368,6 +416,8 @@ CreateMenuButton(5, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRG
             FlyButtonRef.Text = "🚀 FLY OFF"
             TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
         end
+        local char = LocalPlayer.Character
+        StopFly(char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart"))
     else
         State.Mode = "NONE"
         CancelActiveTweens()
@@ -382,9 +432,11 @@ CreateActionItem(6, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
         FlyButtonRef.Text = "🚀 FLY OFF"
         TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
     end
-    CancelActiveTweens()
     local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    StopFly(hum, hrp)
+    CancelActiveTweens()
     if hrp then
         local raycastParams = RaycastParams.new()
         raycastParams.FilterDescendantsInstances = {char}
@@ -440,12 +492,12 @@ CreateActionItem(10, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
 end)
 
 -- ==============================================================================
--- 6. MOTOR & FİZİK DÖNGÜLERİ (STABLE HEARTBEAT)
+-- 7. MOTOR & FİZİK DÖNGÜLERİ (STABLE HEARTBEAT)
 -- ==============================================================================
 
--- Noclip (Fly ile çakışmayı önleyen korumalı yapı)
+-- Noclip (Tamamen bağımsız çalışma mantığı)
 table.insert(State.Connections, RunService.Stepped:Connect(function()
-    if State.Noclip and not State.Fly and LocalPlayer.Character then
+    if State.Noclip and LocalPlayer.Character then
         pcall(function()
             for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") and part.CanCollide then
@@ -512,21 +564,10 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         hum.WalkSpeed = State.Speed
     end
 
-    -- Uçuş Mekaniği
+    -- Yeni Süzülme / Uçuş Mekaniği
     if State.Fly then
-        hum.PlatformStand = true
-        local moveDir = hum.MoveDirection
-        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        
-        if moveDir.Magnitude > 0 then
-            local targetDir = (Camera.CFrame.RightVector * moveDir.X) + (Camera.CFrame.LookVector * -moveDir.Z)
-            hrp.CFrame = hrp.CFrame + (targetDir.Unit * (State.FlySpeed * dt))
-        end
+        UpdateFly(hum, hrp)
         return
-    else
-        if hum.PlatformStand and State.Mode == "NONE" then
-            hum.PlatformStand = false
-        end
     end
 
     -- Base Takip Sistemi
@@ -542,7 +583,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-        -- Target / Aura Takip Sistemi
+    -- Target / Aura Takip Sistemi
     if State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -576,5 +617,3 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
 end))
 
 print("✅ [LEA V43.0]: STABLE OPTIMIZED CUBE EDITION BAŞARIYLA YÜKLENDİ!")
-
-    
