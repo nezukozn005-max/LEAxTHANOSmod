@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- LEA MOD - ULTIMATE CONSOLIDATED EDITION (100% WORKING MOBILE BUILD)
--- Version: 7.0.0-PROD
+-- Version: 7.1.0-PROD
 -- Author: Axiom
 -- ==============================================================================
 
@@ -28,6 +28,7 @@ Lea.Modules = {
 Lea.Settings = {
     FlySpeed = 21,
     FollowSpeed = 25,
+    BaseReturnSpeed = 28, -- ⚡ Baseye dönüş hızı ufakça artırıldı
     MedusaRange = 15
 }
 
@@ -204,7 +205,7 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    -- Baseye Dönüş Mantığı
+    -- Baseye Dönüş Mantığı (Ayarlanmış İdeal Hız)
     if Lea.IsReturning and Lea.BasePosition then
         hum.PlatformStand = true
         local targetPos = Lea.BasePosition + Vector3.new(0, 5, 0)
@@ -217,7 +218,7 @@ RunService.Heartbeat:Connect(function(dt)
             GroundToFloor()
             print("✅ Base'e varıldı.")
         else
-            hrp.AssemblyLinearVelocity = (targetPos - currentPos).Unit * 23
+            hrp.AssemblyLinearVelocity = (targetPos - currentPos).Unit * Lea.Settings.BaseReturnSpeed
             hrp.CFrame = CFrame.lookAt(currentPos, targetPos)
         end
         return
