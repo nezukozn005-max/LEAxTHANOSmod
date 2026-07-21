@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V25.0 (PART 1 / 2)
+-- LEA MOD ULTIMATE V28.0 (PART 1 / 2 - KALICI ARKA PLAN RESET KORUMASI)
 -- ==============================================================================
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -16,7 +16,7 @@ local LocalPlayer = Players.LocalPlayer
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
         Mode = "NONE",
-        Speed = 22,
+        Speed = 24,
         SpawnPos = nil,
         Cube = false,
         Cubes = {},
@@ -26,16 +26,12 @@ if not getgenv().LeaModGlobalState then
         Visuals = false,
         Invisible = false,
         HitboxAura = false,
-        AntiReset = true,
-        AntiKickBypass = true,
+        -- Reset Koruması buton olmaktan tamamen çıkarıldı, her zaman otomatik ve aktif!
         AntiGeriatma = true,
         CubeAntiDetect = true,
         CurrentLevel = 1,
         SessionTime = os.time(),
-        CustomTheme = "CyberpunkEliteV25",
-        TelemetryActive = true,
-        SafeZoneRadius = 8000,
-        HopSpeed = "InstantFlash"
+        SafeZoneRadius = 10000
     }
 end
 
@@ -61,7 +57,7 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GetGuiParent()
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 245, 0, 320) 
+MainFrame.Size = UDim2.new(0, 245, 0, 310) 
 MainFrame.Position = UDim2.new(1, -260, 0.35, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
 MainFrame.BackgroundTransparency = 0.05
@@ -79,7 +75,7 @@ local HeaderTitle = Instance.new("TextLabel", MainFrame)
 HeaderTitle.Size = UDim2.new(1, 0, 0, 28)
 HeaderTitle.Position = UDim2.new(0, 0, 0, 2)
 HeaderTitle.BackgroundTransparency = 1
-HeaderTitle.Text = "LEA MOD ULTIMATE V25.0"
+HeaderTitle.Text = "LEA MOD ULTIMATE V28.0"
 HeaderTitle.TextColor3 = Color3.fromRGB(0, 255, 200)
 HeaderTitle.TextSize = 11
 HeaderTitle.Font = Enum.Font.GothamBold
@@ -187,7 +183,7 @@ local function HandlePelerinInvisible(enabled)
     end)
 end
 
--- STATS SYNCHRONIZER SUBSYSTEM
+-- STATS SYNCHRONIZER
 local function SyncRealLevel()
     pcall(function()
         local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
@@ -198,24 +194,22 @@ local function SyncRealLevel()
     end)
 end
 
--- CHARACTER LIFECYCLE & BULLETPROOF ANTI-RESET SUBSYSTEM
+-- SÜREKLİ VE ZORUNLU ARKA PLAN RESET KORUMASI (BUTONSUZ & KAPATıLAMAZ)
 local function SetupCharacterLifecycle(char)
     pcall(function()
         local hum = char:WaitForChild("Humanoid", 5)
         if hum then
-            hum.Died:Connect(function()
-                if State.AntiReset then
-                    task.wait(0.01)
+            -- Can sıfırlanmak istediğinde kesinlikle engelle ve fulle
+            hum:GetPropertyChangedSignal("Health"):Connect(function()
+                if hum.Health < 5 then
+                    hum.Health = hum.MaxHealth
                 end
             end)
             
-            hum:GetPropertyChangedSignal("Health"):Connect(function()
-                if State.AntiReset and hum.Health <= 0 then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp and State.SpawnPos and (hrp.Position - State.SpawnPos).Magnitude < State.SafeZoneRadius then
-                        hum.Health = hum.MaxHealth * 0.7
-                    end
-                end
+            -- Ölüm olayını tamamen iptal et
+            hum.BreakJointsOnDeath = false
+            hum.Died:Connect(function()
+                hum.Health = hum.MaxHealth
             end)
         end
     end)
@@ -294,20 +288,14 @@ SpeedLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
 SpeedLbl.TextSize = 10
 SpeedLbl.Font = Enum.Font.GothamSemibold
 
-CreateGridButton(10, 176, 52, 24, "-5 Hız", function()
-    State.Speed = math.clamp(State.Speed - 5, 16, 110)
+CreateGridButton(10, 176, 108, 24, "-5 Hız", function()
+    State.Speed = math.clamp(State.Speed - 5, 16, 120)
     SpeedLbl.Text = "Hız Değeri: " .. State.Speed
 end)
 
-CreateGridButton(66, 176, 52, 24, "+5 Hız", function()
-    State.Speed = math.clamp(State.Speed + 5, 16, 110)
+CreateGridButton(124, 176, 108, 24, "+5 Hız", function()
+    State.Speed = math.clamp(State.Speed + 5, 16, 120)
     SpeedLbl.Text = "Hız Değeri: " .. State.Speed
-end)
-
-UIButtons.AntiResetBtn = CreateGridButton(122, 176, 110, 24, "♻️ RESET KOR. ON", function()
-    State.AntiReset = not State.AntiReset
-    UIButtons.AntiResetBtn.Text = State.AntiReset and "♻️ RESET KOR. ON" or "♻️ RESET KOR. OFF"
-    UIButtons.AntiResetBtn.BackgroundColor3 = State.AntiReset and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(255, 50, 80)
 end)
 
 CreateGridButton(10, 206, 222, 28, "⚡ FLASH SUNUCU DEĞİŞ (HOP)", function()
@@ -318,7 +306,7 @@ local StatusBanner = Instance.new("TextLabel", MainFrame)
 StatusBanner.Size = UDim2.new(0, 222, 0, 22)
 StatusBanner.Position = UDim2.new(0, 10, 0, 240)
 StatusBanner.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-StatusBanner.Text = "🛡️ ANTI-KICK & ANTI-DETECT: ACTIVE"
+StatusBanner.Text = "🛡️ RESET KORUMASI: HER ZAMAN AKTİF"
 StatusBanner.TextColor3 = Color3.fromRGB(0, 255, 200)
 StatusBanner.TextSize = 8.5
 StatusBanner.Font = Enum.Font.GothamBold
@@ -327,14 +315,14 @@ StatusCorner.CornerRadius = UDim.new(0, 4)
 
 local CreditLbl = Instance.new("TextLabel", MainFrame)
 CreditLbl.Size = UDim2.new(1, 0, 0, 20)
-CreditLbl.Position = UDim2.new(0, 0, 0, 290)
+CreditLbl.Position = UDim2.new(0, 0, 0, 285)
 CreditLbl.BackgroundTransparency = 1
-CreditLbl.Text = "LEA MOD ULTIMATE • V25.0 ELITE ENGINE"
+CreditLbl.Text = "LEA MOD ULTIMATE • V28.0 ELITE ENGINE"
 CreditLbl.TextColor3 = Color3.fromRGB(120, 120, 150)
 CreditLbl.TextSize = 8
 CreditLbl.Font = Enum.Font.Gotham
 -- ==============================================================================
--- LEA MOD ULTIMATE V25.0 (PART 2 / 2 - DEVAM)
+-- LEA MOD ULTIMATE V28.0 (PART 2 / 2 - DEVAM)
 -- ==============================================================================
 
 -- DUVARLAR VE BİNALAR ŞEFFAFLIK MOTORU (Lazerler Hariç)
@@ -400,7 +388,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ANA FİZİK, ANTI-GERIATMA, ANTI-KICK, CUBE ANTI-DETECT & PET SYNC DÖNGÜSÜ
+-- HIZ SABİTLEME VE FİZİK DÖNGÜSÜ
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -408,19 +396,21 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    -- 1. GELİŞMİŞ ANTI-GERIATMA / VELOCITY CLAMP FİLTRESİ
+    -- HIZIN DÜŞMESİNİ KESİN OLARAK ENGELLE
+    if hum.WalkSpeed ~= State.Speed then
+        hum.WalkSpeed = State.Speed
+    end
+
+    -- ANTI-GERIATMA / VELOCITY CLAMP FİLTRESİ
     if State.AntiGeriatma then
         pcall(function()
-            if hrp.AssemblyLinearVelocity.Magnitude > 160 then
+            if hrp.AssemblyLinearVelocity.Magnitude > 180 then
                 hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             end
         end)
     end
 
-    -- 2. HIZ SABİTLEME
-    hum.WalkSpeed = State.Speed
-
-    -- 3. PET / ÇALINAN OBJE YER İÇİNE GİRME FİX
+    -- PET / ÇALINAN OBJE YER İÇİNE GİRME FIX
     pcall(function()
         for _, joint in ipairs(char:GetDescendants()) do
             if joint:IsA("Weld") or joint:IsA("Motor6D") then
@@ -436,7 +426,7 @@ RunService.Heartbeat:Connect(function(dt)
 
     if State.Invisible then HandlePelerinInvisible(true) end
 
-    -- 4. BASE DÖNÜŞ MOTORU
+    -- 1. BASE DÖNÜŞ MOTORU
     if State.Mode == "BASE" and State.SpawnPos then
         pcall(function()
             local dist = (State.SpawnPos - hrp.Position).Magnitude
@@ -451,7 +441,7 @@ RunService.Heartbeat:Connect(function(dt)
             end
         end)
     
-    -- 5. HEDEF (TARGET) TAKİP MOTORU
+    -- 2. HEDEF (TARGET) TAKİP MOTORU
     elseif State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -483,7 +473,7 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- 6. SOPA / HITBOX AURA MOTORU
+    -- 3. SOPA / HITBOX AURA MOTORU
     if State.HitboxAura then
         pcall(function()
             local tool = char:FindFirstChildOfClass("Tool")
@@ -520,7 +510,7 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- 7. OTOMATİK KORUMA (AUTO AVOID)
+    -- 4. OTOMATİK KORUMA (AUTO AVOID)
     if State.AutoAvoid and State.Mode == "NONE" then
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
@@ -537,7 +527,7 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- 8. CUBE (KÜP OLUŞTURMA & ANTI-DETECT BYPASS)
+    -- 5. CUBE (KÜP OLUŞTURMA & ANTI-DETECT BYPASS)
     if State.Cube then
         pcall(function()
             if hrp.Velocity.Y < -1.5 and (os.clock() - State.LastCube > 0.15) then
@@ -554,7 +544,6 @@ RunService.Heartbeat:Connect(function(dt)
                 cube.Material = Enum.Material.Neon
                 cube.Color = Color3.fromRGB(0, 255, 200)
                 
-                -- Anti-Detect: Sunucu tarama algoritmalarından gizleme
                 if State.CubeAntiDetect then
                     cube.CollisionGroup = "Default"
                     cube:SetAttribute("IsLeaModShield", true)
@@ -568,5 +557,5 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-print("✅ LEA MOD ULTIMATE V25.0 - TAMAMLANDI!")
+print("✅ LEA MOD ULTIMATE V28.0 - KALICI ARKA PLAN RESET KORUMASI AKTİF!")
 
