@@ -1,483 +1,223 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V43.0 - STABLE OPTIMIZED EDITION
+-- LEA MOD - TACTICAL (FLY, CUBE, BASE & FOLLOW SYSTEM)
 -- ==============================================================================
+
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/Fluent.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "LEA MOD - TACTICAL",
+    SubTitle = "Base, Follow, Fly & Cube System",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Takip & Base", Icon = "navigation" }),
+    Settings = Window:AddTab({ Title = "Ayarlar", Icon = "settings" })
+}
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V43.0]: STABLE OPTIMIZED BAŞLATILIYOR...")
-
 -- ==============================================================================
--- 1. SETTINGS & GLOBAL STATE (MERKEZİ DURUM YÖNETİMİ)
+-- DURUM DEĞİŞKENLERİ VE KONTROL SİSTEMİ
 -- ==============================================================================
-if not getgenv().LeaModGlobalState then
-    getgenv().LeaModGlobalState = {
-        Version = "43.0-OPTIMIZED",
-        Mode = "NONE",          -- "NONE", "BASE", "TARGET"
-        Speed = 16,             -- Güvenli taban hız
-        MoveSpeedIndex = 1,     -- 1: 16, 2: 18, 3: 20
-        SpawnPos = nil,
-        Fly = false,
-        FlySpeed = 35,
-        Noclip = false,
-        Visuals = false,
-        CubeActive = false,
-        CubePart = nil,
-        ThemeColor = Color3.fromRGB(0, 255, 200),
-        Connections = {},
-        TweenStorage = {},
-        EspActive = false,
-        ReturnSpeedIndex = 2    -- 1: Yavaş (25), 2: Normal (30), 3: Hızlı (45)
-    }
-end
-local State = getgenv().LeaModGlobalState
+local FlyEnabled = false
+local FlySpeed = 35
 
--- Önceki bağlantıları güvenli bir şekilde temizle
-for _, conn in ipairs(State.Connections) do
-    pcall(function() conn:Disconnect() end)
-end
-State.Connections = {}
-State.EspActive = false
+local SavedBasePosition = nil
 
-local function CancelActiveTweens()
-    if State.TweenStorage.ActiveTween then
-        State.TweenStorage.ActiveTween:Cancel()
-        State.TweenStorage.ActiveTween = nil
+local SelectedPlayerName = ""
+local TargetPlayer = nil
+local FollowEnabled = false
+
+-- ============================================
+-- CUBE SİSTEMİ (İSTENEN ÖZEL KOD BLOKU)
+-- ============================================
+local CubeActive = false
+local CubeList = {}
+local LastCubeTime = 0
+
+local function ClearCubes()
+    for _, v in ipairs(CubeList) do
+        if v and v.Parent then pcall(function() v:Destroy() end) end
+    end
+    CubeList = {}
+end
+
+local function CreateCube(pos)
+    if #CubeList > 15 then
+        local old = table.remove(CubeList, 1)
+        if old and old.Parent then pcall(function() old:Destroy() end) end
+    end
+
+    local cube = Instance.new("Part")
+    cube.Size = Vector3.new(4, 0.5, 4)
+    cube.Position = pos
+    cube.Anchored = true
+    cube.CanCollide = true
+    cube.Transparency = 0.8
+    cube.Material = Enum.Material.SmoothPlastic
+    cube.Color = Color3.fromRGB(0, 170, 255)
+    cube.Parent = Workspace
+    table.insert(CubeList, cube)
+end
+
+local function UpdateCube(RootPart, Humanoid)
+    if not CubeActive or not RootPart or not Humanoid then return end
+    local now = tick()
+
+    if RootPart.AssemblyLinearVelocity.Y < -5 and (now - LastCubeTime > 0.3) then
+        CreateCube(RootPart.Position - Vector3.new(0, 3, 0))
+        LastCubeTime = now
+    end
+
+    if RootPart.AssemblyLinearVelocity.Magnitude > 2 and (now - LastCubeTime > 0.3) then
+        local dir = RootPart.CFrame.LookVector
+        CreateCube(RootPart.Position + Vector3.new(dir.X * 3, -2.5, dir.Z * 3))
+        LastCubeTime = now
     end
 end
 
 -- ==============================================================================
--- 2. RESET & ÖLÜM KORUMASI (STABLE RECOVERY)
+-- ARAYÜZ (FLUENT) BİLEŞENLERİ
 -- ==============================================================================
-local function SetupResetProtection(char)
-    local humanoid = char:WaitForChild("Humanoid", 5)
-    if humanoid then
-        pcall(function()
-            humanoid.BreakJointsOnDeath = false
-        end)
-        
-        local healthConn = humanoid.HealthChanged:Connect(function(health)
-            if health <= 0 then
-                CancelActiveTweens()
-                State.Mode = "NONE"
-                State.Fly = false
-                if State.CubePart then
-                    pcall(function() State.CubePart:Destroy() end)
-                    State.CubePart = nil
-                end
-                State.CubeActive = false
+
+-- 1. UÇUŞ (FLY) SİSTEMİ
+Tabs.Main:AddToggle("FlyToggle", {
+    Title = "Uçuş (Fly)",
+    Description = "Havada serbest hareket et",
+    Default = false,
+    Callback = function(Value)
+        FlyEnabled = Value
+        if Value then
+            FollowEnabled = false -- Çakışma önleyici
+        end
+    end
+})
+
+Tabs.Main:AddSlider("FlySpeedSlider", {
+    Title = "Uçuş Hızı",
+    Description = "Uçarken hareket hızını ayarla",
+    Default = 35,
+    Min = 10,
+    Max = 100,
+    Rounding = 1,
+    Callback = function(Value)
+        FlySpeed = Value
+    end
+})
+
+-- 2. CUBE SİSTEMİ TOGGLE
+Tabs.Main:AddToggle("CubeToggle", {
+    Title = "Cube Sistemi (Platform)",
+    Description = "Hareket ederken altına geçici platformlar oluşturur",
+    Default = false,
+    Callback = function(Value)
+        CubeActive = Value
+        if not Value then
+            ClearCubes()
+        end
+    end
+})
+
+-- 3. BASE SİSTEMİ
+Tabs.Main:AddButton({
+    Title = "Bulunduğun Yeri Base Yap",
+    Description = "Şu anki durduğun konumu base olarak kaydeder",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            SavedBasePosition = char.HumanoidRootPart.CFrame
+            Fluent:Notify({
+                Title = "Base Kaydedildi",
+                Content = "Mevcut konumunuz başarıyla base olarak ayarlandı!",
+                Duration = 4
+            })
+        end
+    end
+})
+
+Tabs.Main:AddButton({
+    Title = "Base'e Dön / Işınlan",
+    Description = "Kaydettiğiniz base konumuna anında ışınlar",
+    Callback = function()
+        if SavedBasePosition then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = SavedBasePosition
+                Fluent:Notify({
+                    Title = "Base'e Dönüldü",
+                    Content = "Başarıyla kaydedilen base konumuna ışınlandınız.",
+                    Duration = 3
+                })
             end
-        end)
-        table.insert(State.Connections, healthConn)
-    end
-end
-
-if LocalPlayer.Character then
-    task.spawn(function() SetupResetProtection(LocalPlayer.Character) end)
-end
-table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
-
--- ==============================================================================
--- 3. MİKRO KÜP SİSTEMİ (ÇARPIŞMASIZ / GERİ TEPME YAPMAYAN YAPI)
--- ==============================================================================
-local function ToggleCube(on)
-    State.CubeActive = on
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    
-    if on and hrp then
-        if not State.CubePart or not State.CubePart.Parent then
-            local cube = Instance.new("Part")
-            cube.Name = "LeaPlatformCube"
-            cube.Size = Vector3.new(1.5, 0.2, 1.5)
-            cube.Position = hrp.Position - Vector3.new(0, 3.2, 0)
-            cube.Anchored = true
-            cube.CanCollide = false
-            cube.Massless = true
-            cube.Material = Enum.Material.Neon
-            cube.Color = State.ThemeColor
-            cube.Transparency = 0.4
-            
-            local mesh = Instance.new("SpecialMesh", cube)
-            mesh.MeshType = Enum.MeshType.Brick
-            cube.Parent = Workspace
-            State.CubePart = cube
-        end
-    else
-        if State.CubePart then
-            pcall(function() State.CubePart:Destroy() end)
-            State.CubePart = nil
+        else
+            Fluent:Notify({
+                Title = "Hata",
+                Content = "Önce bir base konumu kaydetmelisiniz!",
+                Duration = 3
+            })
         end
     end
-end
+})
 
--- ==============================================================================
--- 4. MOBİL UYUMLU ARAYÜZ (GUI - Genişletilmiş Ölçü: 125x170)
--- ==============================================================================
-local function GetGuiParent()
-    local success, parent = pcall(function() return CoreGui end)
-    if success and parent then return parent end
-    return LocalPlayer:WaitForChild("PlayerGui", 5)
-end
-
-pcall(function()
-    local parentObj = GetGuiParent()
-    if parentObj then
-        local existing = parentObj:FindFirstChild("LeaModMegaGUI")
-        if existing then existing:Destroy() end
-    end
-end)
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LeaModMegaGUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = GetGuiParent()
-
-local ActiveWatermark = Instance.new("TextLabel", ScreenGui)
-ActiveWatermark.Name = "LeaActiveWatermark"
-ActiveWatermark.Size = UDim2.new(0, 180, 0, 20)
-ActiveWatermark.Position = UDim2.new(0.5, -90, 0.16, -10)
-ActiveWatermark.BackgroundTransparency = 1
-ActiveWatermark.Text = "⚡ LEA V43 ACTIVE ⚡"
-ActiveWatermark.TextColor3 = State.ThemeColor
-ActiveWatermark.TextSize = 10
-ActiveWatermark.Font = Enum.Font.GothamBlack
-ActiveWatermark.Visible = false
-ActiveWatermark.TextStrokeTransparency = 0.3
-ActiveWatermark.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-
--- Genişletilmiş Ana Panel (125x170)
-local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 125, 0, 170)
-MainContainer.Position = UDim2.new(0.5, -62, 0.5, -85)
-MainContainer.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
-MainContainer.BackgroundTransparency = 0.05
-MainContainer.BorderSizePixel = 0
-MainContainer.Active = true
-MainContainer.Draggable = true
-
-local MainCorner = Instance.new("UICorner", MainContainer)
-MainCorner.CornerRadius = UDim.new(0, 5)
-
-local MainStroke = Instance.new("UIStroke", MainContainer)
-MainStroke.Color = State.ThemeColor
-MainStroke.Thickness = 1
-MainStroke.Transparency = 0.15
-
-local HeaderFrame = Instance.new("Frame", MainContainer)
-HeaderFrame.Size = UDim2.new(1, 0, 0, 18)
-HeaderFrame.BackgroundColor3 = Color3.fromRGB(3, 3, 6)
-HeaderFrame.BorderSizePixel = 0
-
-local HeaderCorner = Instance.new("UICorner", HeaderFrame)
-HeaderCorner.CornerRadius = UDim.new(0, 5)
-
-local TitleLabel = Instance.new("TextLabel", HeaderFrame)
-TitleLabel.Size = UDim2.new(1, -18, 1, 0)
-TitleLabel.Position = UDim2.new(0, 4, 0, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA V43"
-TitleLabel.TextColor3 = State.ThemeColor
-TitleLabel.TextSize = 8
-TitleLabel.Font = Enum.Font.GothamBlack
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local CloseButton = Instance.new("TextButton", HeaderFrame)
-CloseButton.Size = UDim2.new(0, 14, 0, 14)
-CloseButton.Position = UDim2.new(1, -16, 0, 2)
-CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.Font = Enum.Font.GothamBold
-CloseButton.TextSize = 7
-
-local CloseCorner = Instance.new("UICorner", CloseButton)
-CloseCorner.CornerRadius = UDim.new(0, 3)
-
-local ScrollContainer = Instance.new("ScrollingFrame", MainContainer)
-ScrollContainer.Size = UDim2.new(1, -6, 1, -22)
-ScrollContainer.Position = UDim2.new(0, 3, 0, 20)
-ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.ScrollBarThickness = 2
-ScrollContainer.ScrollBarImageColor3 = State.ThemeColor
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 215)
-
-local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
-ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ButtonListLayout.Padding = UDim.new(0, 3)
-ButtonListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 28, 0, 28)
-ToggleBtn.Position = UDim2.new(1, -34, 0.5, -14)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
-ToggleBtn.Text = "LEA"
-ToggleBtn.TextColor3 = State.ThemeColor
-ToggleBtn.TextSize = 8
-ToggleBtn.Font = Enum.Font.GothamBlack
-ToggleBtn.Visible = false
-
-local ToggleCorner = Instance.new("UICorner", ToggleBtn)
-ToggleCorner.CornerRadius = UDim.new(1, 0)
-local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
-ToggleStroke.Color = State.ThemeColor
-ToggleStroke.Thickness = 1
-
-CloseButton.MouseButton1Click:Connect(function()
-    MainContainer.Visible = false
-    ToggleBtn.Visible = true
-    ActiveWatermark.Visible = true
-end)
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    MainContainer.Visible = true
-    ToggleBtn.Visible = false
-    ActiveWatermark.Visible = false
-end)
-
--- ==============================================================================
--- 5. BUTONLAR VE HAREKET KONTROLÜ (ÇAKIŞMA ÖNLEYİCİ MİMARİ)
--- ==============================================================================
-local FlyButtonRef, NoclipButtonRef
-
-local function CreateMenuButton(order, text, defaultColor, activeColor, callback)
-    local btn = Instance.new("TextButton", ScrollContainer)
-    btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -2, 0, 19)
-    btn.BackgroundColor3 = defaultColor
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 7.5
-    btn.Font = Enum.Font.GothamBold
-    btn.AutoButtonColor = false
-    
-    local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 4)
-    
-    local active = false
-    btn.MouseButton1Click:Connect(function()
-        active = not active
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = active and activeColor or defaultColor}):Play()
-        pcall(function() callback(active, btn) end)
-    end)
-    return btn
-end
-
-local function CreateActionItem(order, text, color, callback)
-    local btn = Instance.new("TextButton", ScrollContainer)
-    btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -2, 0, 19)
-    btn.BackgroundColor3 = color
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 7.5
-    btn.Font = Enum.Font.GothamBold
-    
-    local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 4)
-    
-    btn.MouseButton1Click:Connect(function() pcall(callback) end)
-    return btn
-end
-
-local function SafeMoveTo(targetPosition, timeToArrive)
-    CancelActiveTweens()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local returnSpeeds = {25, 30, 45}
-        local activeSpeed = returnSpeeds[State.ReturnSpeedIndex] or 30
-        local dist = (targetPosition.Position - hrp.Position).Magnitude
-        local adjustedTime = math.max(dist / activeSpeed, 0.2)
-        
-        local tweenInfo = TweenInfo.new(adjustedTime, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
-        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetPosition})
-        State.TweenStorage.ActiveTween = tween
-        tween:Play()
+-- 4. OYUNCU LİSTESİ VE TAKİP SİSTEMİ
+local PlayerList = {}
+for _, p in pairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        table.insert(PlayerList, p.Name)
     end
 end
 
-State.TweenStorage.SafeMoveTo = SafeMoveTo
-
--- Menü Butonları (Fly ve Noclip Çakışma Koruması Entegre Edildi)
-FlyButtonRef = CreateMenuButton(1, "🚀 FLY OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
-    if on and State.Noclip then
-        State.Noclip = false
-        if NoclipButtonRef then
-            NoclipButtonRef.Text = "🛡️ NOCLIP OFF"
-            TweenService:Create(NoclipButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(65, 35, 35)}):Play()
-        end
+Players.PlayerAdded:Connect(function(p)
+    if p ~= LocalPlayer then
+        table.insert(PlayerList, p.Name)
     end
-    State.Fly = on
-    btn.Text = on and "🚀 FLY ON" or "🚀 FLY OFF"
-    if on then State.Mode = "NONE" end
 end)
 
-NoclipButtonRef = CreateMenuButton(2, "🛡️ NOCLIP OFF", Color3.fromRGB(65, 35, 35), Color3.fromRGB(0, 180, 90), function(on, btn)
-    if on and State.Fly then
-        State.Fly = false
-        if FlyButtonRef then
-            FlyButtonRef.Text = "🚀 FLY OFF"
-            TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
-        end
-    end
-    State.Noclip = on
-    btn.Text = on and "🛡️ NOCLIP ON" or "🛡️ NOCLIP OFF"
-end)
-
-CreateMenuButton(3, "🧊 CUBE OFF", Color3.fromRGB(35, 55, 55), Color3.fromRGB(0, 180, 90), function(on, btn)
-    ToggleCube(on)
-    btn.Text = on and "🧊 CUBE ON" or "🧊 CUBE OFF"
-end)
-
-CreateMenuButton(4, "🏠 BASE OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(0, 180, 90), function(on, btn)
-    if on then
-        State.Mode = "BASE"
-        State.Fly = false
-        if FlyButtonRef then
-            FlyButtonRef.Text = "🚀 FLY OFF"
-            TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
-        end
-    else
-        State.Mode = "NONE"
-        CancelActiveTweens()
-    end
-    btn.Text = on and "🏠 BASE ON" or "🏠 BASE OFF"
-end)
-
-CreateMenuButton(5, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRGB(0, 180, 90), function(on, btn)
-    if on then
-        State.Mode = "TARGET"
-        State.Fly = false
-        if FlyButtonRef then
-            FlyButtonRef.Text = "🚀 FLY OFF"
-            TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
-        end
-    else
-        State.Mode = "NONE"
-        CancelActiveTweens()
-    end
-    btn.Text = on and "🎯 TARGET ON" or "🎯 TARGET OFF"
-end)
-
-CreateActionItem(6, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
-    State.Mode = "NONE"
-    State.Fly = false
-    if FlyButtonRef then
-        FlyButtonRef.Text = "🚀 FLY OFF"
-        TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
-    end
-    CancelActiveTweens()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {char}
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        
-        local result = Workspace:Raycast(hrp.Position, Vector3.new(0, -500, 0), raycastParams)
-        if result then
-            hrp.CFrame = CFrame.new(result.Position + Vector3.new(0, 3, 0))
+Players.PlayerRemoving:Connect(function(p)
+    for i, name in ipairs(PlayerList) do
+        if name == p.Name then
+            table.remove(PlayerList, i)
         end
     end
 end)
 
-CreateMenuButton(7, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
-    State.Visuals = on
-    State.EspActive = on
-    btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
-end)
-
--- Yürüme Hızı Kademesi (16 -> 18 -> 20)
-CreateActionItem(8, "⚡ YÜRÜME HIZI: 16", Color3.fromRGB(30, 30, 45), function()
-    State.MoveSpeedIndex = State.MoveSpeedIndex + 1
-    if State.MoveSpeedIndex > 3 then State.MoveSpeedIndex = 1 end
-    
-    local speeds = {16, 18, 20}
-    State.Speed = speeds[State.MoveSpeedIndex]
-    
-    local targetBtn = ScrollContainer:GetChildren()[8]
-    if targetBtn and targetBtn:IsA("TextButton") then
-        targetBtn.Text = "⚡ YÜRÜME HIZI: " .. State.Speed
+local Dropdown = Tabs.Main:AddDropdown("PlayerDropdown", {
+    Title = "Takip Edilecek Oyuncu",
+    Values = PlayerList,
+    Default = 1,
+    Callback = function(Value)
+        SelectedPlayerName = Value
+        TargetPlayer = Players:FindFirstChild(Value)
     end
-end)
+})
 
--- Dönüş/Base Hızı Kademesi (25 -> 30 -> 45)
-CreateActionItem(9, "🏎️ DÖNÜŞ HIZI: 30", Color3.fromRGB(45, 30, 30), function()
-    State.ReturnSpeedIndex = State.ReturnSpeedIndex + 1
-    if State.ReturnSpeedIndex > 3 then State.ReturnSpeedIndex = 1 end
-    
-    local returnSpeeds = {25, 30, 45}
-    local currentReturnSpeed = returnSpeeds[State.ReturnSpeedIndex]
-    
-    local targetBtn = ScrollContainer:GetChildren()[9]
-    if targetBtn and targetBtn:IsA("TextButton") then
-        targetBtn.Text = "🏎️ DÖNÜŞ HIZI: " .. currentReturnSpeed
+Tabs.Main:AddToggle("FollowToggle", {
+    Title = "Oyuncuyu Takip Et (Aura Follow)",
+    Description = "Seçilen oyuncunun arkasında kal",
+    Default = false,
+    Callback = function(Value)
+        FollowEnabled = Value
+        if Value then
+            FlyEnabled = false -- Çakışma önleyici
+        end
     end
-end)
-
-CreateActionItem(10, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        State.SpawnPos = hrp.Position + Vector3.new(0, 3, 0)
-    end
-end)
+})
 
 -- ==============================================================================
--- 6. MOTOR & FİZİK DÖNGÜLERİ (STABLE HEARTBEAT)
+-- FİZİK VE GÜNCELLEME DÖNGÜSÜ (HEARTBEAT)
 -- ==============================================================================
-
--- Noclip (Fly ile çakışmayı önleyen korumalı yapı)
-table.insert(State.Connections, RunService.Stepped:Connect(function()
-    if State.Noclip and not State.Fly and LocalPlayer.Character then
-        pcall(function()
-            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
-                end
-            end
-        end)
-    end
-end))
-
--- Güvenli ve Temizlenebilir ESP Döngüsü
-local espTimeElapsed = 0
-table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
-    espTimeElapsed = espTimeElapsed + dt
-    if espTimeElapsed >= 1.5 then
-        espTimeElapsed = 0
-        pcall(function()
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local char = p.Character
-                    local hl = char:FindFirstChild("LeaMegaESP")
-                    if State.Visuals then
-                        if not hl then
-                            hl = Instance.new("Highlight")
-                            hl.Name = "LeaMegaESP"
-                            hl.FillColor = State.ThemeColor
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.55
-                            hl.Parent = char
-                        end
-                    else
-                        if hl then hl:Destroy() end
-                    end
-                end
-            end
-        end)
-    end
-end))
-
--- Ana Hareket, Küp Takibi ve Mod Motoru
-table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
+RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -485,56 +225,84 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     if not hrp or not hum then return end
 
     if hum.Health <= 0 then
-        CancelActiveTweens()
-        State.Mode = "NONE"
-        State.Fly = false
-        ToggleCube(false)
+        FlyEnabled = false
+        FollowEnabled = false
+        CubeActive = false
+        ClearCubes()
         return
     end
 
-    -- Mikro Küp Güncellemesi
-    if State.CubeActive and State.CubePart then
-        State.CubePart.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - 3.35, hrp.Position.Z)
+    -- Cube Güncellemesi
+    if CubeActive then
+        UpdateCube(hrp, hum)
     end
 
-    -- Yürüme Hızı Sabitleme
-    if hum.WalkSpeed ~= State.Speed and hum.MoveDirection.Magnitude > 0 then
-        hum.WalkSpeed = State.Speed
-    end
-
-    -- Uçuş Mekaniği (Noclip açıkken uçuşu ezme koruması)
-    if State.Fly then
+    -- Fly (Uçuş) Mekaniği
+    if FlyEnabled then
         hum.PlatformStand = true
         local moveDir = hum.MoveDirection
         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         
         if moveDir.Magnitude > 0 then
             local targetDir = (Camera.CFrame.RightVector * moveDir.X) + (Camera.CFrame.LookVector * -moveDir.Z)
-            hrp.CFrame = hrp.CFrame + (targetDir.Unit * (State.FlySpeed * dt))
+            hrp.CFrame = hrp.CFrame + (targetDir.Unit * (FlySpeed * dt))
         end
         return
     else
-        if hum.PlatformStand and State.Mode == "NONE" then
+        if hum.PlatformStand and not FollowEnabled then
             hum.PlatformStand = false
         end
     end
 
-    -- Base Takip Sistemi
-    if State.Mode == "BASE" and State.SpawnPos then
-        local dist = (State.SpawnPos - hrp.Position).Magnitude
-        if dist > 3.5 then
-            if not State.TweenStorage.ActiveTween or State.TweenStorage.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing then
-                SafeMoveTo(CFrame.new(State.SpawnPos), dist)
-            end
-        else
-            CancelActiveTweens()
-            State.Mode = "NONE"
+    -- Takip Sistemi (Follow)
+    if FollowEnabled then
+        if TargetPlayer and TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local targetHRP = TargetPlayer.Character.HumanoidRootPart
+            hrp.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 4)
         end
     end
+end)
 
-    -- Target / Aura Takip Sistemi
-    if State.Mode == "TARGET" then
-        pcall(function()
-            local target, minDist = nil, math.huge
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Charact
+-- ==============================================================================
+-- MOBİL ARAYÜZ KONTROL BUTONU
+-- ==============================================================================
+local ScreenGui = Instance.new("ScreenGui")
+local ToggleButton = Instance.new("TextButton")
+
+ScreenGui.Parent = game:GetService("CoreGui")
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ToggleButton.BorderColor3 = Color3.fromRGB(0, 255, 128)
+ToggleButton.Position = UDim2.new(0, 20, 0, 50)
+ToggleButton.Size = UDim2.new(0, 120, 0, 45)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "LEA MENU"
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 128)
+ToggleButton.TextSize = 15
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = ToggleButton
+
+ToggleButton.MouseButton1Click:Connect(function()
+    Window:Minimize()
+end)
+
+-- ==============================================================================
+-- AYAR YÖNETİCİSİ VE BAŞLANGIÇ
+-- ==============================================================================
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+InterfaceManager:SetFolder("LEAMOD_Tactical")
+SaveManager:BuildConfigSection(Tabs.Settings)
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+
+Window:SelectTab(1)
+Fluent:Notify({
+    Title = "LEA MOD",
+    Content = "Base, Takip, Fly ve Cube sistemleri başarıyla yüklendi!",
+    Duration = 5
+})
