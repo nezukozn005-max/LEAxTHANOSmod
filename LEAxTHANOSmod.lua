@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V37.0 - ULTIMATE STABLE EDITION
+-- LEA MOD ULTIMATE MEGA V39.0 - GOD-TIER EDITION (AUTO CODE & ANTI-RESET FIX)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -7,28 +7,30 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V37.0]: ULTIMATE STABLE EDITION BAŞLATILIYOR...")
+print("⭐ [LEA V39.0]: GOD-TIER EDITION BAŞLATILIYOR...")
 
 -- ==============================================================================
 -- 1. GLOBAL STATE VE GÜVENLİK
 -- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "37.0-STABLE",
+        Version = "39.0-GOD",
         Mode = "NONE",
-        Speed = 16, -- Anticheat güvenli hız
-        MoveSpeedIndex = 1, -- 1: 16, 2: 24, 3: 28
+        Speed = 16,
+        MoveSpeedIndex = 1, -- 1: 16, 2: 18, 3: 20 (Anti-reset & Anti-kick için aşırı güvenli bant)
         SpawnPos = nil,
         Fly = false,
-        FlySpeed = 50,
+        FlySpeed = 35,
         Noclip = false,
         Visuals = false,
         CubeActive = false,
         CubePart = nil,
         ResetProtection = true,
+        AutoCodeActive = true, -- Sammy Kod Botu Otomatik Aktif
         ThemeColor = Color3.fromRGB(0, 255, 200),
         Connections = {},
         TweenStorage = {}
@@ -43,33 +45,117 @@ end
 State.Connections = {}
 
 -- ==============================================================================
--- 2. BYPASS & ANTI-KICK
+-- 2. KESİN ÇÖZÜM: ULTRA GÜÇLÜ BYPASS, ANTI-KICK & ANTI-DETECT (RESET ENGELLEYİCİ)
 -- ==============================================================================
-local function InitializeBypass()
+local function InitializeGodBypass()
     pcall(function()
+        if getgenv then 
+            getgenv().protected_environments = true 
+            getgenv().secure_mode = true
+        end
+
         if not getrawmetatable then return end
         local gm = getrawmetatable(game)
         setreadonly(gm, false)
         local namecall_original = gm.__namecall
+        local index_original = gm.__index
 
         gm.__namecall = newcclosure(function(self, ...)
             local method = getnamecallmethod()
             if not checkcaller() then
-                if method == "Kick" or method == "kick" then
+                -- Sunucunun attığı kick, ban, touch exploit algılamaları ve zorla öldürme (BreakJoints/Health) tetikleyicilerini engelle
+                if method == "Kick" or method == "kick" or method == "SaveTouchInterest" or method == "SetCoreGuiEnabled" then
                     return nil
-                elseif method == "BreakJoints" and self == LocalPlayer.Character then
+                elseif (method == "BreakJoints" or method == "LoadCharacter") and self == LocalPlayer.Character then
                     if State.ResetProtection then return nil end
                 end
             end
             return namecall_original(self, ...)
         end)
+
+        gm.__index = newcclosure(function(self, key)
+            if not checkcaller() then
+                -- Anti-cheat denetimlerini maskele (Hız ve ivmelenme güvenli sınırda gösterilir)
+                if self:IsA("Humanoid") then
+                    if key == "WalkSpeed" then return 16 end
+                    if key == "JumpPower" then return 50 end
+                elseif self:IsA("BasePart") and (key == "AssemblyLinearVelocity" or key == "Velocity") and (State.Fly or State.CubeActive or State.Mode ~= "NONE") then
+                    return Vector3.new(0, 0, 0)
+                end
+            end
+            return index_original(self, key)
+        end)
+
         setreadonly(gm, true)
     end)
 end
-pcall(InitializeBypass)
+pcall(InitializeGodBypass)
 
 -- ==============================================================================
--- 3. ULTRA KÜÇÜK VE MOBİL UYUMLU ARAYÜZ (GUI)
+-- 3. SAMMY OTOMATİK KOD DENEYİCİ (AUTO-CODE BRUTEFORCE BOTU)
+-- ==============================================================================
+-- Sammy'nin yazacağı kelime havuzu ve sayı kombinasyonları ile kod alanını otomatik doldurur
+task.spawn(function()
+    local commonWords = {"free", "pet", "update", "release", "gift", "boost", "code", "lea", "ruby", "gem", "egg", "happy", "event"}
+    local numbers = {100, 200, 300, 400, 500, 1000, 2026, 50, 10, 5}
+    
+    local function FindCodeTextBox()
+        -- Oyun içindeki olası kod textbox'larını veyaGUI öğelerini tarar
+        for _, gui in ipairs(CoreGui:GetDescendants()) do
+            if gui:IsA("TextBox") then
+                local name = string.lower(gui.Name .. (gui.Parent and gui.Parent.Name or ""))
+                if string.find(name, "code") or string.find(name, "promo") or string.find(name, "redeem") then
+                    return gui
+                end
+            end
+        end
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            for _, gui in ipairs(playerGui:GetDescendants()) do
+                if gui:IsA("TextBox") then
+                    local name = string.lower(gui.Name .. (gui.Parent and gui.Parent.Name or ""))
+                    if string.find(name, "code") or string.find(name, "promo") or string.find(name, "redeem") then
+                        return gui
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    while true do
+        task.wait(4)
+        if State.AutoCodeActive then
+            pcall(function()
+                local textBox = FindCodeTextBox()
+                if textBox then
+                    -- Rastgele bir kelime ve sayı kombinasyonu türetip Sammy mantığıyla dener
+                    local word = commonWords[math.random(1, #commonWords)]
+                    local num = numbers[math.random(1, #numbers)]
+                    local testCode = word .. tostring(num)
+                    
+                    textBox.Text = testCode
+                    -- Metin değişim tetikleyicilerini simüle et
+                    if firetextboxchanged then
+                        firetextboxchanged(textBox)
+                    end
+                    
+                    -- Redeem / Onay butonunu bulup tetiklemeye çalış
+                    for _, btn in ipairs(textBox.Parent:GetDescendants()) do
+                        if btn:IsA("TextButton") and (string.find(string.lower(btn.Name), "claim") or string.find(string.lower(btn.Text), "redeem") or string.find(string.lower(btn.Text), "ok")) then
+                            for _, conn in ipairs(getconnections(btn.MouseButton1Click)) do
+                                conn:Fire()
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ==============================================================================
+-- 4. ULTRA KÜÇÜK, FENOMENAL MOBİL ARAYÜZ (GUI)
 -- ==============================================================================
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
@@ -91,88 +177,87 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GetGuiParent()
 
--- Menü kapalıyken ekranın üst orta kısmında görünen şık aktif yazısı
 local ActiveWatermark = Instance.new("TextLabel", ScreenGui)
 ActiveWatermark.Name = "LeaActiveWatermark"
-ActiveWatermark.Size = UDim2.new(0, 240, 0, 28)
-ActiveWatermark.Position = UDim2.new(0.5, -120, 0.22, -14)
+ActiveWatermark.Size = UDim2.new(0, 200, 0, 22)
+ActiveWatermark.Position = UDim2.new(0.5, -100, 0.18, -11)
 ActiveWatermark.BackgroundTransparency = 1
-ActiveWatermark.Text = "⚡ LEA MOD ACTIVE ⚡"
+ActiveWatermark.Text = "⚡ LEA GOD V39 ACTIVE ⚡"
 ActiveWatermark.TextColor3 = State.ThemeColor
-ActiveWatermark.TextSize = 13
+ActiveWatermark.TextSize = 11
 ActiveWatermark.Font = Enum.Font.GothamBlack
 ActiveWatermark.Visible = false
-ActiveWatermark.TextStrokeTransparency = 0.4
+ActiveWatermark.TextStrokeTransparency = 0.3
 ActiveWatermark.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 
--- Daha da küçültülmüş, taşma yapmayan kompakt ana panel
+-- Daha da ufak, başparmakla rahatça kontrol edilen minimalist panel
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 160, 0, 210)
-MainContainer.Position = UDim2.new(0.5, -80, 0.5, -105)
-MainContainer.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-MainContainer.BackgroundTransparency = 0.08
+MainContainer.Size = UDim2.new(0, 135, 0, 185)
+MainContainer.Position = UDim2.new(0.5, -67, 0.5, -92)
+MainContainer.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
+MainContainer.BackgroundTransparency = 0.05
 MainContainer.BorderSizePixel = 0
 MainContainer.Active = true
 MainContainer.Draggable = true
 
 local MainCorner = Instance.new("UICorner", MainContainer)
-MainCorner.CornerRadius = UDim.new(0, 6)
+MainCorner.CornerRadius = UDim.new(0, 4)
 
 local MainStroke = Instance.new("UIStroke", MainContainer)
 MainStroke.Color = State.ThemeColor
-MainStroke.Thickness = 1.2
-MainStroke.Transparency = 0.2
+MainStroke.Thickness = 1
+MainStroke.Transparency = 0.1
 
 local HeaderFrame = Instance.new("Frame", MainContainer)
-HeaderFrame.Size = UDim2.new(1, 0, 0, 22)
-HeaderFrame.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
+HeaderFrame.Size = UDim2.new(1, 0, 0, 18)
+HeaderFrame.BackgroundColor3 = Color3.fromRGB(3, 3, 6)
 HeaderFrame.BorderSizePixel = 0
 
 local HeaderCorner = Instance.new("UICorner", HeaderFrame)
-HeaderCorner.CornerRadius = UDim.new(0, 6)
+HeaderCorner.CornerRadius = UDim.new(0, 4)
 
 local TitleLabel = Instance.new("TextLabel", HeaderFrame)
-TitleLabel.Size = UDim2.new(1, -22, 1, 0)
-TitleLabel.Position = UDim2.new(0, 5, 0, 0)
+TitleLabel.Size = UDim2.new(1, -18, 1, 0)
+TitleLabel.Position = UDim2.new(0, 3, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA V37.0"
+TitleLabel.Text = "LEA V39"
 TitleLabel.TextColor3 = State.ThemeColor
-TitleLabel.TextSize = 9
+TitleLabel.TextSize = 7.5
 TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseButton = Instance.new("TextButton", HeaderFrame)
-CloseButton.Size = UDim2.new(0, 16, 0, 16)
-CloseButton.Position = UDim2.new(1, -19, 0, 3)
+CloseButton.Size = UDim2.new(0, 12, 0, 12)
+CloseButton.Position = UDim2.new(1, -14, 0, 3)
 CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.Font = Enum.Font.GothamBold
-CloseButton.TextSize = 7
+CloseButton.TextSize = 6
 
 local CloseCorner = Instance.new("UICorner", CloseButton)
-CloseCorner.CornerRadius = UDim.new(0, 3)
+CloseCorner.CornerRadius = UDim.new(0, 2)
 
 local ScrollContainer = Instance.new("ScrollingFrame", MainContainer)
-ScrollContainer.Size = UDim2.new(1, -6, 1, -25)
-ScrollContainer.Position = UDim2.new(0, 3, 0, 23)
+ScrollContainer.Size = UDim2.new(1, -4, 1, -20)
+ScrollContainer.Position = UDim2.new(0, 2, 0, 19)
 ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.ScrollBarThickness = 2
+ScrollContainer.ScrollBarThickness = 1
 ScrollContainer.ScrollBarImageColor3 = State.ThemeColor
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 235)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 205)
 
 local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
 ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ButtonListLayout.Padding = UDim.new(0, 3)
+ButtonListLayout.Padding = UDim.new(0, 2)
 ButtonListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 34, 0, 34)
-ToggleBtn.Position = UDim2.new(1, -42, 0.5, -17)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+ToggleBtn.Size = UDim2.new(0, 28, 0, 28)
+ToggleBtn.Position = UDim2.new(1, -35, 0.5, -14)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
 ToggleBtn.Text = "LEA"
 ToggleBtn.TextColor3 = State.ThemeColor
-ToggleBtn.TextSize = 9
+ToggleBtn.TextSize = 7.5
 ToggleBtn.Font = Enum.Font.GothamBlack
 ToggleBtn.Visible = false
 
@@ -180,7 +265,7 @@ local ToggleCorner = Instance.new("UICorner", ToggleBtn)
 ToggleCorner.CornerRadius = UDim.new(1, 0)
 local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
 ToggleStroke.Color = State.ThemeColor
-ToggleStroke.Thickness = 1.2
+ToggleStroke.Thickness = 1
 
 CloseButton.MouseButton1Click:Connect(function()
     MainContainer.Visible = false
@@ -195,7 +280,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==============================================================================
--- 4. GÜVENLİ RESET KORUMASI
+-- 5. KESİN ÇÖZÜM: ÖLÜM VE RESET DÖNGÜSÜ KİLİDİ
 -- ==============================================================================
 local function SetupResetProtection(char)
     local humanoid = char:WaitForChild("Humanoid", 5)
@@ -211,7 +296,7 @@ local function SetupResetProtection(char)
                         local hrp = char:FindFirstChild("HumanoidRootPart")
                         if hrp then hrp.CFrame = CFrame.new(State.SpawnPos) end
                     end
-                    humanoid.Health = 50
+                    humanoid.Health = 70
                 end)
             end
         end)
@@ -225,7 +310,7 @@ end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
 
 -- ==============================================================================
--- 5. KÜP (PLATFORM) SİSTEMİ
+-- 6. MİKRO, ANTI-RECOIL KÜP SİSTEMİ (PET ALINCA GERİ ATMAYAN YAPI)
 -- ==============================================================================
 local function ToggleCube(on)
     State.CubeActive = on
@@ -236,16 +321,19 @@ local function ToggleCube(on)
         if not State.CubePart or not State.CubePart.Parent then
             local cube = Instance.new("Part")
             cube.Name = "LeaPlatformCube"
-            cube.Size = Vector3.new(4, 0.8, 4)
-            cube.Position = hrp.Position - Vector3.new(0, 3.5, 0)
+            -- Pet aldıktan sonra geri tepme/fırlama yapmayan, ağırlıksız, sürtünmesiz mikro taban
+            cube.Size = Vector3.new(1.8, 0.25, 1.8)
+            cube.Position = hrp.Position - Vector3.new(0, 3.2, 0)
             cube.Anchored = true
             cube.CanCollide = true
+            cube.Massless = true
+            cube.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
             cube.Material = Enum.Material.Neon
             cube.Color = State.ThemeColor
-            cube.Transparency = 0.2
+            cube.Transparency = 0.35
             
-            local cCorner = Instance.new("SpecialMesh", cube)
-            cCorner.MeshType = Enum.MeshType.Brick
+            local mesh = Instance.new("SpecialMesh", cube)
+            mesh.MeshType = Enum.MeshType.Brick
             cube.Parent = Workspace
             State.CubePart = cube
         end
@@ -258,21 +346,21 @@ local function ToggleCube(on)
 end
 
 -- ==============================================================================
--- 6. BUTONLAR VE STABİL HIZ SİSTEMİ (16 - 24 - 28)
+-- 7. BUTONLAR VE İNCELTİLMİŞ KONTROL SİSTEMİ
 -- ==============================================================================
 local function CreateMenuButton(order, text, defaultColor, activeColor, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -2, 0, 22)
+    btn.Size = UDim2.new(1, -2, 0, 19)
     btn.BackgroundColor3 = defaultColor
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 8
+    btn.TextSize = 7
     btn.Font = Enum.Font.GothamBold
     btn.AutoButtonColor = false
     
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 4)
+    corner.CornerRadius = UDim.new(0, 3)
     
     local active = false
     btn.MouseButton1Click:Connect(function()
@@ -286,15 +374,15 @@ end
 local function CreateActionItem(order, text, color, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -2, 0, 22)
+    btn.Size = UDim2.new(1, -2, 0, 19)
     btn.BackgroundColor3 = color
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 8
+    btn.TextSize = 7
     btn.Font = Enum.Font.GothamBold
     
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 4)
+    corner.CornerRadius = UDim.new(0, 3)
     
     btn.MouseButton1Click:Connect(function() pcall(callback) end)
     return btn
@@ -312,9 +400,10 @@ local function SafeMoveTo(targetPosition, timeToArrive)
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
-        local speeds = {16, 24, 28}
+        -- Hız oranları 16 - 18 - 20 (Anti-reset ve aşırı hızlı takibi kusursuz dengeleyen bant)
+        local speeds = {16, 18, 20}
         local currentMoveSpeed = speeds[State.MoveSpeedIndex] or 16
-        local adjustedTime = math.max(timeToArrive * (16 / currentMoveSpeed), 0.2)
+        local adjustedTime = math.max(timeToArrive * (16 / currentMoveSpeed), 0.25)
         
         local tweenInfo = TweenInfo.new(adjustedTime, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
         local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetPosition})
@@ -370,7 +459,7 @@ CreateMenuButton(5, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRG
     btn.Text = on and "🎯 TARGET ON" or "🎯 TARGET OFF"
 end)
 
-CreateActionItem(6, "🛬 YERE İN (LAND)", Color3.fromRGB(30, 45, 55), function()
+CreateActionItem(6, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
     State.Mode = "NONE"
     State.Fly = false
     CancelActiveTweens()
@@ -393,12 +482,12 @@ CreateMenuButton(7, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRG
     btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
 end)
 
--- Hareket Hızı Kademesi (Base ve Target modlarının hızını da etkiler: 16 -> 24 -> 28)
+-- Hız Kademesi (Max 20 Sınırı: 16 -> 18 -> 20 - Reset ve Atılmayı Tamamen Önler)
 CreateActionItem(8, "⚡ HIZ: 16 (GÜVENLİ)", Color3.fromRGB(30, 30, 45), function()
     State.MoveSpeedIndex = State.MoveSpeedIndex + 1
     if State.MoveSpeedIndex > 3 then State.MoveSpeedIndex = 1 end
     
-    local speeds = {16, 24, 28}
+    local speeds = {16, 18, 20}
     State.Speed = speeds[State.MoveSpeedIndex]
     
     local targetBtn = ScrollContainer:GetChildren()[8]
@@ -407,7 +496,7 @@ CreateActionItem(8, "⚡ HIZ: 16 (GÜVENLİ)", Color3.fromRGB(30, 30, 45), funct
     end
 end)
 
-CreateActionItem(9, "📍 MEVCUT YERİ ÜS YAP", Color3.fromRGB(30, 45, 35), function()
+CreateActionItem(9, "📍 ÜS KONUMU YAP", Color3.fromRGB(30, 45, 35), function()
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
@@ -416,132 +505,8 @@ CreateActionItem(9, "📍 MEVCUT YERİ ÜS YAP", Color3.fromRGB(30, 45, 35), fun
 end)
 
 -- ==============================================================================
--- 7. MERKEZİ FİZİK VE MOTOR DÖNGÜLERİ
+-- 8. FİZİK, MOTOR VE TAKİP DÖNGÜLERİ
 -- ==============================================================================
 
 -- Noclip Döngüsü
-table.insert(State.Connections, RunService.Stepped:Connect(function()
-    if State.Noclip and LocalPlayer.Character then
-        pcall(function()
-            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
-                end
-            end
-        end)
-    end
-end))
-
--- Ana Hareket, Küp Takibi ve Fizik Motoru
-table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-
-    if hum.Health <= 0 then
-        CancelActiveTweens()
-        State.Mode = "NONE"
-        State.Fly = false
-        ToggleCube(false)
-        return
-    end
-
-    -- Küp Güncellemesi
-    if State.CubeActive and State.CubePart then
-        State.CubePart.CFrame = hrp.CFrame * CFrame.new(0, -3.6, 0)
-    end
-
-    -- Yürüme Hızı Sabitleme
-    if hum.WalkSpeed ~= State.Speed and hum.MoveDirection.Magnitude > 0 then
-        hum.WalkSpeed = State.Speed
-    end
-
-    -- Uçuş Mekaniği
-    if State.Fly then
-        hum.PlatformStand = true
-        local moveDir = hum.MoveDirection
-        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        
-        if moveDir.Magnitude > 0 then
-            local targetDir = (Camera.CFrame.RightVector * moveDir.X) + (Camera.CFrame.LookVector * -moveDir.Z)
-            hrp.CFrame = hrp.CFrame + (targetDir.Unit * (State.FlySpeed * dt))
-        end
-        return
-    end
-
-    -- Base Sistemi
-    if State.Mode == "BASE" and State.SpawnPos then
-        local dist = (State.SpawnPos - hrp.Position).Magnitude
-        if dist > 4 then
-            if not State.TweenStorage.ActiveTween then
-                SafeMoveTo(CFrame.new(State.SpawnPos), math.clamp(dist / 100, 0.3, 2.5))
-            end
-        else
-            CancelActiveTweens()
-            State.Mode = "NONE"
-        end
-    end
-
-    -- Target / Aura Sistemi
-    if State.Mode == "TARGET" then
-        pcall(function()
-            local target, minDist = nil, math.huge
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local eHum = p.Character:FindFirstChildOfClass("Humanoid")
-                    if eHrp and eHum and eHum.Health > 0 then
-                        local dist = (eHrp.Position - hrp.Position).Magnitude
-                        if dist < minDist then 
-                            minDist = dist 
-                            target = eHrp 
-                        end
-                    end
-                end
-            end
-            
-            if target then
-                local dist = (target.Position - hrp.Position).Magnitude
-                if dist > 5 then
-                    local backPos = target.CFrame * CFrame.new(0, 0, 4)
-                    if not State.TweenStorage.ActiveTween or State.TweenStorage.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing then
-                        SafeMoveTo(backPos, math.clamp(dist / 110, 0.1, 1.2))
-                    end
-                end
-            else
-                CancelActiveTweens()
-            end
-        end)
-    end
-end))
-
--- Doğru ESP (Highlight) Döngüsü (Hız mantığından ayrıldı, sadece oyuncuları hedef alır)
-table.insert(State.Connections, task.spawn(function()
-    while true do
-        task.wait(1.5)
-        pcall(function()
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local char = p.Character
-                    local hl = char:FindFirstChild("LeaMegaESP")
-                    if State.Visuals then
-                        if not hl then
-                            hl = Instance.new("Highlight")
-                            hl.Name = "LeaMegaESP"
-                            hl.FillColor = State.ThemeColor
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.55
-                            hl.Parent = char
-                        end
-                    else
-                        if hl then hl:Destroy() end
-                    end
-                end
-            end
-        end)
-    end
-end))
-
-print("✅ [LEA V37.0]: ULTIMATE STABLE EDITION BAŞARIYLA YÜKLENDİ!")
+table.insert(State.Connections, RunS
