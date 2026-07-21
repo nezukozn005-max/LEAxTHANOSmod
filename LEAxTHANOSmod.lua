@@ -1,13 +1,15 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V21.5 - PART 1 (YENİ MENÜ DÜZENİ VE TAKİP BUTONU)
+-- LEA MOD ULTIMATE V21.5 (FULL FIXED MONOLITHIC EDITION)
 -- ==============================================================================
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
+-- GLOBAL STATE INITIALIZATION
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
         Mode = "NONE",
@@ -22,12 +24,14 @@ if not getgenv().LeaModGlobalState then
         Visuals = false,
         Invisible = false,
         HitboxAura = false,
-        BypassReset = false
+        BypassReset = false,
+        CurrentLevel = 1
     }
 end
 
 local State = getgenv().LeaModGlobalState
 
+-- GUI PARENT PROTECTION
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
     if success and parent then return parent end
@@ -39,12 +43,12 @@ pcall(function()
     if existing then existing:Destroy() end
 end)
 
+-- SCREEN GUI CREATION
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LeaModMonolithicGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = GetGuiParent()
 
--- Menü boyutu buton silinmediği için biraz uzatıldı
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 220, 0, 280) 
 MainFrame.Position = UDim2.new(1, -235, 0.4, -140)
@@ -100,15 +104,65 @@ local function CreateGridButton(posX, posY, sizeX, sizeY, text, callback)
     return btn
 end
 
-local function ApplyInvisible(enabled)
+-- PELERIN & INVISIBLE LOGIC
+local function HandlePelerinInvisible(enabled)
     pcall(function()
         local char = LocalPlayer.Character
         if not char then return end
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.Transparency = enabled and 1 or 0
-            elseif part:IsA("Decal") then
-                part.Transparency = enabled and 1 or 0
+        
+        if enabled then
+            -- Envanterde Pelerin/Cape/Invis arama ve kuşanma
+            local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+            if backpack then
+                for _, item in ipairs(backpack:GetChildren()) do
+                    if item:IsA("Tool") then
+                        local name = item.Name:lower()
+                        if name:find("pelerin") or name:find("cape") or name:find("invis") or name:find("cloak") then
+                            item.Parent = char
+                            task.wait(0.05)
+                        end
+                    end
+                end
+            end
+            
+            -- Eldeki Pelerini Çalıştırma
+            for _, item in ipairs(char:GetChildren()) do
+                if item:IsA("Tool") then
+                    local name = item.Name:lower()
+                    if name:find("pelerin") or name:find("cape") or name:find("invis") or name:find("cloak") then
+                        item:Activate()
+                    end
+                end
+            end
+
+            -- Görsel Destek Transparanlığı
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.Transparency = 1
+                elseif part:IsA("Decal") then
+                    part.Transparency = 1
+                end
+            end
+        else
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.Transparency = 0
+                elseif part:IsA("Decal") then
+                    part.Transparency = 0
+                end
+            end
+        end
+    end)
+end
+
+-- SEVİYE DİNAMİK OKUMA SİSTEMİ
+local function SyncRealLevel()
+    pcall(function()
+        local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+        if leaderstats then
+            local lvlVal = leaderstats:FindFirstChild("Level") or leaderstats:FindFirstChild("Stage") or leaderstats:FindFirstChild("Rebirth")
+            if lvlVal then
+                State.CurrentLevel = lvlVal.Value
             end
         end
     end)
@@ -129,9 +183,10 @@ local function SetupCharacterLifecycle(char)
     end)
     if State.Invisible then
         task.wait(0.3)
-        ApplyInvisible(true)
+        HandlePelerinInvisible(true)
     end
 end
+
 if LocalPlayer.Character then SetupCharacterLifecycle(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(SetupCharacterLifecycle)
 
@@ -140,7 +195,7 @@ local UIButtons = {}
 -- Satır 1
 UIButtons.Invisible = CreateGridButton(8, 32, 98, 24, "👻 INVIS OFF", function()
     State.Invisible = not State.Invisible
-    ApplyInvisible(State.Invisible)
+    HandlePelerinInvisible(State.Invisible)
     UIButtons.Invisible.Text = State.Invisible and "👻 INVIS ON" or "👻 INVIS OFF"
     UIButtons.Invisible.BackgroundColor3 = State.Invisible and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
 end)
@@ -177,7 +232,7 @@ UIButtons.Visuals = CreateGridButton(112, 88, 98, 24, "👁️ ESP OFF", functio
     UIButtons.Visuals.BackgroundColor3 = State.Visuals and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
 end)
 
--- Satır 4 (KORUMA ve Geri Getirilen TAKİP)
+-- Satır 4
 UIButtons.AutoAvoid = CreateGridButton(8, 116, 98, 24, "🛡️ KORUMA OFF", function()
     State.AutoAvoid = not State.AutoAvoid
     UIButtons.AutoAvoid.Text = State.AutoAvoid and "🛡️ KORUMA ON" or "🛡️ KORUMA OFF"
@@ -190,7 +245,7 @@ UIButtons.Target = CreateGridButton(112, 116, 98, 24, "🎯 TAKİP OFF", functio
     UIButtons.Target.BackgroundColor3 = (State.Mode == "TARGET") and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
 end)
 
--- Satır 5 (Hız Ayarları)
+-- Satır 5
 local SpeedLbl = Instance.new("TextLabel", MainFrame)
 SpeedLbl.Size = UDim2.new(0, 202, 0, 18)
 SpeedLbl.Position = UDim2.new(0, 8, 0, 146)
@@ -210,7 +265,6 @@ CreateGridButton(59, 166, 47, 22, "+5 Hız", function()
     SpeedLbl.Text = "Hız Değeri: " .. State.Speed
 end)
 
--- Alt Butonlar
 CreateGridButton(8, 196, 202, 26, "🌐 SUNUCU DEĞİŞ & HIZLI HOP", function()
     pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
 end)
@@ -223,19 +277,10 @@ CreateGridButton(8, 230, 202, 26, "🔄 GÜVENLİ RESET", function()
     end)
 end)
 
-print("✅ LEA MOD - PART 1 (GÜNCELLENDİ)")
--- ==============================================================================
--- LEA MOD ULTIMATE V21.5 - PART 2 (YENİ SOPA HITBOX, ESKİ BASE VE TAKİP MOTORU)
--- ==============================================================================
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
-local State = getgenv().LeaModGlobalState
-
--- ESP SİSTEMİ
+-- ESP DÖNGÜSÜ
 task.spawn(function()
-    while task.wait(0.6) do
+    while task.wait(0.5) do
+        SyncRealLevel()
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character then
@@ -259,7 +304,7 @@ task.spawn(function()
     end
 end)
 
--- NOCLIP
+-- NOCLIP MOTORU
 RunService.Stepped:Connect(function()
     if State.Noclip and LocalPlayer.Character then
         pcall(function()
@@ -272,7 +317,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ANA MANTIK VE YENİ SOPA / ESKİ BASE MOTORU
+-- ANA KONTROL VE FİZİK DÖNGÜSÜ (HEARTBEAT)
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -280,12 +325,17 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
+    -- Pelerin İnvis Tetikleyici Desteği
+    if State.Invisible then
+        HandlePelerinInvisible(true)
+    end
+
     -- Hız Sınırı
     if hum.MoveDirection.Magnitude > 0 then
         hum.WalkSpeed = math.clamp(State.Speed, 16, 50)
     end
 
-    -- 1) ESKİ BASE'YE DÖNÜŞ MANTIĞI (Süzülerek / Lerping)
+    -- 1) BASE TELEPORT VE LERPING MOTORU
     if State.Mode == "BASE" and State.SpawnPos then
         pcall(function()
             local dist = (State.SpawnPos - hrp.Position).Magnitude
@@ -300,7 +350,7 @@ RunService.Heartbeat:Connect(function(dt)
             end
         end)
     
-    -- 2) GERİ GETİRİLEN TAKİP SİSTEMİ (Hedefe Süzülerek Gitme)
+    -- 2) TAKİP MOTORU (HEDEF OYUNCUYA YÖNELEREK SÜZÜLME)
     elseif State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -320,38 +370,48 @@ RunService.Heartbeat:Connect(function(dt)
             
             if target then
                 local dist = (target.Position - hrp.Position).Magnitude
-                -- 4 stud'dan uzaksa yaklaş
-                if dist > 4 then
-                    local dir = (target.Position - hrp.Position).Unit
+                if dist > 3.5 then
+                    local targetPos = Vector3.new(target.Position.X, hrp.Position.Y, target.Position.Z)
+                    local dir = (targetPos - hrp.Position).Unit
                     local moveStep = math.min(dist, State.Speed * dt * 2.5)
-                    char:PivotTo(hrp.CFrame + (dir * moveStep))
+                    local newCFrame = CFrame.lookAt(hrp.Position + (dir * moveStep), targetPos)
+                    char:PivotTo(newCFrame)
                     hrp.Velocity = Vector3.zero
                 end
             end
         end)
     end
 
-    -- 3) YENİ VE KESİN PVP AURA (firetouchinterest kullanarak)
+    -- 3) GELİŞTİRİLMİŞ SOPA AURA MOTORU
     if State.HitboxAura then
         pcall(function()
-            -- Elindeki aleti (sopa, kılıç vb.) veya sağ kolunu hasar noktası olarak belirle
             local tool = char:FindFirstChildOfClass("Tool")
-            local hitPart = tool and (tool:FindFirstChild("Handle") or tool:FindFirstChildWhichIsA("BasePart"))
-            if not hitPart then 
-                hitPart = char:FindFirstChild("Right Hand") or char:FindFirstChild("Right Arm") or hrp 
+            if not tool then
+                local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+                if backpack then
+                    tool = backpack:FindFirstChildOfClass("Tool")
+                    if tool and not tool.Name:lower():find("pelerin") then
+                        tool.Parent = char
+                    end
+                end
             end
 
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local eHum = p.Character:FindFirstChildOfClass("Humanoid")
-                    if eHrp and eHum and eHum.Health > 0 then
-                        local distance = (eHrp.Position - hrp.Position).Magnitude
-                        -- Eğer 12 stud (uzun menzil) içindeyse ve firetouchinterest destekleniyorsa
-                        if distance < 12 and firetouchinterest then
-                            -- Sunucuya "benim silahım rakibin gövdesine çarptı" komutunu yollar
-                            firetouchinterest(hitPart, eHrp, 0) -- Çarpma anı
-                            firetouchinterest(hitPart, eHrp, 1) -- Ayrılma anı
+            if tool then
+                tool:Activate()
+                local hitPart = tool:FindFirstChild("Handle") or tool:FindFirstChildWhichIsA("BasePart") or char:FindFirstChild("Right Hand") or hrp
+
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer and p.Character then
+                        local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
+                        local eHum = p.Character:FindFirstChildOfClass("Humanoid")
+                        if eHrp and eHum and eHum.Health > 0 then
+                            local distance = (eHrp.Position - hrp.Position).Magnitude
+                            if distance < 15 then
+                                if firetouchinterest then
+                                    firetouchinterest(hitPart, eHrp, 0)
+                                    firetouchinterest(hitPart, eHrp, 1)
+                                end
+                            end
                         end
                     end
                 end
@@ -376,7 +436,7 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- KÜP (Cube) OLUŞTURMA MOTORU
+    -- KÜP MOTORU
     if State.Cube then
         pcall(function()
             if hrp.Velocity.Y < -1.5 and (os.clock() - State.LastCube > 0.15) then
@@ -399,4 +459,4 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-print("🚀 LEA MOD ULTIMATE V21.5 - YENİ HITBOX VE ESKİ MOTOR AKTİF!")
+print("✅ LEA MOD ULTIMATE V21.5 - TAM SÜRÜM YÜKLENDİ!")
