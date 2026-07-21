@@ -1,5 +1,6 @@
 -- ==============================================================================
--- LEA MOD - FULL ENTERPRISE CONSOLIDATED ENGINE WITH ANTI-RESET V3.7
+-- LEA MOD - ULTIMATE ENTERPRISE PRODUCTION ENGINE V4.0
+-- FULL ARCHITECTURAL SUITE WITH ADVANCED BYPASS & CUSTOM #LEA KICK HOOKS
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -8,66 +9,100 @@ local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⚡ [LEA CORE V3.7]: Genişletilmiş sistem ve Anti-Reset motoru başlatılıyor...")
+print("⚡ [LEA CORE V4.0]: Enterprise Master Initialization Sequence Started...")
 
 getgenv().LeaState = getgenv().LeaState or {
+    Version = "4.0.0-PROD",
     Modules = {
         Cube = false,
         AutoHop = false,
-        PetStealth = false,
+        AntiCheatKick = true,
         AntiReset = true,
-        AntiKick = true
+        AntiKickCrash = true,
+        ESP = false
     },
     Settings = {
-        MinPlayers = 1,
-        MaxPlayers = 15
+        MinServerPlayers = 1,
+        MaxServerPlayers = 15,
+        ScanInterval = 0.05
     },
     BasePosition = nil,
-    IsReturning = false
+    IsReturning = false,
+    ActiveConnections = {}
 }
 
 local Lea = getgenv().LeaState
 
+-- Clear old background event connections cleanly
+for _, connection in pairs(Lea.ActiveConnections) do
+    if typeof(connection) == "RBXScriptConnection" then
+        connection:Disconnect()
+    end
+end
+Lea.ActiveConnections = {}
+
 -- ==============================================================================
--- 1. ANTI-RESET VE GÜVENLİK KORUMALARI (BYPASS)
+-- 1. ADVANCED BYPASS & METATABLE SECURITY HOOKS (ENTERPRISE GRADE)
 -- ==============================================================================
 pcall(function()
-    -- Karakter sıfırlanmasını (CharacterReset) ve ölüm kancalarını engelleme
-    local mt = getrawmetatable(game)
-    setreadonly(mt, false)
-    local oldNamecall = mt.__namecall
+    local metatable = getrawmetatable(game)
+    setreadonly(metatable, false)
+    local originalNamecall = metatable.__namecall
     
-    mt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
+    metatable.__namecall = newcclosure(function(self, ...)
+        local methodName = getnamecallmethod()
+        local arguments = {...}
         
-        if (method == "Kick" or method == "Ban") and Lea.Modules.AntiKick then
+        if (methodName == "Kick" or methodName == "Ban" or methodName == "ClientKick") and Lea.Modules.AntiKickCrash then
+            print("🛡️ [SECURITY BYPASS]: Blocked external malicious server kick attempt.")
             return
         end
         
-        return oldNamecall(self, unpack(args))
+        return originalNamecall(self, unpack(arguments))
     end)
-    setreadonly(mt, true)
+    setreadonly(metatable, true)
 end)
 
--- Anti-Reset Humanoid State Bağlantısı
-local function SetupAntiReset(char)
+-- ==============================================================================
+-- 2. CUSTOM #LEA ANTI-CHEAT KICK SIMULATOR & PET DETECTION ENGINE
+-- ==============================================================================
+local function TriggerCustomLeaAntiCheatKick()
     pcall(function()
-        local hum = char:WaitForChild("Humanoid", 5)
-        if hum then
-            hum.Died:Connect(function()
+        if not Lea.Modules.AntiCheatKick then return end
+        
+        -- Custom Anti-Cheat kick message containing #LEA tag
+        local customReason = "\n[#LEA - Security Protocol]: Unauthorized asset acquisition detected. Connection terminated safely by #LEA Anti-Cheat Matrix."
+        
+        print("🚨 [DETECTION]: Pet theft confirmed! Triggering #LEA protocol...")
+        
+        -- Safe immediate client termination display with #LEA branding
+        LocalPlayer:Kick(customReason)
+    end)
+end
+
+-- ==============================================================================
+-- 3. ANTI-RESET PROTECTION SYSTEM
+-- ==============================================================================
+local function InitializeAntiReset(character)
+    pcall(function()
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        if humanoid then
+            humanoid.Died:Connect(function()
                 if Lea.Modules.AntiReset then
-                    print("🛡️ [ANTI-RESET]: Ölüm tetikleyicisi engellendi, konum korunuyor.")
+                    print("🛡️ [ANTI-RESET]: Character death intercepted, maintaining operational state.")
                 end
             end)
             
-            -- State engelleme
-            hum.StateChanged:Connect(function(_, newState)
-                if Lea.Modules.AntiReset and newState == Enum.HumanoidStateType.Dead then
-                    hum:ChangeState(Enum.HumanoidStateType.Running)
+            humanoid.StateChanged:Connect(function(_, newStateType)
+                if Lea.Modules.AntiReset and newStateType == Enum.HumanoidStateType.Dead then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Running)
                 end
             end)
         end
@@ -75,69 +110,69 @@ local function SetupAntiReset(char)
 end
 
 if LocalPlayer.Character then
-    SetupAntiReset(LocalPlayer.Character)
+    InitializeAntiReset(LocalPlayer.Character)
 end
-LocalPlayer.CharacterAdded:Connect(SetupAntiReset)
+LocalPlayer.CharacterAdded:Connect(InitializeAntiReset)
 
 -- ==============================================================================
--- 2. KÜP HİTBOX VE YUKARI ÇIKIŞ MEKANİĞİ
+-- 4. CUBE HITBOX & DYNAMIC BASE NAVIGATION SUBSYSTEM
 -- ==============================================================================
-local cubePart = nil
+local cubeHitboxPart = nil
 
-local function ToggleCube(state)
+local function ToggleCubeHitbox(state)
     Lea.Modules.Cube = state
     pcall(function()
         if state then
             local char = LocalPlayer.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp and not cubePart then
-                cubePart = Instance.new("Part")
-                cubePart.Name = "LeaHitboxCube"
-                cubePart.Size = Vector3.new(3, 0.6, 3)
-                cubePart.Anchored = false
-                cubePart.CanCollide = true -- Hitbox aktif ve basılabilir
-                cubePart.Massless = true
-                cubePart.Material = Enum.Material.Neon
-                cubePart.Color = Color3.fromRGB(0, 255, 200)
-                cubePart.Transparency = 0.2
-                cubePart.Parent = Workspace
+            if hrp and not cubeHitboxPart then
+                cubeHitboxPart = Instance.new("Part")
+                cubeHitboxPart.Name = "LeaEnterpriseHitboxNode"
+                cubeHitboxPart.Size = Vector3.new(3.2, 0.6, 3.2)
+                cubeHitboxPart.Anchored = false
+                cubeHitboxPart.CanCollide = true
+                cubeHitboxPart.Massless = true
+                cubeHitboxPart.Material = Enum.Material.Neon
+                cubeHitboxPart.Color = Color3.fromRGB(0, 255, 200)
+                cubeHitboxPart.Transparency = 0.2
+                cubeHitboxPart.Parent = Workspace
                 
-                -- Weld ile karaktere sabitleme (Yukarı çıkış sorununu çözer)
-                local weld = Instance.new("WeldConstraint")
-                weld.Part0 = hrp
-                weld.Part1 = cubePart
-                weld.Parent = cubePart
-                cubePart.CFrame = hrp.CFrame * CFrame.new(0, -3.5, 0)
+                local weldConstraint = Instance.new("WeldConstraint")
+                weldConstraint.Part0 = hrp
+                weldConstraint.Part1 = cubeHitboxPart
+                weldConstraint.Parent = cubeHitboxPart
+                cubeHitboxPart.CFrame = hrp.CFrame * CFrame.new(0, -3.5, 0)
             end
         else
-            if cubePart then
-                cubePart:Destroy()
-                cubePart = nil
+            if cubeHitboxPart then
+                cubeHitboxPart:Destroy()
+                cubeHitboxPart = nil
             end
         end
     end)
 end
 
--- ==============================================================================
--- 3. ÜS (BASE) VE GÜNCELLENMİŞ PET STEALTH (YENİ MATRİKS MANTIĞI)
--- ==============================================================================
-local function SetBase()
+local function SaveBaseCoordinates()
     pcall(function()
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
             Lea.BasePosition = hrp.Position
-            print("📍 [BASE]: Üs noktası başarıyla kaydedildi.")
+            print("📍 [BASE MANAGER]: Coordinates successfully saved at -> " .. tostring(Lea.BasePosition))
         end
     end)
 end
 
-local function ReturnBase()
-    if not Lea.BasePosition then return end
+local function ReturnToBaseCoordinates()
+    if not Lea.BasePosition then
+        print("⚠️ [BASE MANAGER]: No baseline coordinate vector found!")
+        return
+    end
     Lea.IsReturning = true
     task.spawn(function()
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         while hrp and Lea.IsReturning do
-            if (hrp.Position - Lea.BasePosition).Magnitude < 4 then
+            local currentDistance = (hrp.Position - Lea.BasePosition).Magnitude
+            if currentDistance < 4 then
                 Lea.IsReturning = false
                 break
             end
@@ -147,148 +182,153 @@ local function ReturnBase()
     end)
 end
 
-local function InstantHop()
+-- ==============================================================================
+-- 5. INSTANT SERVER HOPPER & PUBLIC INSTANCE SCANNER
+-- ==============================================================================
+local function ExecuteInstantServerHop()
     pcall(function()
-        local servers = {}
-        local success, res = pcall(function()
+        print("🚀 [SERVER HOPPER]: Scanning public server instances...")
+        local viableServers = {}
+        local success, result = pcall(function()
             return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
         end)
-        if success and res and res.data then
-            for _, s in ipairs(res.data) do
-                if s.playing and s.playing < s.maxPlayers then
-                    table.insert(servers, s.id)
+        
+        if success and result and result.data then
+            for _, serverData in ipairs(result.data) do
+                if serverData.playing and serverData.playing >= Lea.Settings.MinServerPlayers and serverData.playing < serverData.maxPlayers then
+                    table.insert(viableServers, serverData.id)
                 end
             end
         end
-        if #servers > 0 then
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], LocalPlayer)
+        
+        if #viableServers > 0 then
+            local selectedServer = viableServers[math.random(1, #viableServers)]
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, selectedServer, LocalPlayer)
         end
     end)
 end
 
 -- ==============================================================================
--- 4. HEARTBEAT DÖNGÜSÜ (GELİŞTİRİLMİŞ PET GİZLEME)
+-- 6. CONTINUOUS HEARTBEAT MONITORING ENGINE
 -- ==============================================================================
-RunService.Heartbeat:Connect(function()
+table.insert(Lea.ActiveConnections, RunService.Heartbeat:Connect(function()
     pcall(function()
-        -- Yeni Pet Stealth Mantığı (Bozulmayı önleyen stabil offset ve görünmezlik)
-        if Lea.Modules.PetStealth then
-            local char = LocalPlayer.Character
-            if char then
-                for _, tool in ipairs(char:GetChildren()) do
-                    if tool:IsA("Tool") and (tool.Name:find("Pet") or tool.Name:find("Brainrot") or tool.Name:find("Secret")) then
-                        local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Part")
-                        if handle then
-                            -- Fiziksel çakışmayı önleyen güvenli matrix pozisyonlandırma
-                            handle.CFrame = handle.CFrame + Vector3.new(0, -500, 0)
-                            handle.Transparency = 1
-                            handle.CanCollide = false
-                        end
-                    end
+        -- Auto-Hop Scanner for high-value targets (Steal a Brainrot loop check)
+        if Lea.Modules.AutoHop then
+            for _, workspaceObject in ipairs(Workspace:GetChildren()) do
+                if workspaceObject:IsA("Model") and (workspaceObject.Name:find("Secret") or workspaceObject.Name:find("Brainrot") or workspaceObject.Name:find("Mythic")) then
+                    ExecuteInstantServerHop()
+                    break
                 end
             end
         end
 
-        -- Auto-Hop Kontrolü
-        if Lea.Modules.AutoHop then
-            for _, obj in ipairs(Workspace:GetChildren()) do
-                if obj:IsA("Model") and (obj.Name:find("Secret") or obj.Name:find("Brainrot")) then
-                    InstantHop()
+        -- Check character inventory/tools for pet acquisition event to trigger #LEA kick
+        local character = LocalPlayer.Character
+        if character and Lea.Modules.AntiCheatKick then
+            for _, itemInstance in ipairs(character:GetChildren()) do
+                if itemInstance:IsA("Tool") and (itemInstance.Name:find("Pet") or itemInstance.Name:find("Brainrot") or itemInstance.Name:find("Secret")) then
+                    TriggerCustomLeaAntiCheatKick()
                     break
                 end
             end
         end
     end)
-end)
+end))
 
 -- ==============================================================================
--- 5. KAPSAMLI VE DÜZENLİ MOBİL ARAYÜZ (GUI)
+-- 7. PRODUCTION-READY MOBILE INTERFACE (GUI CONSTRUCTOR)
 -- ==============================================================================
-local function BuildFullUI()
+local function BuildEnterpriseMobileUI()
     pcall(function()
-        if CoreGui:FindFirstChild("LeaUltimateMatrixGui") then
-            CoreGui.LeaUltimateMatrixGui:Destroy()
+        if CoreGui:FindFirstChild("LeaEnterpriseMatrixGui") then
+            CoreGui.LeaEnterpriseMatrixGui:Destroy()
         end
 
         local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "LeaUltimateMatrixGui"
+        screenGui.Name = "LeaEnterpriseMatrixGui"
         screenGui.ResetOnSpawn = false
         screenGui.Parent = CoreGui
 
-        local mainFrame = Instance.new("Frame")
-        mainFrame.Size = UDim2.new(0, 180, 0, 240)
-        mainFrame.Position = UDim2.new(0.5, -90, 0.4, -120)
-        mainFrame.BackgroundColor3 = Color3.fromRGB(12, 15, 22)
-        mainFrame.BackgroundTransparency = 0.1
-        mainFrame.Active = true
-        mainFrame.Draggable = true
-        mainFrame.Parent = screenGui
-        Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+        local mainContainer = Instance.new("Frame")
+        mainContainer.Name = "MainContainer"
+        mainContainer.Size = UDim2.new(0, 190, 0, 270)
+        mainContainer.Position = UDim2.new(0.5, -95, 0.4, -135)
+        mainContainer.BackgroundColor3 = Color3.fromRGB(10, 13, 18)
+        mainContainer.BackgroundTransparency = 0.1
+        mainContainer.Active = true
+        mainContainer.Draggable = true
+        mainContainer.Parent = screenGui
 
-        local title = Instance.new("TextLabel")
-        title.Size = UDim2.new(1, -30, 0, 25)
-        title.Position = UDim2.new(0, 8, 0, 4)
-        title.BackgroundTransparency = 1
-        title.Text = "LEA MOD - PRO"
-        title.TextColor3 = Color3.fromRGB(0, 255, 200)
-        title.TextSize, title.Font = 11, Enum.Font.GothamBold
-        title.Parent = mainFrame
+        local cornerRadius = Instance.new("UICorner")
+        cornerRadius.CornerRadius = UDim.new(0, 8)
+        cornerRadius.Parent = mainContainer
 
-        local closeBtn = Instance.new("TextButton")
-        closeBtn.Size = UDim2.new(0, 20, 0, 20)
-        closeBtn.Position = UDim2.new(1, -24, 0, 4)
-        closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-        closeBtn.Text = "X"
-        closeBtn.TextColor3 = Color3.new(1, 1, 1)
-        closeBtn.TextSize = 9
-        closeBtn.Parent = mainFrame
-        Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(1, -30, 0, 26)
+        titleLabel.Position = UDim2.new(0, 8, 0, 4)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Text = "LEA MOD - #LEA PRO"
+        titleLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
+        titleLabel.TextSize = 11
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.Parent = mainContainer
 
-        local yOffset = 32
-        local function AddBtn(text, callback)
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -16, 0, 26)
-            btn.Position = UDim2.new(0, 8, 0, yOffset)
-            btn.BackgroundColor3 = Color3.fromRGB(28, 36, 48)
-            btn.Text = text
-            btn.TextColor3 = Color3.fromRGB(220, 220, 220)
-            btn.TextSize = 9
-            btn.Font = Enum.Font.GothamMedium
-            btn.Parent = mainFrame
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+        local closeButton = Instance.new("TextButton")
+        closeButton.Size = UDim2.new(0, 20, 0, 20)
+        closeButton.Position = UDim2.new(1, -24, 0, 4)
+        closeButton.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+        closeButton.Text = "X"
+        closeButton.TextColor3 = Color3.new(1, 1, 1)
+        closeButton.TextSize = 9
+        closeButton.Parent = mainContainer
+        Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 4)
 
-            local active = false
-            btn.MouseButton1Click:Connect(function()
-                active = not active
-                btn.BackgroundColor3 = active and Color3.fromRGB(0, 160, 110) or Color3.fromRGB(28, 36, 48)
-                callback(active)
+        local verticalOffset = 34
+        local function CreateFeatureToggle(buttonText, callbackFunction)
+            local toggleButton = Instance.new("TextButton")
+            toggleButton.Size = UDim2.new(1, -16, 0, 28)
+            toggleButton.Position = UDim2.new(0, 8, 0, verticalOffset)
+            toggleButton.BackgroundColor3 = Color3.fromRGB(24, 30, 42)
+            toggleButton.Text = buttonText
+            toggleButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+            toggleButton.TextSize = 9
+            toggleButton.Font = Enum.Font.GothamMedium
+            toggleButton.Parent = mainContainer
+            Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 5)
+
+            local isActiveState = false
+            toggleButton.MouseButton1Click:Connect(function()
+                isActiveState = not isActiveState
+                toggleButton.BackgroundColor3 = isActiveState and Color3.fromRGB(0, 160, 110) or Color3.fromRGB(24, 30, 42)
+                callbackFunction(isActiveState)
             end)
-            yOffset = yOffset + 30
+            verticalOffset = verticalOffset + 32
         end
 
-        local function AddAction(text, callback)
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -16, 0, 26)
-            btn.Position = UDim2.new(0, 8, 0, yOffset)
-            btn.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
-            btn.Text = text
-            btn.TextColor3 = Color3.new(1, 1, 1)
-            btn.TextSize = 9
-            btn.Font = Enum.Font.GothamBold
-            btn.Parent = mainFrame
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+        local function CreateActionTrigger(buttonText, callbackFunction)
+            local actionButton = Instance.new("TextButton")
+            actionButton.Size = UDim2.new(1, -16, 0, 28)
+            actionButton.Position = UDim2.new(0, 8, 0, verticalOffset)
+            actionButton.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
+            actionButton.Text = buttonText
+            actionButton.TextColor3 = Color3.new(1, 1, 1)
+            actionButton.TextSize = 9
+            actionButton.Font = Enum.Font.GothamBold
+            actionButton.Parent = mainContainer
+            Instance.new("UICorner", actionButton).CornerRadius = UDim.new(0, 5)
 
-            btn.MouseButton1Click:Connect(callback)
-            yOffset = yOffset + 30
+            actionButton.MouseButton1Click:Connect(callbackFunction)
+            verticalOffset = verticalOffset + 32
         end
 
-        AddBtn("Küp Hitbox Sistemi", function(v) ToggleCube(v) end)
-        AddBtn("Pet Stealth (Gizleme)", function(v) Lea.Modules.PetStealth = v end)
-        AddBtn("Auto-Hop & Server Finder", function(v) Lea.Modules.AutoHop = v end)
-        AddBtn("Anti-Reset Koruması", function(v) Lea.Modules.AntiReset = v end)
+        CreateFeatureToggle("Küp Hitbox Sistemi", function(val) ToggleCubeHitbox(val) end)
+        CreateFeatureToggle("#LEA Anti-Cheat Kick", function(val) Lea.Modules.AntiCheatKick = val end)
+        CreateFeatureToggle("Auto-Hop & Server Finder", function(val) Lea.Modules.AutoHop = val end)
+        CreateFeatureToggle("Anti-Reset Koruması", function(val) Lea.Modules.AntiReset = val end)
         
-        AddAction("Base (Üs) Kaydet", function() SetBase() end)
-        AddAction("Base'e Işınlan", function() ReturnBase() end)
+        CreateActionTrigger("Base (Üs) Kaydet", function() SaveBaseCoordinates() end)
+        CreateActionTrigger("Base'e Işınlan", function() ReturnBaseCoordinates() end)
 
         local toggleIcon = Instance.new("TextButton")
         toggleIcon.Size = UDim2.new(0, 36, 0, 18)
@@ -301,17 +341,17 @@ local function BuildFullUI()
         toggleIcon.Parent = screenGui
         Instance.new("UICorner", toggleIcon).CornerRadius = UDim.new(0, 4)
 
-        closeBtn.MouseButton1Click:Connect(function()
-            mainFrame.Visible = false
+        closeButton.MouseButton1Click:Connect(function()
+            mainContainer.Visible = false
             toggleIcon.Visible = true
         end)
 
         toggleIcon.MouseButton1Click:Connect(function()
-            mainFrame.Visible = true
+            mainContainer.Visible = true
             toggleIcon.Visible = false
         end)
     end)
 end
 
-BuildFullUI()
-print("✅ [LEA CORE V3.7]: Tüm sistemler eksiksiz ve tam kod bloklarıyla yüklendi.")
+BuildEnterpriseMobileUI()
+print("✅ [LEA CORE V4.0]: Enterprise deployment complete, all modules fully loaded.")
