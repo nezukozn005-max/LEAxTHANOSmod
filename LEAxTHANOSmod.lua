@@ -1,6 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V33.0 - MASSIVE EDITION (BÖLÜM 1 / 3)
--- ULTRA BYPASS, GLOBAL STATE VE GELİŞTİRİLMİŞ MOBİL ARAYÜZ ALTYAPISI
+-- LEA MOD ULTIMATE MEGA V33.2 - BÖLÜM 1 / 3 (BYPASS & KOMPAKT ARAYÜZ)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -12,14 +11,14 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V33.0 - BÖLÜM 1]: ULTRA BYPASS VE ARAYÜZ MOTORU BAŞLATILIYOR...")
+print("⭐ [LEA V33.2 - BÖLÜM 1]: ULTRA BYPASS VE KOMPAKT ARAYÜZ BAŞLATILIYOR...")
 
 -- ==============================================================================
 -- 1. DEVASA DURUM VE GÜVENLİK YÖNETİMİ (GLOBAL STATE)
 -- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "33.0-MASSIVE-MEGA",
+        Version = "33.2-RESETFIX",
         Mode = "NONE",
         Speed = 30,
         SpawnPos = nil,
@@ -29,6 +28,8 @@ if not getgenv().LeaModGlobalState then
         Visuals = false,
         AntiAntiCheat = true,
         BypassActive = true,
+        ResetProtection = true,
+        LastResetTime = 0,
         ThemeColor = Color3.fromRGB(0, 255, 200),
         TweenStorage = {},
         DiagnosticLogs = {}
@@ -46,25 +47,18 @@ local function LogEvent(message, level)
 end
 
 -- ==============================================================================
--- 2. ULTRA GÜÇLÜ BYPASS VE ANTI-DETECT (METATABLE HOOKING & TELEMETRY BLOCKER)
+-- 2. ULTRA GÜÇLÜ BYPASS VE ANTI-DETECT
 -- ==============================================================================
 local function InitializeUltimateBypass()
     local success, err = pcall(function()
-        if getgenv then
-            getgenv().protected_environments = true
-        end
-
-        if not getrawmetatable then 
-            LogEvent("Exploit metatable desteği sınırlı, alternatif koruma katmanı devrede.", "ERROR")
-            return 
-        end
+        if getgenv then getgenv().protected_environments = true end
+        if not getrawmetatable then return end
 
         local gm = getrawmetatable(game)
         setreadonly(gm, false)
         local namecall_original = gm.__namecall
         local index_original = gm.__index
 
-        -- Gelişmiş Anti-Kick, Anti-Ban ve Telemetri Engelleme Kancaları
         gm.__namecall = newcclosure(function(self, ...)
             local method = getnamecallmethod()
             local args = {...}
@@ -72,6 +66,10 @@ local function InitializeUltimateBypass()
                 if method == "Kick" or method == "kick" or method == "SaveTouchInterest" then
                     return nil
                 elseif method == "BreakJoints" and self == LocalPlayer.Character then
+                    if State.ResetProtection and (os.clock() - State.LastResetTime < 3) then
+                        return nil 
+                    end
+                    State.LastResetTime = os.clock()
                     return nil
                 elseif method == "ReportAbuse" or method == "FireServer" then
                     for _, v in ipairs(args) do
@@ -84,7 +82,6 @@ local function InitializeUltimateBypass()
             return namecall_original(self, ...)
         end)
 
-        -- Hız ve Fizik Değerlerini Sunucu Anticheat Sisteminden Maskeleme
         gm.__index = newcclosure(function(self, key)
             if State.BypassActive and not checkcaller() then
                 if self:IsA("Humanoid") then
@@ -98,17 +95,13 @@ local function InitializeUltimateBypass()
         end)
 
         setreadonly(gm, true)
-        LogEvent("Bölüm 1: Ultra Bypass ve Metatable Hooking başarıyla uygulandı.", "INFO")
+        LogEvent("Bölüm 1: Ultra Bypass ve Metatable Hooking aktif.", "INFO")
     end)
-
-    if not success then
-        LogEvent("Bypass başlatılırken hata oluştu: " .. tostring(err), "ERROR")
-    end
 end
 pcall(InitializeUltimateBypass)
 
 -- ==============================================================================
--- 3. MOBİL UYUMLU, GENİŞLETİLMİŞ VE DİKDÖRTGEN ARAYÜZ (GUI) MİMARİSİ
+-- 3. KOMPAKT MOBİL ARAYÜZ (GUI)
 -- ==============================================================================
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
@@ -119,20 +112,20 @@ end
 pcall(function()
     local parentObj = GetGuiParent()
     if parentObj then
-        local existing = parentObj:FindFirstChild("LeaModMassiveMegaGUI")
+        local existing = parentObj:FindFirstChild("LeaModCompactMegaGUI")
         if existing then existing:Destroy() end
     end
 end)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LeaModMassiveMegaGUI"
+ScreenGui.Name = "LeaModCompactMegaGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GetGuiParent()
 
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 340, 0, 480) -- Geniş, telefonda kusursuz ergonomik yapı
-MainContainer.Position = UDim2.new(0.5, -170, 0.5, -240)
+MainContainer.Size = UDim2.new(0, 280, 0, 360) 
+MainContainer.Position = UDim2.new(0.5, -140, 0.5, -180)
 MainContainer.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
 MainContainer.BackgroundTransparency = 0.05
 MainContainer.BorderSizePixel = 0
@@ -140,63 +133,64 @@ MainContainer.Active = true
 MainContainer.Draggable = true
 
 local MainCorner = Instance.new("UICorner", MainContainer)
-MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.CornerRadius = UDim.new(0, 10)
 
 local MainStroke = Instance.new("UIStroke", MainContainer)
 MainStroke.Color = State.ThemeColor
-MainStroke.Thickness = 2.5
+MainStroke.Thickness = 2
 MainStroke.Transparency = 0.15
 
 local HeaderFrame = Instance.new("Frame", MainContainer)
-HeaderFrame.Size = UDim2.new(1, 0, 0, 42)
+HeaderFrame.Size = UDim2.new(1, 0, 0, 32)
 HeaderFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
 HeaderFrame.BorderSizePixel = 0
 
 local HeaderCorner = Instance.new("UICorner", HeaderFrame)
-HeaderCorner.CornerRadius = UDim.new(0, 14)
+HeaderCorner.CornerRadius = UDim.new(0, 10)
 
 local TitleLabel = Instance.new("TextLabel", HeaderFrame)
-TitleLabel.Size = UDim2.new(1, -55, 1, 0)
-TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA V33.0 MASSIVE EDITION"
+TitleLabel.Text = "LEA V33.2 (PROTECTED)"
 TitleLabel.TextColor3 = State.ThemeColor
-TitleLabel.TextSize = 14
+TitleLabel.TextSize = 12
 TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseButton = Instance.new("TextButton", HeaderFrame)
-CloseButton.Size = UDim2.new(0, 32, 0, 32)
-CloseButton.Position = UDim2.new(1, -38, 0, 5)
+CloseButton.Size = UDim2.new(0, 24, 0, 24)
+CloseButton.Position = UDim2.new(1, -28, 0, 4)
 CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.Font = Enum.Font.GothamBold
-CloseButton.TextSize = 13
+CloseButton.TextSize = 11
 
 local CloseCorner = Instance.new("UICorner", CloseButton)
-CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.CornerRadius = UDim.new(0, 6)
 
 local ScrollContainer = Instance.new("ScrollingFrame", MainContainer)
-ScrollContainer.Size = UDim2.new(1, -20, 1, -58)
-ScrollContainer.Position = UDim2.new(0, 10, 0, 50)
+ScrollContainer.Size = UDim2.new(1, -16, 1, -42)
+ScrollContainer.Position = UDim2.new(0, 8, 0, 36)
 ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.ScrollBarThickness = 5
+ScrollContainer.ScrollBarThickness = 4
 ScrollContainer.ScrollBarImageColor3 = State.ThemeColor
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 750)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 500)
 
 local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
 ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ButtonListLayout.Padding = UDim.new(0, 8)
+ButtonListLayout.Padding = UDim.new(0, 6)
 ButtonListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 55, 0, 55)
-ToggleBtn.Position = UDim2.new(1, -75, 0.5, -28)
+ToggleBtn.Size = UDim2.new(0, 45, 0, 45)
+ToggleBtn.Position = UDim2.new(1, -60, 0.5, -22)
+ToggleBtn.BackgroundTransparency = 0.1
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
 ToggleBtn.Text = "LEA"
 ToggleBtn.TextColor3 = State.ThemeColor
-ToggleBtn.TextSize = 14
+ToggleBtn.TextSize = 12
 ToggleBtn.Font = Enum.Font.GothamBlack
 ToggleBtn.Visible = false
 
@@ -216,27 +210,23 @@ ToggleBtn.MouseButton1Click:Connect(function()
     ToggleBtn.Visible = false
 end)
 
-print("✅ [LEA V33.0 - BÖLÜM 1]: Tamamlandı. Lütfen Part 2 kodunu isteyin.")
+print("✅ [LEA V33.2 - BÖLÜM 1]: Tamamlandı.")
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V33.0 - MASSIVE EDITION (BÖLÜM 2 / 3)
--- GÜVENLİ TWEEN HAREKET MOTORU, FABRİKA BUTONLARI VE KARAKTER KORUMA SİSTEMİ
+-- LEA MOD ULTIMATE MEGA V33.2 - BÖLÜM 2 / 3 (RESET KORUMASI VE TWEEN MOTORU)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
-print("⭐ [LEA V33.0 - BÖLÜM 2]: HAREKET MOTORU VE BUTON FABRİKASI YÜKLENİYOR...")
+print("⭐ [LEA V33.2 - BÖLÜM 2]: RESET KORUMASI VE BUTONLAR YÜKLENİYOR...")
 
 if not getgenv().LeaModGlobalState then
-    warn("❌ [LEA ERROR]: Global State bulunamadı! Lütfen önce Bölüm 1'i çalıştırın.")
+    warn("❌ [LEA ERROR]: Global State bulunamadı! Önce Bölüm 1'i çalıştır.")
     return
 end
 local State = getgenv().LeaModGlobalState
 
--- Arayüz elementlerine erişim için ScreenGui üzerinden arama
 local CoreGui = game:GetService("CoreGui")
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
@@ -245,33 +235,70 @@ local function GetGuiParent()
 end
 
 local parentObj = GetGuiParent()
-local ScreenGui = parentObj and parentObj:FindFirstChild("LeaModMassiveMegaGUI")
+local ScreenGui = parentObj and parentObj:FindFirstChild("LeaModCompactMegaGUI")
 local MainContainer = ScreenGui and ScreenGui:FindFirstChildOfClass("Frame")
 local ScrollContainer = MainContainer and MainContainer:FindFirstChildOfClass("ScrollingFrame")
-
-if not ScrollContainer then
-    warn("❌ [LEA ERROR]: ScrollContainer (Bölüm 1 Arayüzü) tespit edilemedi!")
-end
 
 local UIButtons = {}
 
 -- ==============================================================================
--- 1. DİNAMİK ARAYÜZ ELEMANLARI (FACTORY)
+-- İSTEDİĞİN RESET KORUMASI VE KARARLILIK SAĞLAYICI ENTEGRASYONU
+-- ==============================================================================
+local function SetupResetProtection(newChar)
+    local humanoid = newChar:WaitForChild("Humanoid", 5)
+    
+    if humanoid then
+        -- Ölüm anında parçaların ayrılmasını engellemeye çalış
+        humanoid.BreakJointsOnDeath = false
+        
+        -- Can sıfırlandığında müdahale
+        humanoid.HealthChanged:Connect(function(health)
+            if health <= 0 and State.ResetProtection then
+                pcall(function()
+                    humanoid.Health = 100
+                end)
+            end
+        end)
+        
+        -- Periyodik kalkan (ForceField) yenileme döngüsü
+        task.spawn(function()
+            while newChar and newChar.Parent and State.ResetProtection do
+                pcall(function()
+                    local forceField = newChar:FindFirstChildOfClass("ForceField")
+                    if not forceField then
+                        forceField = Instance.new("ForceField")
+                        forceField.Parent = newChar
+                    end
+                    forceField.Visible = false -- Görünmez yap
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end
+
+if LocalPlayer.Character then
+    task.spawn(function() SetupResetProtection(LocalPlayer.Character) end)
+end
+LocalPlayer.CharacterAdded:Connect(SetupResetProtection)
+
+-- ==============================================================================
+-- BUTON FABRİKASI
 -- ==============================================================================
 local function CreateMenuButton(order, text, defaultColor, activeColor, callback)
     if not ScrollContainer then return end
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -10, 0, 42)
+    btn.Size = UDim2.new(1, -8, 0, 34)
     btn.BackgroundColor3 = defaultColor
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 13
+    btn.TextSize = 11
     btn.Font = Enum.Font.GothamBold
     btn.AutoButtonColor = false
     
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 8)
+    corner.CornerRadius = UDim.new(0, 6)
     
     local active = false
     btn.MouseButton1Click:Connect(function()
@@ -287,23 +314,20 @@ local function CreateActionItem(order, text, color, callback)
     if not ScrollContainer then return end
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -10, 0, 42)
+    btn.Size = UDim2.new(1, -8, 0, 34)
     btn.BackgroundColor3 = color
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 13
+    btn.TextSize = 11
     btn.Font = Enum.Font.GothamBold
     
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 8)
+    corner.CornerRadius = UDim.new(0, 6)
     
     btn.MouseButton1Click:Connect(function() pcall(callback) end)
     return btn
 end
 
--- ==============================================================================
--- 2. GÜVENLİ TWEEN HAREKET MOTORU VE ANTI-RUBBERBANDING SİSTEMİ
--- ==============================================================================
 local function CancelActiveTweens()
     if State.TweenStorage.ActiveTween then
         State.TweenStorage.ActiveTween:Cancel()
@@ -323,27 +347,10 @@ local function SafeMoveTo(targetPosition, timeToArrive)
     end
 end
 
--- Global erişim için State içerisine kaydediyoruz
 State.TweenStorage.CancelActiveTweens = CancelActiveTweens
 State.TweenStorage.SafeMoveTo = SafeMoveTo
 
--- ==============================================================================
--- 3. KARAKTER ÖLÜM VE YENİDEN DOĞMA YÖNETİMİ
--- ==============================================================================
-local function SetupCharacter(char)
-    State.Mode = "NONE"
-    CancelActiveTweens()
-    local hrp = char:WaitForChild("HumanoidRootPart", 5)
-    if hrp and not State.SpawnPos then 
-        State.SpawnPos = hrp.Position + Vector3.new(0, 5, 0) 
-    end
-end
-if LocalPlayer.Character then SetupCharacter(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(SetupCharacter)
-
--- ==============================================================================
--- 4. KONTROL BUTONLARININ OLUŞTURULMASI
--- ==============================================================================
+-- Butonlar
 UIButtons.Fly = CreateMenuButton(1, "🚀 GÜVENLİ FLY OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 200, 100), function(on, btn)
     State.Fly = on
     btn.Text = on and "🚀 GÜVENLİ FLY ON" or "🚀 GÜVENLİ FLY OFF"
@@ -375,7 +382,7 @@ UIButtons.Visuals = CreateMenuButton(5, "👁️ OYUNCU ESP OFF", Color3.fromRGB
     btn.Text = on and "👁️ OYUNCU ESP ON" or "👁️ OYUNCU ESP OFF"
 end)
 
-local speedBtn = CreateActionItem(6, "⚡ HIZI ARTIR (ŞU AN: 30)", Color3.fromRGB(30, 30, 45), function()
+CreateActionItem(6, "⚡ HIZI ARTIR (ŞU AN: 30)", Color3.fromRGB(30, 30, 45), function()
     State.Speed = State.Speed + 10
     if State.Speed > 100 then State.Speed = 20 end
     if ScrollContainer and ScrollContainer:GetChildren()[6] then
@@ -383,19 +390,18 @@ local speedBtn = CreateActionItem(6, "⚡ HIZI ARTIR (ŞU AN: 30)", Color3.fromR
     end
 end)
 
-local setBaseBtn = CreateActionItem(7, "📍 MEVCUT KONUMU ÜS YAP", Color3.fromRGB(30, 45, 35), function()
+CreateActionItem(7, "📍 MEVCUT KONUMU ÜS YAP", Color3.fromRGB(30, 45, 35), function()
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
         State.SpawnPos = hrp.Position + Vector3.new(0, 5, 0)
-        print("✅ [LEA BASE]: Yeni üs noktası başarıyla kaydedildi.")
+        print("✅ [LEA BASE]: Yeni üs noktası kaydedildi.")
     end
 end)
 
-print("✅ [LEA V33.0 - BÖLÜM 2]: Tamamlandı. Lütfen Part 3 kodunu isteyin.")
+print("✅ [LEA V33.2 - BÖLÜM 2]: Tamamlandı.")
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V33.0 - MASSIVE EDITION (BÖLÜM 3 / 3)
--- MERKEZİ GÜNCELLEME DÖNGÜSÜ, FLY, NOCLIP, TWEEN BASE/TARGET VE ESP MOTORU
+-- LEA MOD ULTIMATE MEGA V33.2 - BÖLÜM 3 / 3 (MERKEZİ DÖNGÜLER VE FİZİK)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -404,17 +410,15 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V33.0 - BÖLÜM 3]: MERKEZİ DÖNGÜLER VE FİZİK MOTORU BAŞLATILIYOR...")
+print("⭐ [LEA V33.2 - BÖLÜM 3]: MERKEZİ DÖNGÜLER BAŞLATILIYOR...")
 
 if not getgenv().LeaModGlobalState then
-    warn("❌ [LEA ERROR]: Global State bulunamadı! Lütfen önce Bölüm 1 ve Bölüm 2'yi çalıştırın.")
+    warn("❌ [LEA ERROR]: Global State bulunamadı! Önce 1 ve 2'yi çalıştır.")
     return
 end
 local State = getgenv().LeaModGlobalState
 
--- ==============================================================================
--- 1. HAYALET NOCLIP DÖNGÜSÜ (DUVARDAN GEÇME MOTORU)
--- ==============================================================================
+-- Noclip Döngüsü
 RunService.Stepped:Connect(function()
     if State.Noclip and LocalPlayer.Character then
         pcall(function()
@@ -427,9 +431,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ==============================================================================
--- 2. ANA FİZİK VE HAREKET MOTORU (HEARTBEAT DÖNGÜSÜ)
--- ==============================================================================
+-- Ana Hareket ve Fizik Motoru
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -437,12 +439,20 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    -- Güvenli Yürüme Hızı Kontrolü
+    if hum.Health <= 0 then
+        if State.TweenStorage.CancelActiveTweens then
+            State.TweenStorage.CancelActiveTweens()
+        end
+        State.Mode = "NONE"
+        State.Fly = false
+        return
+    end
+
     if hum.WalkSpeed ~= State.Speed and hum.MoveDirection.Magnitude > 0 then
         hum.WalkSpeed = State.Speed
     end
 
-    -- Gelişmiş Güvenli Uçuş (Fly) Mekanizması
+    -- Uçuş (Fly)
     if State.Fly then
         hum.PlatformStand = true
         local moveDir = hum.MoveDirection
@@ -454,7 +464,7 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Pürüzsüz Üs Dönüşü (Tween Base)
+    -- Üs Dönüşü
     if State.Mode == "BASE" and State.SpawnPos then
         local dist = (State.SpawnPos - hrp.Position).Magnitude
         if dist > 5 then
@@ -463,15 +473,13 @@ RunService.Heartbeat:Connect(function(dt)
                 State.TweenStorage.SafeMoveTo(CFrame.new(State.SpawnPos), timeToArrive)
             end
         else
-            if State.TweenStorage.CancelActiveTweens then
-                State.TweenStorage.CancelActiveTweens()
-            end
+            if State.TweenStorage.CancelActiveTweens then State.TweenStorage.CancelActiveTweens() end
             State.Mode = "NONE"
             print("✅ [LEA BASE]: Üsse güvenli bir şekilde ulaşıldı.")
         end
     end
 
-    -- Kusursuz Hedef Takibi (Tween Target)
+    -- Hedef Takip
     if State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -500,28 +508,24 @@ RunService.Heartbeat:Connect(function(dt)
                     end
                 end
             else
-                if State.TweenStorage.CancelActiveTweens then
-                    State.TweenStorage.CancelActiveTweens()
-                end
+                if State.TweenStorage.CancelActiveTweens then State.TweenStorage.CancelActiveTweens() end
             end
         end)
     end
 end)
 
--- ==============================================================================
--- 3. GÜÇLENDİRİLMİŞ ESP (GÖRSEL OYUNCU İŞARETLEME SİSTEMİ)
--- ==============================================================================
+-- ESP Sistemi
 task.spawn(function()
     while task.wait(1) do
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character then
                     local char = p.Character
-                    local hl = char:FindFirstChild("LeaMassiveESP")
+                    local hl = char:FindFirstChild("LeaCompactESP")
                     if State.Visuals then
                         if not hl then
                             hl = Instance.new("Highlight")
-                            hl.Name = "LeaMassiveESP"
+                            hl.Name = "LeaCompactESP"
                             hl.FillColor = Color3.fromRGB(0, 255, 200)
                             hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                             hl.FillTransparency = 0.55
@@ -536,4 +540,4 @@ task.spawn(function()
     end
 end)
 
-print("✅ [LEA V33.0 - BÖLÜM 3]: TÜM PARÇALAR BAŞARIYLA BİRLEŞTİRİLDİ. SİSTEM KUSURSUZ ÇALIŞIYOR!")
+print("✅ [LEA V33.2]: TÜM SİSTEMLER, RESET KORUMASI VE ÖZEL KALKANLAR AKTİF!")
