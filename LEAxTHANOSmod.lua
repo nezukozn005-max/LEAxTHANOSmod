@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V43.0 - STABLE OPTIMIZED EDITION (PURE MOBILE GUI)
+-- LEA MOD ULTIMATE MEGA V43.0 - PART 1 / 2
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -10,35 +10,30 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V43.0]: STABLE OPTIMIZED CUBE EDITION BAŞLATILIYOR...")
+print("⭐ [LEA V43.0]: PART 1 BAŞLATILIYOR...")
 
--- ==============================================================================
--- 1. SETTINGS & GLOBAL STATE (MERKEZİ DURUM YÖNETİMİ)
--- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
         Version = "43.0-CUBE-ONLY",
-        Mode = "NONE",          -- "NONE", "BASE", "TARGET"
-        Speed = 16,             -- Güvenli taban hız
-        MoveSpeedIndex = 1,     -- 1: 16, 2: 18, 3: 20
+        Mode = "NONE",
+        Speed = 16,
+        MoveSpeedIndex = 1,
         SpawnPos = nil,
         Fly = false,
         FlySpeed = 35,
-        Noclip = false,
         Visuals = false,
         CubeActive = false,
-        CubeList = {},          -- İstenen Cube Sistemi Listesi
-        LastCubeTime = 0,       -- İstenen Cube Zamanlayıcısı
+        CubeList = {},
+        LastCubeTime = 0,
         ThemeColor = Color3.fromRGB(0, 255, 200),
         Connections = {},
         TweenStorage = {},
         EspActive = false,
-        ReturnSpeedIndex = 2    -- 1: Yavaş (25), 2: Normal (30), 3: Hızlı (45)
+        ReturnSpeedIndex = 2
     }
 end
 local State = getgenv().LeaModGlobalState
 
--- Önceki bağlantıları güvenli bir şekilde temizle
 for _, conn in ipairs(State.Connections) do
     pcall(function() conn:Disconnect() end)
 end
@@ -52,9 +47,7 @@ local function CancelActiveTweens()
     end
 end
 
--- ==============================================================================
--- 2. CUBE SİSTEMİ (ÖZEL İSTENEN KOD BLOKU)
--- ==============================================================================
+-- CUBE SİSTEMİ
 local function ClearCubes()
     for _, v in ipairs(State.CubeList) do
         if v and v.Parent then pcall(function() v:Destroy() end) end
@@ -96,17 +89,11 @@ local function UpdateCube(RootPart, Humanoid)
     end
 end
 
--- ==============================================================================
--- 3. RESET KORUMASI VE KARARLILIK SAĞLAYICI (İSTENEN YENİ SİSTEM)
--- ==============================================================================
+-- RESET KORUMASI
 local function SetupResetProtection(newChar)
     local humanoid = newChar:WaitForChild("Humanoid", 5)
-    
     if humanoid then
-        -- Ölüm anında parçaların ayrılmasını engellemeye çalış
         humanoid.BreakJointsOnDeath = false
-        
-        -- Can sıfırlandığında müdahale
         local healthConn = humanoid.HealthChanged:Connect(function(health)
             if health <= 0 then
                 CancelActiveTweens()
@@ -121,7 +108,6 @@ local function SetupResetProtection(newChar)
         end)
         table.insert(State.Connections, healthConn)
         
-        -- Periyodik kalkan (ForceField) yenileme döngüsü
         task.spawn(function()
             while newChar and newChar.Parent do
                 pcall(function()
@@ -130,7 +116,7 @@ local function SetupResetProtection(newChar)
                         forceField = Instance.new("ForceField")
                         forceField.Parent = newChar
                     end
-                    forceField.Visible = false -- Görünmez yap
+                    forceField.Visible = false
                 end)
                 task.wait(0.5)
             end
@@ -143,9 +129,7 @@ if LocalPlayer.Character then
 end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
 
--- ==============================================================================
--- 4. SERBEST HAREKET (SÜZÜLME / UÇMA) MANTIĞI (İSTENEN YENİ SİSTEM)
--- ==============================================================================
+-- FLY MANTIĞI
 local function StopFly(humanoid, rootPart)
     if humanoid then
         humanoid.PlatformStand = false
@@ -165,21 +149,33 @@ local function UpdateFly(humanoid, rootPart)
 
     if moveDir.Magnitude > 0 then
         local camCFrame = cam.CFrame
-        -- Kamera açısına göre yatay/dikey hareket vektörünün hesaplanması
         local targetDir = (camCFrame.RightVector * moveDir.X) + (camCFrame.LookVector * moveDir.Z)
-        
         if targetDir.Magnitude > 0 then
             rootPart.AssemblyLinearVelocity = targetDir.Unit * State.FlySpeed
         end
     else
-        -- Girdi kesildiğinde kaymayı önlemek için hızı anında sıfırlama
         rootPart.AssemblyLinearVelocity = Vector3.zero
     end
 end
+print("✅ [LEA V43.0]: PART 1 YÜKLENDİ. İKİNCİ PARTI ÇALIŞTIRIN.")
+-- ==============================================================================
+-- LEA MOD ULTIMATE MEGA V43.0 - PART 2 / 2
+-- ==============================================================================
 
--- ==============================================================================
--- 5. MOBİL UYUMLU ARAYÜZ (GUI - Genişletilmiş Ölçü: 125x170)
--- ==============================================================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+print("⭐ [LEA V43.0]: PART 2 BAŞLATILIYOR...")
+
+local State = getgenv().LeaModGlobalState
+if not State then
+    error("Önce Part 1 kodunu çalıştırmalısın!")
+end
+
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
     if success and parent then return parent end
@@ -213,10 +209,9 @@ ActiveWatermark.Visible = false
 ActiveWatermark.TextStrokeTransparency = 0.3
 ActiveWatermark.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 
--- Genişletilmiş Ana Panel (125x170)
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 125, 0, 170)
-MainContainer.Position = UDim2.new(0.5, -62, 0.5, -85)
+MainContainer.Size = UDim2.new(0, 125, 0, 150)
+MainContainer.Position = UDim2.new(0.5, -62, 0.5, -75)
 MainContainer.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
 MainContainer.BackgroundTransparency = 0.05
 MainContainer.BorderSizePixel = 0
@@ -267,7 +262,7 @@ ScrollContainer.Position = UDim2.new(0, 3, 0, 20)
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.ScrollBarThickness = 2
 ScrollContainer.ScrollBarImageColor3 = State.ThemeColor
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 215)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 195)
 
 local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
 ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -302,10 +297,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     ActiveWatermark.Visible = false
 end)
 
--- ==============================================================================
--- 6. BUTONLAR VE HAREKET KONTROLÜ (ÇAKIŞMA ÖNLEYİCİ MİMARİ)
--- ==============================================================================
-local FlyButtonRef, NoclipButtonRef
+local FlyButtonRef
 
 local function CreateMenuButton(order, text, defaultColor, activeColor, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
@@ -347,6 +339,13 @@ local function CreateActionItem(order, text, color, callback)
     return btn
 end
 
+local function CancelActiveTweens()
+    if State.TweenStorage.ActiveTween then
+        State.TweenStorage.ActiveTween:Cancel()
+        State.TweenStorage.ActiveTween = nil
+    end
+end
+
 local function SafeMoveTo(targetPosition, timeToArrive)
     CancelActiveTweens()
     local char = LocalPlayer.Character
@@ -363,10 +362,18 @@ local function SafeMoveTo(targetPosition, timeToArrive)
         tween:Play()
     end
 end
-
 State.TweenStorage.SafeMoveTo = SafeMoveTo
 
--- Menü Butonları (Fly ve Noclip Bağımsız Hale Getirildi)
+local function StopFlyInternal(humanoid, rootPart)
+    if humanoid then
+        humanoid.PlatformStand = false
+        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+    if rootPart then
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+    end
+end
+
 FlyButtonRef = CreateMenuButton(1, "🚀 FLY OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Fly = on
     btn.Text = on and "🚀 FLY ON" or "🚀 FLY OFF"
@@ -376,22 +383,22 @@ FlyButtonRef = CreateMenuButton(1, "🚀 FLY OFF", Color3.fromRGB(45, 35, 65), C
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        StopFly(hum, hrp)
+        StopFlyInternal(hum, hrp)
     end
 end)
 
-NoclipButtonRef = CreateMenuButton(2, "🛡️ NOCLIP OFF", Color3.fromRGB(65, 35, 35), Color3.fromRGB(0, 180, 90), function(on, btn)
-    State.Noclip = on
-    btn.Text = on and "🛡️ NOCLIP ON" or "🛡️ NOCLIP OFF"
-end)
-
-CreateMenuButton(3, "🧊 CUBE OFF", Color3.fromRGB(35, 55, 55), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(2, "🧊 CUBE OFF", Color3.fromRGB(35, 55, 55), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.CubeActive = on
     btn.Text = on and "🧊 CUBE ON" or "🧊 CUBE OFF"
-    if not on then ClearCubes() end
+    if not on then
+        for _, v in ipairs(State.CubeList) do
+            if v and v.Parent then pcall(function() v:Destroy() end) end
+        end
+        State.CubeList = {}
+    end
 end)
 
-CreateMenuButton(4, "🏠 BASE OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(3, "🏠 BASE OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(0, 180, 90), function(on, btn)
     if on then
         State.Mode = "BASE"
         State.Fly = false
@@ -400,7 +407,7 @@ CreateMenuButton(4, "🏠 BASE OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(
             TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
         end
         local char = LocalPlayer.Character
-        StopFly(char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart"))
+        StopFlyInternal(char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart"))
     else
         State.Mode = "NONE"
         CancelActiveTweens()
@@ -408,7 +415,7 @@ CreateMenuButton(4, "🏠 BASE OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(
     btn.Text = on and "🏠 BASE ON" or "🏠 BASE OFF"
 end)
 
-CreateMenuButton(5, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(4, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRGB(0, 180, 90), function(on, btn)
     if on then
         State.Mode = "TARGET"
         State.Fly = false
@@ -417,7 +424,7 @@ CreateMenuButton(5, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRG
             TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
         end
         local char = LocalPlayer.Character
-        StopFly(char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart"))
+        StopFlyInternal(char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart"))
     else
         State.Mode = "NONE"
         CancelActiveTweens()
@@ -425,7 +432,7 @@ CreateMenuButton(5, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRG
     btn.Text = on and "🎯 TARGET ON" or "🎯 TARGET OFF"
 end)
 
-CreateActionItem(6, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
+CreateActionItem(5, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
     State.Mode = "NONE"
     State.Fly = false
     if FlyButtonRef then
@@ -435,7 +442,7 @@ CreateActionItem(6, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    StopFly(hum, hrp)
+    StopFlyInternal(hum, hrp)
     CancelActiveTweens()
     if hrp then
         local raycastParams = RaycastParams.new()
@@ -449,41 +456,39 @@ CreateActionItem(6, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
     end
 end)
 
-CreateMenuButton(7, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(6, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Visuals = on
     State.EspActive = on
     btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
 end)
 
--- Yürüme Hızı Kademesi (16 -> 18 -> 20)
-CreateActionItem(8, "⚡ YÜRÜME HIZI: 16", Color3.fromRGB(30, 30, 45), function()
+CreateActionItem(7, "⚡ YÜRÜME HIZI: 16", Color3.fromRGB(30, 30, 45), function()
     State.MoveSpeedIndex = State.MoveSpeedIndex + 1
     if State.MoveSpeedIndex > 3 then State.MoveSpeedIndex = 1 end
     
     local speeds = {16, 18, 20}
     State.Speed = speeds[State.MoveSpeedIndex]
     
-    local targetBtn = ScrollContainer:GetChildren()[8]
+    local targetBtn = ScrollContainer:GetChildren()[7]
     if targetBtn and targetBtn:IsA("TextButton") then
         targetBtn.Text = "⚡ YÜRÜME HIZI: " .. State.Speed
     end
 end)
 
--- Dönüş/Base Hızı Kademesi (25 -> 30 -> 45)
-CreateActionItem(9, "🏎️ DÖNÜŞ HIZI: 30", Color3.fromRGB(45, 30, 30), function()
+CreateActionItem(8, "🏎️ DÖNÜŞ HIZI: 30", Color3.fromRGB(45, 30, 30), function()
     State.ReturnSpeedIndex = State.ReturnSpeedIndex + 1
     if State.ReturnSpeedIndex > 3 then State.ReturnSpeedIndex = 1 end
     
     local returnSpeeds = {25, 30, 45}
     local currentReturnSpeed = returnSpeeds[State.ReturnSpeedIndex]
     
-    local targetBtn = ScrollContainer:GetChildren()[9]
+    local targetBtn = ScrollContainer:GetChildren()[8]
     if targetBtn and targetBtn:IsA("TextButton") then
         targetBtn.Text = "🏎️ DÖNÜŞ HIZI: " .. currentReturnSpeed
     end
 end)
 
-CreateActionItem(10, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
+CreateActionItem(9, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
@@ -491,24 +496,6 @@ CreateActionItem(10, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
     end
 end)
 
--- ==============================================================================
--- 7. MOTOR & FİZİK DÖNGÜLERİ (STABLE HEARTBEAT)
--- ==============================================================================
-
--- Noclip (Tamamen bağımsız çalışma mantığı)
-table.insert(State.Connections, RunService.Stepped:Connect(function()
-    if State.Noclip and LocalPlayer.Character then
-        pcall(function()
-            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
-                end
-            end
-        end)
-    end
-end))
-
--- Güvenli ve Temizlenebilir ESP Döngüsü
 local espTimeElapsed = 0
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     espTimeElapsed = espTimeElapsed + dt
@@ -537,7 +524,6 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
--- Ana Hareket, Küp Sistemi ve Mod Motoru
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -550,27 +536,50 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         State.Mode = "NONE"
         State.Fly = false
         State.CubeActive = false
-        ClearCubes()
+        for _, v in ipairs(State.CubeList) do
+            if v and v.Parent then pcall(function() v:Destroy() end) end
+        end
+        State.CubeList = {}
         return
     end
 
-    -- İstenen Cube Sistemi Çağrısı
     if State.CubeActive then
-        UpdateCube(hrp, hum)
+        local now = tick()
+        if hrp.AssemblyLinearVelocity.Y < -5 and (now - State.LastCubeTime > 0.3) then
+            local cube = Instance.new("Part")
+            cube.Size = Vector3.new(4, 0.5, 4)
+            cube.Position = hrp.Position - Vector3.new(0, 3, 0)
+            cube.Anchored = true
+            cube.CanCollide = true
+            cube.Transparency = 0.8
+            cube.Material = Enum.Material.SmoothPlastic
+            cube.Color = Color3.fromRGB(0, 170, 255)
+            cube.Parent = Workspace
+            table.insert(State.CubeList, cube)
+            State.LastCubeTime = now
+        end
     end
 
-    -- Yürüme Hızı Sabitleme
     if hum.WalkSpeed ~= State.Speed and hum.MoveDirection.Magnitude > 0 then
         hum.WalkSpeed = State.Speed
     end
 
-    -- Yeni Süzülme / Uçuş Mekaniği
     if State.Fly then
-        UpdateFly(hum, hrp)
+        hum.PlatformStand = true
+        local cam = Workspace.CurrentCamera
+        local moveDir = hum.MoveDirection
+        if moveDir.Magnitude > 0 then
+            local camCFrame = cam.CFrame
+            local targetDir = (camCFrame.RightVector * moveDir.X) + (camCFrame.LookVector * moveDir.Z)
+            if targetDir.Magnitude > 0 then
+                hrp.AssemblyLinearVelocity = targetDir.Unit * State.FlySpeed
+            end
+        else
+            hrp.AssemblyLinearVelocity = Vector3.zero
+        end
         return
     end
 
-    -- Base Takip Sistemi
     if State.Mode == "BASE" and State.SpawnPos then
         local dist = (State.SpawnPos - hrp.Position).Magnitude
         if dist > 3.5 then
@@ -583,7 +592,6 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Target / Aura Takip Sistemi
     if State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -616,4 +624,5 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
-print("✅ [LEA V43.0]: STABLE OPTIMIZED CUBE EDITION BAŞARIYLA YÜKLENDİ!")
+print("✅ [LEA V43.0]: PART 2 BAŞARIYLA YÜKLENDİ VE TAMAMLANDI!")
+
