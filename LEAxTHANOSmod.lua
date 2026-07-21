@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V43.0 - PART 1 / 2
+-- LEA MOD ULTIMATE MEGA V44.0 - ADVANCED BYPASS & AUTO-DODGE EDITION (PART 1)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -10,26 +10,66 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V43.0]: PART 1 BAŞLATILIYOR...")
+print("⭐ [LEA V44.0]: ADVANCED CORE & BYPASS BAŞLATILIYOR...")
+
+-- ==============================================================================
+-- 1. ULTRA GÜÇLÜ BYPASS, ANTI-KICK & ANTI-DETECTION SİSTEMİ
+-- ==============================================================================
+pcall(function()
+    -- Metod kancalama koruması ve temel metin engelleme
+    local mt = getrawmetatable(game)
+    local oldNamecall = mt.__namecall
+    setreadonly(mt, false)
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        -- Anti-Kick: Sunucunun oyuncuyu atmaya çalışmasını engelle
+        if method == "Kick" or method == "kick" then
+            return nil
+        end
+        
+        -- Anti-Cheat hız/teleport algılama loglarını blokla
+        if tostring(method) == "FireServer" and self.Name:lower():find("anticheat") or self.Name:lower():find("ban") or self.Name:lower():find("report") then
+            return nil
+        end
+        
+        return oldNamecall(self, ...)
+    end)
+    setreadonly(mt, true)
+end)
+
+-- Fizik ve Hız Sınırlandırmalarını Bypass Etme (Anti-Speed Cap / Anti-Clamp)
+task.spawn(function()
+    pcall(function()
+        for _, v in ipairs(getgc(true)) do
+            if typeof(v) == "table" and rawget(v, "WalkSpeed") then
+                rawset(v, "WalkSpeed", 100)
+            end
+        end
+    end)
+end)
 
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "43.0-CUBE-ONLY",
-        Mode = "NONE",
-        Speed = 16,
-        MoveSpeedIndex = 1,
+        Version = "44.0-ULTRA-BYPASS",
+        Mode = "NONE",          -- "NONE", "BASE", "TARGET"
+        Speed = 16,             
+        MoveSpeedIndex = 1,     
         SpawnPos = nil,
         Fly = false,
-        FlySpeed = 35,
+        FlySpeed = 45,
         Visuals = false,
         CubeActive = false,
-        CubeList = {},
-        LastCubeTime = 0,
+        CubeList = {},          
+        LastCubeTime = 0,       
+        AutoDodge = false,      -- Otomatik Kaçış Sistemi
         ThemeColor = Color3.fromRGB(0, 255, 200),
         Connections = {},
         TweenStorage = {},
         EspActive = false,
-        ReturnSpeedIndex = 2
+        ReturnSpeedIndex = 2    
     }
 end
 local State = getgenv().LeaModGlobalState
@@ -47,7 +87,9 @@ local function CancelActiveTweens()
     end
 end
 
--- CUBE SİSTEMİ
+-- ==============================================================================
+-- 2. CUBE SİSTEMİ
+-- ==============================================================================
 local function ClearCubes()
     for _, v in ipairs(State.CubeList) do
         if v and v.Parent then pcall(function() v:Destroy() end) end
@@ -73,27 +115,15 @@ local function CreateCube(pos)
     table.insert(State.CubeList, cube)
 end
 
-local function UpdateCube(RootPart, Humanoid)
-    if not State.CubeActive or not RootPart or not Humanoid then return end
-    local now = tick()
-
-    if RootPart.AssemblyLinearVelocity.Y < -5 and (now - State.LastCubeTime > 0.3) then
-        CreateCube(RootPart.Position - Vector3.new(0, 3, 0))
-        State.LastCubeTime = now
-    end
-
-    if RootPart.AssemblyLinearVelocity.Magnitude > 2 and (now - State.LastCubeTime > 0.3) then
-        local dir = RootPart.CFrame.LookVector
-        CreateCube(RootPart.Position + Vector3.new(dir.X * 3, -2.5, dir.Z * 3))
-        State.LastCubeTime = now
-    end
-end
-
--- RESET KORUMASI
+-- ==============================================================================
+-- 3. RESET KORUMASI
+-- ==============================================================================
 local function SetupResetProtection(newChar)
     local humanoid = newChar:WaitForChild("Humanoid", 5)
+    
     if humanoid then
         humanoid.BreakJointsOnDeath = false
+        
         local healthConn = humanoid.HealthChanged:Connect(function(health)
             if health <= 0 then
                 CancelActiveTweens()
@@ -129,7 +159,9 @@ if LocalPlayer.Character then
 end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
 
--- FLY MANTIĞI
+-- ==============================================================================
+-- 4. GELİŞTİRİLMİŞ FLY (BYPASS DESTEKLİ SÜZÜLME)
+-- ==============================================================================
 local function StopFly(humanoid, rootPart)
     if humanoid then
         humanoid.PlatformStand = false
@@ -150,16 +182,19 @@ local function UpdateFly(humanoid, rootPart)
     if moveDir.Magnitude > 0 then
         local camCFrame = cam.CFrame
         local targetDir = (camCFrame.RightVector * moveDir.X) + (camCFrame.LookVector * moveDir.Z)
+        
         if targetDir.Magnitude > 0 then
+            -- Hız kesici engeller tamamen kaldırıldı, doğrudan tam güç veriliyor
             rootPart.AssemblyLinearVelocity = targetDir.Unit * State.FlySpeed
         end
     else
         rootPart.AssemblyLinearVelocity = Vector3.zero
     end
 end
-print("✅ [LEA V43.0]: PART 1 YÜKLENDİ. İKİNCİ PARTI ÇALIŞTIRIN.")
+
+print("✅ [LEA V44.0]: PART 1 (BYPASS & CORE) YÜKLENDİ.")
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V43.0 - PART 2 / 2
+-- LEA MOD ULTIMATE MEGA V44.0 - PART 2 / 2 (GUI & AUTO-DODGE MOTORU)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -169,7 +204,7 @@ local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-print("⭐ [LEA V43.0]: PART 2 BAŞLATILIYOR...")
+print("⭐ [LEA V44.0]: PART 2 (GUI & DODGE) BAŞLATILIYOR...")
 
 local State = getgenv().LeaModGlobalState
 if not State then
@@ -201,7 +236,7 @@ ActiveWatermark.Name = "LeaActiveWatermark"
 ActiveWatermark.Size = UDim2.new(0, 180, 0, 20)
 ActiveWatermark.Position = UDim2.new(0.5, -90, 0.16, -10)
 ActiveWatermark.BackgroundTransparency = 1
-ActiveWatermark.Text = "⚡ LEA V43 ACTIVE ⚡"
+ActiveWatermark.Text = "⚡ LEA V44 ACTIVE (BYPASS) ⚡"
 ActiveWatermark.TextColor3 = State.ThemeColor
 ActiveWatermark.TextSize = 10
 ActiveWatermark.Font = Enum.Font.GothamBlack
@@ -209,9 +244,10 @@ ActiveWatermark.Visible = false
 ActiveWatermark.TextStrokeTransparency = 0.3
 ActiveWatermark.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 
+-- Genişletilmiş Panel (10 buton sığması için yükseklik artırıldı)
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 125, 0, 150)
-MainContainer.Position = UDim2.new(0.5, -62, 0.5, -75)
+MainContainer.Size = UDim2.new(0, 125, 0, 175)
+MainContainer.Position = UDim2.new(0.5, -62, 0.5, -87)
 MainContainer.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
 MainContainer.BackgroundTransparency = 0.05
 MainContainer.BorderSizePixel = 0
@@ -238,7 +274,7 @@ local TitleLabel = Instance.new("TextLabel", HeaderFrame)
 TitleLabel.Size = UDim2.new(1, -18, 1, 0)
 TitleLabel.Position = UDim2.new(0, 4, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA V43"
+TitleLabel.Text = "LEA V44"
 TitleLabel.TextColor3 = State.ThemeColor
 TitleLabel.TextSize = 8
 TitleLabel.Font = Enum.Font.GothamBlack
@@ -262,7 +298,7 @@ ScrollContainer.Position = UDim2.new(0, 3, 0, 20)
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.ScrollBarThickness = 2
 ScrollContainer.ScrollBarImageColor3 = State.ThemeColor
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 195)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 220)
 
 local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
 ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -374,6 +410,7 @@ local function StopFlyInternal(humanoid, rootPart)
     end
 end
 
+-- Menü Butonları Oluşturuluyor
 FlyButtonRef = CreateMenuButton(1, "🚀 FLY OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Fly = on
     btn.Text = on and "🚀 FLY ON" or "🚀 FLY OFF"
@@ -432,7 +469,13 @@ CreateMenuButton(4, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRG
     btn.Text = on and "🎯 TARGET ON" or "🎯 TARGET OFF"
 end)
 
-CreateActionItem(5, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
+-- Yeni Eklenen Otomatik Kaçış (Auto-Dodge) Tuşu
+CreateMenuButton(5, "🛡️ AUTO-DODGE OFF", Color3.fromRGB(50, 25, 60), Color3.fromRGB(0, 180, 90), function(on, btn)
+    State.AutoDodge = on
+    btn.Text = on and "🛡️ AUTO-DODGE ON" or "🛡️ AUTO-DODGE OFF"
+end)
+
+CreateActionItem(6, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
     State.Mode = "NONE"
     State.Fly = false
     if FlyButtonRef then
@@ -456,39 +499,39 @@ CreateActionItem(5, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
     end
 end)
 
-CreateMenuButton(6, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(7, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Visuals = on
     State.EspActive = on
     btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
 end)
 
-CreateActionItem(7, "⚡ YÜRÜME HIZI: 16", Color3.fromRGB(30, 30, 45), function()
+CreateActionItem(8, "⚡ YÜRÜME HIZI: 16", Color3.fromRGB(30, 30, 45), function()
     State.MoveSpeedIndex = State.MoveSpeedIndex + 1
     if State.MoveSpeedIndex > 3 then State.MoveSpeedIndex = 1 end
     
     local speeds = {16, 18, 20}
     State.Speed = speeds[State.MoveSpeedIndex]
     
-    local targetBtn = ScrollContainer:GetChildren()[7]
+    local targetBtn = ScrollContainer:GetChildren()[8]
     if targetBtn and targetBtn:IsA("TextButton") then
         targetBtn.Text = "⚡ YÜRÜME HIZI: " .. State.Speed
     end
 end)
 
-CreateActionItem(8, "🏎️ DÖNÜŞ HIZI: 30", Color3.fromRGB(45, 30, 30), function()
+CreateActionItem(9, "🏎️ DÖNÜŞ HIZI: 30", Color3.fromRGB(45, 30, 30), function()
     State.ReturnSpeedIndex = State.ReturnSpeedIndex + 1
     if State.ReturnSpeedIndex > 3 then State.ReturnSpeedIndex = 1 end
     
     local returnSpeeds = {25, 30, 45}
     local currentReturnSpeed = returnSpeeds[State.ReturnSpeedIndex]
     
-    local targetBtn = ScrollContainer:GetChildren()[8]
+    local targetBtn = ScrollContainer:GetChildren()[9]
     if targetBtn and targetBtn:IsA("TextButton") then
         targetBtn.Text = "🏎️ DÖNÜŞ HIZI: " .. currentReturnSpeed
     end
 end)
 
-CreateActionItem(9, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
+CreateActionItem(10, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
@@ -496,6 +539,7 @@ CreateActionItem(9, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
     end
 end)
 
+-- ESP Döngüsü
 local espTimeElapsed = 0
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     espTimeElapsed = espTimeElapsed + dt
@@ -524,6 +568,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
+-- Ana Fizik, Hız Sabitleme ve Oto Kaçış (Auto-Dodge) Motoru
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -543,6 +588,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         return
     end
 
+    -- Küp Sistemi
     if State.CubeActive then
         local now = tick()
         if hrp.AssemblyLinearVelocity.Y < -5 and (now - State.LastCubeTime > 0.3) then
@@ -560,10 +606,35 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    if hum.WalkSpeed ~= State.Speed and hum.MoveDirection.Magnitude > 0 then
-        hum.WalkSpeed = State.Speed
+    -- Hız Sabitleme (Hız kesici engeller tamamen kaldırıldı, sabit tam hız verilir)
+    if hum.WalkSpeed ~= State.Speed then
+        pcall(function()
+            hum.WalkSpeed = State.Speed
+        end)
     end
 
+    -- Otomatik Kaçış (Auto-Dodge) Sistemi: Düşman yaklaşınca veya vurmaya çalışınca anında kaçar
+    if State.AutoDodge then
+        pcall(function()
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
+                    local eHum = p.Character:FindFirstChildOfClass("Humanoid")
+                    if eHrp and eHum and eHum.Health > 0 then
+                        local distance = (eHrp.Position - hrp.Position).Magnitude
+                        -- Eğer düşman kritik yakınlaşma alanına (8 stud) girerse ters yöne kaçış tetiklenir
+                        if distance < 8 then
+                            local escapeDir = (hrp.Position - eHrp.Position).Unit
+                            hrp.AssemblyLinearVelocity = Vector3.new(escapeDir.X * 50, 15, escapeDir.Z * 50)
+                            return
+                        end
+                    end
+                end
+            end
+        end)
+    end
+
+    -- Süzülme / Uçuş Modu
     if State.Fly then
         hum.PlatformStand = true
         local cam = Workspace.CurrentCamera
@@ -580,6 +651,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         return
     end
 
+    -- Base Takip Sistemi
     if State.Mode == "BASE" and State.SpawnPos then
         local dist = (State.SpawnPos - hrp.Position).Magnitude
         if dist > 3.5 then
@@ -592,6 +664,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
 
+    -- Target Takip Sistemi
     if State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -624,5 +697,4 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
-print("✅ [LEA V43.0]: PART 2 BAŞARIYLA YÜKLENDİ VE TAMAMLANDI!")
-
+print("✅ [LEA V44.0]: PART 2 BAŞARIYLA YÜKLENDİ VE TAMAMLANDI!")
