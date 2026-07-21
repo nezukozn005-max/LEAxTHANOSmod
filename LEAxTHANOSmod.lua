@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V50.0 - PART 1/2 (TEMEL SİSTEM & BYPASS)
+-- LEA MOD ULTIMATE MEGA V50.0 - PART 1/2 (TEMEL SİSTEM & ADVANCED BYPASS)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -7,46 +7,39 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
-print("⭐ [LEA V50.0 PART 1]: SİSTEM BAŞLATILIYOR...")
+print("⭐ [LEA V50.0 PART 1]: SİSTEM VE BYPASS BAŞLATILIYOR...")
 
 -- ==============================================================================
--- 1. BYPASS VE GÜVENLİK KATMANI
+-- 1. ADVANCED BYPASS VE ANTI-DETECTION KATMANI
 -- ==============================================================================
 pcall(function()
-    local mt = getrawmetatable(game)
-    local oldNamecall = mt.__namecall
-    setreadonly(mt, false)
-    
-    mt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-        
-        if method == "Kick" or method == "kick" or method == "Teleport" then
-            return nil
-        end
-        
-        if tostring(method) == "FireServer" or tostring(method) == "InvokeServer" then
-            local parent = self.Parent
-            if parent then
-                local parentName = parent.Name:lower()
-                if parentName:find("anticheat") or 
-                   parentName:find("ban") or 
-                   parentName:find("report") or 
-                   parentName:find("detect") or
-                   parentName:find("mod") or
-                   parentName:find("admin") or
-                   parentName:find("ac") or
-                   parentName:find("punish") then
+    if hookmetamethod then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            
+            if not checkcaller() then
+                if method == "Kick" or method == "kick" then
                     return nil
                 end
+                
+                if method == "FireServer" or method == "InvokeServer" then
+                    local name = tostring(self.Name):lower()
+                    local parentName = self.Parent and tostring(self.Parent.Name):lower() or ""
+                    
+                    if name:find("ban") or name:find("kick") or name:find("cheat") or name:find("detect") or name:find("report") or
+                       parentName:find("anticheat") or parentName:find("ac") or parentName:find("admin") or parentName:find("mod") then
+                        return nil
+                    end
+                end
             end
-        end
-        
-        return oldNamecall(self, ...)
-    end)
-    setreadonly(mt, true)
+            
+            return oldNamecall(self, ...)
+        end))
+    end
 end)
 
 -- ==============================================================================
@@ -83,17 +76,30 @@ end
 State.Connections = {}
 
 -- ==============================================================================
--- 3. KARAKTER KORUMA
+-- 3. HIZ VE KARAKTER YÖNETİMİ (TAKILMA DÜZELTME)
 -- ==============================================================================
+local function ApplySpeed(humanoid)
+    if not humanoid then return end
+    if humanoid.WalkSpeed ~= State.Speed then
+        humanoid.WalkSpeed = State.Speed
+    end
+end
+
 local function ProtectCharacter(character)
     if not character then return end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then
-        humanoid = character:WaitForChild("Humanoid", 10)
-    end
-    
+    local humanoid = character:WaitForChild("Humanoid", 5)
     if humanoid then
         humanoid.BreakJointsOnDeath = false
+        
+        -- Hız takılmasını önleyen dinleyici
+        local speedConn = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+            if humanoid.WalkSpeed ~= State.Speed then
+                humanoid.WalkSpeed = State.Speed
+            end
+        end)
+        table.insert(State.Connections, speedConn)
+        ApplySpeed(humanoid)
+
         local healthConn = humanoid.HealthChanged:Connect(function(health)
             if health <= 0 then
                 State.AutoAttack = false
@@ -102,7 +108,6 @@ local function ProtectCharacter(character)
                     if cube and cube.Parent then pcall(function() cube:Destroy() end) end
                 end
                 State.CubeList = {}
-                pcall(function() humanoid.Health = 100 end)
             end
         end)
         table.insert(State.Connections, healthConn)
@@ -116,7 +121,7 @@ table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(ProtectCharac
 -- 4. SPAWN TESPİTİ
 -- ==============================================================================
 task.spawn(function()
-    task.wait(4)
+    task.wait(3)
     pcall(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             State.SpawnPosition = LocalPlayer.Character.HumanoidRootPart.Position
@@ -252,6 +257,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 if not getgenv().LeaModGlobalState then
@@ -403,7 +409,7 @@ local function CreateActionItem(order, text, color, callback)
     return btn
 end
 
--- Menü Butonları
+-- Menü Elemanları
 CreateMenuButton(1, "⚔️ AUTO ATTACK OFF", Color3.fromRGB(45, 25, 25), Color3.fromRGB(255, 50, 50), function(on, btn)
     State.AutoAttack = on
     btn.Text = on and "⚔️ AUTO ATTACK ON" or "⚔️ AUTO ATTACK OFF"
@@ -435,6 +441,12 @@ CreateActionItem(5, "⚡ HIZ: 16", Color3.fromRGB(30, 30, 45), function()
     local speeds = {16, 20, 24, 28}
     State.Speed = speeds[State.MoveSpeedIndex]
     
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = State.Speed end
+    end
+    
     for _, child in ipairs(ScrollContainer:GetChildren()) do
         if child:IsA("TextButton") and child.Text:find("HIZ:") then
             child.Text = "⚡ HIZ: " .. State.Speed
@@ -457,10 +469,18 @@ CreateMenuButton(8, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRG
     State.Visuals = on
     State.EspActive = on
     btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
+    
+    if not on then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("LeaMegaESP") then
+                p.Character.LeaMegaESP:Destroy()
+            end
+        end
+    end
 end)
 
--- Bağlantılar ve Döngüler
-game:GetService("UserInputService").JumpRequest:Connect(function()
+-- Oyun Döngüleri
+UserInputService.JumpRequest:Connect(function()
     if State.InfiniteJump then
         local char = LocalPlayer.Character
         if char then
@@ -475,12 +495,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     if not character then return end
     
     local hrp = character:FindFirstChild("HumanoidRootPart")
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not hrp or not humanoid then return end
-    
-    if humanoid.WalkSpeed ~= State.Speed then
-        pcall(function() humanoid.WalkSpeed = State.Speed end)
-    end
+    if not hrp then return end
     
     if State.Noclip then
         pcall(function()
@@ -502,7 +517,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
             local cube = Instance.new("Part")
             cube.Name = "LeaCube"
             cube.Size = Vector3.new(4, 0.5, 4)
-            cube.Position = hrp.Position - Vector3.new(0, 3, 0)
+            cube.Position = hrp.Position - Vector3.new(0, 3.5, 0) -- Takılmayı önlemek için -3.5 yüksekliğe alındı
             cube.Anchored = true
             cube.CanCollide = true
             cube.Transparency = 0.8
@@ -537,32 +552,32 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
+-- ESP Döngüsü
 local espTimer = 0
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     espTimer = espTimer + dt
-    if espTimer >= 1.5 then
+    if espTimer >= 1.0 then
         espTimer = 0
-        pcall(function()
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local char = player.Character
-                    local highlight = char:FindFirstChild("LeaMegaESP")
-                    if State.Visuals then
+        if State.Visuals and State.EspActive then
+            pcall(function()
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local char = player.Character
+                        local highlight = char:FindFirstChild("LeaMegaESP")
                         if not highlight then
                             highlight = Instance.new("Highlight")
                             highlight.Name = "LeaMegaESP"
-                            highlight.FillColor = State.ThemeColor
+                            highlight.FillColor = Color3.fromRGB(255, 0, 80)
                             highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            highlight.FillTransparency = 0.55
+                            highlight.FillTransparency = 0.5
+                            highlight.OutlineTransparency = 0
                             highlight.Parent = char
                         end
-                    else
-                        if highlight then highlight:Destroy() end
                     end
                 end
-            end
-        end)
+            end)
+        end
     end
 end))
 
-print("✅ [PART 2 TAMAMLANDI]: Tüm sistemler aktif edildi!")
+print("✅ [LEA V50.0]: SİSTEM BAŞARIYLA YÜKLENDİ.")
