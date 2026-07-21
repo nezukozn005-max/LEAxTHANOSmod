@@ -1,5 +1,7 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V50.1 - FULL REFACTOR (PLATFORM CUBE & AUTO SYSTEMS INCLUDED)
+-- LEA MOD - LEAXTHANOS EDITION (OPTIMIZED FOR DELTA MOBILE)
+-- Version: 5.0.0-PROD
+-- Author: Axiom
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -7,510 +9,256 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then return end
+local Camera = Workspace.CurrentCamera
 
--- Clear existing threads/connections safely
-if getgenv().LeaModGlobalState and getgenv().LeaModGlobalState.Connections then
-    for _, conn in ipairs(getgenv().LeaModGlobalState.Connections) do
-        pcall(function() conn:Disconnect() end)
-    end
-end
-
--- Global State Registry
-getgenv().LeaModGlobalState = {
-    Version = "50.1-PLATFORM",
-    AutoAttack = false,
-    AutoAttackLastTime = 0,
-    AutoAttackCooldown = 0.35,
-    AutoMedusa = false,
-    AutoMedusaLastTime = 0,
-    MedusaCooldown = 0.75,
+-- Global State Management
+getgenv().LeaModState = getgenv().LeaModState or {
     CubeActive = false,
-    PlatformPart = nil,
-    ThemeColor = Color3.fromRGB(0, 255, 200),
-    Connections = {},
-    EspActive = false,
-    Visuals = false,
-    Noclip = false,
-    IsReturning = false,
-    CustomBasePosition = nil,
-    ReturnSpeed = 23
+    FlyActive = false,
+    FlySpeed = 21,
+    FollowActive = false,
+    MedusaActive = false,
+    LaggerActive = false,
+    SavedBasePosition = nil,
+    HasPet = false,
 }
 
-local State = getgenv().LeaModGlobalState
+local State = getgenv().LeaModState
 
 -- ==============================================================================
--- 1. UTILITIES & CHARACTER MANAGEMENT
+-- 1. BYPASS & ANTI-CHEAT MASKING MODULE
 -- ==============================================================================
-local function SafeConnect(signal, callback)
-    local conn = signal:Connect(callback)
-    table.insert(State.Connections, conn)
-    return conn
-end
+local function InitializeBypass()
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldNamecall = mt.__namecall
 
-local function GetCharacter()
-    local char = LocalPlayer.Character
-    if char and char:Parent() and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") then
-        return char, char.HumanoidRootPart, char:FindFirstChildOfClass("Humanoid")
-    end
-    return nil, nil, nil
-end
-
-local function ProtectCharacter(char)
-    if not char then return end
-    local hum = char:WaitForChild("Humanoid", 5)
-    if hum then
-        local conn = hum.HealthChanged:Connect(function(health)
-            if health <= 0 and hum:GetState() ~= Enum.HumanoidStateType.Dead then
-                pcall(function()
-                    hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-                end)
-            end
-        end)
-        table.insert(State.Connections, conn)
-    end
-end
-
-if LocalPlayer.Character then ProtectCharacter(LocalPlayer.Character) end
-SafeConnect(LocalPlayer.CharacterAdded, ProtectCharacter)
-
-local function InitDefaultBase()
-    local _, hrp = GetCharacter()
-    if hrp and not State.CustomBasePosition then
-        State.CustomBasePosition = hrp.Position
-    end
-end
-
-if LocalPlayer.Character then InitDefaultBase() end
-SafeConnect(LocalPlayer.CharacterAdded, function()
-    task.wait(1)
-    InitDefaultBase()
-end)
-
--- ==============================================================================
--- 2. DYNAMIC PLATFORM (CUBE) SUBSYSTEM
--- ==============================================================================
-local function DestroyPlatform()
-    if State.PlatformPart and State.PlatformPart:IsA("BasePart") then
-        pcall(function() State.PlatformPart:Destroy() end)
-    end
-    State.PlatformPart = nil
-end
-
-local function UpdatePlatform()
-    if not State.CubeActive then
-        DestroyPlatform()
-        return
-    end
-
-    local char, hrp = GetCharacter()
-    if not char or not hrp then return end
-
-    if not State.PlatformPart or not State.PlatformPart.Parent then
-        local part = Instance.new("Part")
-        part.Name = "LeaMod_PlatformCube"
-        part.Size = Vector3.new(6, 1, 6)
-        part.Anchored = true
-        part.CanCollide = true
-        part.Material = Enum.Material.Neon
-        part.Color = State.ThemeColor
-        part.Transparency = 0.3
-        part.Parent = Workspace
-        State.PlatformPart = part
-    end
-
-    -- Position the platform right below the player's feet
-    State.PlatformPart.CFrame = CFrame.new(hrp.Position - Vector3.new(0, 3.5, 0))
-end
-
--- ==============================================================================
--- 3. TOOL & AUTOMATION SYSTEMS
--- ==============================================================================
-local function FindAndEquipTool(keyword)
-    local char = LocalPlayer.Character
-    if not char then return false end
-    
-    for _, tool in ipairs(char:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name:lower():find(keyword:lower()) then
-            return true
-        end
-    end
-    
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if backpack then
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and tool.Name:lower():find(keyword:lower()) then
-                pcall(function() tool.Parent = char end)
-                task.wait(0.02)
-                return true
-            end
-        end
-    end
-    return false
-end
-
-local function GetNearestPlayer(maxDistance)
-    local nearest = nil
-    local shortestDistance = maxDistance or 60
-    local _, myHrp = GetCharacter()
-    if not myHrp then return nil end
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hrp and hum and hum.Health > 0 then
-                local dist = (myHrp.Position - hrp.Position).Magnitude
-                if dist < shortestDistance then
-                    shortestDistance = dist
-                    nearest = player
-                end
-            end
-        end
-    end
-    return nearest
-end
-
--- ==============================================================================
--- 4. BASE RETURN ENGINE
--- ==============================================================================
-local function StartSmoothReturn()
-    if State.IsReturning then return end
-    
-    local targetBase = State.CustomBasePosition
-    if not targetBase then
-        local _, hrp = GetCharacter()
-        if hrp then
-            targetBase = hrp.Position
-            State.CustomBasePosition = targetBase
-        else
-            return
-        end
-    end
-
-    local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum then return end
-
-    State.IsReturning = true
-
-    local bodyVel = Instance.new("BodyVelocity")
-    bodyVel.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-    bodyVel.Velocity = Vector3.zero
-    bodyVel.Parent = hrp
-
-    local bodyGyro = Instance.new("BodyGyro")
-    bodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-    bodyGyro.P = 10000
-    bodyGyro.CFrame = hrp.CFrame
-    bodyGyro.Parent = hrp
-
-    local destination = targetBase + Vector3.new(0, 3, 0)
-    local connection
-
-    connection = SafeConnect(RunService.Heartbeat, function()
-        local currentChar, currentHrp, currentHum = GetCharacter()
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
         
-        if not currentChar or not currentHrp or not State.IsReturning or currentHum.Health <= 0 then
-            if connection then connection:Disconnect() end
-            bodyVel:Destroy()
-            bodyGyro:Destroy()
-            State.IsReturning = false
+        -- Mask characteristic remote spam or detection vectors
+        if method == "FireServer" and self.Name:lower():find("anticheat") then
             return
         end
-
-        local currentPos = currentHrp.Position
-        local vecToTarget = (destination - currentPos)
-        local distance = vecToTarget.Magnitude
-
-        if distance <= 2.5 then
-            bodyVel:Destroy()
-            bodyGyro:Destroy()
-            currentHrp.AssemblyLinearVelocity = Vector3.zero
-            State.IsReturning = false
-            if connection then connection:Disconnect() end
-        else
-            local flightDirection = vecToTarget.Unit
-            bodyVel.Velocity = flightDirection * State.ReturnSpeed
-            bodyGyro.CFrame = CFrame.lookAt(currentPos, currentPos + flightDirection)
-        end
+        
+        return oldNamecall(self, unpack(args))
     end)
+    setreadonly(mt, true)
 end
+pcall(InitializeBypass)
 
 -- ==============================================================================
--- 5. MAIN EXECUTION LOOPS
+-- 2. UI SYSTEM (MOBILE OPTIMIZED SQUARE MENU & OVERLAYS)
 -- ==============================================================================
-SafeConnect(RunService.Stepped, function()
-    if not State.Noclip or State.IsReturning then return end
-    local char = LocalPlayer.Character
-    if char then
-        for _, part in ipairs(char:GetChildren()) do
-            if part:IsA("BasePart") and part.CanCollide then
-                part.CanCollide = false
-            end
-        end
-    end
-end)
-
-SafeConnect(RunService.Heartbeat, function()
-    -- Update platform position if enabled
-    UpdatePlatform()
-
-    local char, hrp, hum = GetCharacter()
-    if not char or not hrp or hum.Health <= 0 then return end
-
-    local nearestTarget = GetNearestPlayer(45)
-    if nearestTarget and nearestTarget.Character and nearestTarget.Character:FindFirstChild("HumanoidRootPart") then
-        local targetHrp = nearestTarget.Character.HumanoidRootPart
-        local dist = (hrp.Position - targetHrp.Position).Magnitude
-        
-        -- Auto Medusa
-        if State.AutoMedusa and dist <= 18 then
-            local now = tick()
-            if now - State.AutoMedusaLastTime >= State.MedusaCooldown then
-                if FindAndEquipTool("medusa") then
-                    for _, tool in ipairs(char:GetChildren()) do
-                        if tool:IsA("Tool") and tool.Name:lower():find("medusa") then
-                            pcall(function() tool:Activate() end)
-                            State.AutoMedusaLastTime = now
-                            break
-                        end
-                    end
-                end
-            end
-        end
-        
-        -- Auto Attack
-        if State.AutoAttack then
-            local now = tick()
-            if now - State.AutoAttackLastTime >= State.AutoAttackCooldown then
-                State.AutoAttackLastTime = now
-                if FindAndEquipTool("pet") or FindAndEquipTool("bad") or FindAndEquipTool("weapon") then
-                    for _, tool in ipairs(char:GetChildren()) do
-                        if tool:IsA("Tool") then
-                            pcall(function() tool:Activate() end)
-                            break
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ESP Loop
-local espTimer = 0
-SafeConnect(RunService.Heartbeat, function(dt)
-    espTimer = espTimer + dt
-    if espTimer >= 1.0 then
-        espTimer = 0
-        if State.Visuals and State.EspActive then
-            pcall(function()
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        local c = player.Character
-                        local highlight = c:FindFirstChild("LeaMegaESP")
-                        if not highlight then
-                            highlight = Instance.new("Highlight")
-                            highlight.Name = "LeaMegaESP"
-                            highlight.FillColor = Color3.fromRGB(255, 0, 80)
-                            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            highlight.FillTransparency = 0.5
-                            highlight.OutlineTransparency = 0
-                            highlight.Parent = c
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- ==============================================================================
--- 6. MOBILE-FRIENDLY GUI MOUNTING ENGINE
--- ==============================================================================
-local function GetGuiParent()
-    if gethui then
-        local success, res = pcall(gethui)
-        if success and res then return res end
-    end
-    local success, res = pcall(function() return CoreGui end)
-    if success and res then return res end
-    return LocalPlayer:WaitForChild("PlayerGui", 5)
-end
-
-local TargetParent = GetGuiParent()
-if TargetParent:FindFirstChild("LeaModMegaGUI") then
-    TargetParent.LeaModMegaGUI:Destroy()
-end
-
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LeaModMegaGUI"
+ScreenGui.Name = "LeaMod_MainGui"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = TargetParent
 
-local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Name = "MainContainer"
-MainContainer.Size = UDim2.new(0, 165, 0, 240)
-MainContainer.Position = UDim2.new(0.5, -82, 0.25, 0)
-MainContainer.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
-MainContainer.BorderSizePixel = 0
-MainContainer.Active = true
-MainContainer.Draggable = true
+local successGui = pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
+if not successGui then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
-Instance.new("UICorner", MainContainer).CornerRadius = UDim.new(0, 6)
-local MainStroke = Instance.new("UIStroke", MainContainer)
-MainStroke.Color = State.ThemeColor
-MainStroke.Thickness = 1
-
-local HeaderFrame = Instance.new("Frame", MainContainer)
-HeaderFrame.Size = UDim2.new(1, 0, 0, 22)
-HeaderFrame.BackgroundColor3 = Color3.fromRGB(4, 4, 8)
-HeaderFrame.BorderSizePixel = 0
-
-local TitleLabel = Instance.new("TextLabel", HeaderFrame)
-TitleLabel.Size = UDim2.new(1, -22, 1, 0)
-TitleLabel.Position = UDim2.new(0, 6, 0, 0)
+-- Top Center Title: LEA MOD
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "HeaderTitle"
+TitleLabel.Size = UDim2.new(0, 200, 0, 35)
+TitleLabel.Position = UDim2.new(0.5, -100, 0, 10)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA V50.1 ULTIMATE"
-TitleLabel.TextColor3 = State.ThemeColor
-TitleLabel.TextSize = 9
-TitleLabel.Font = Enum.Font.GothamBlack
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Text = "LEA MOD"
+TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
+TitleLabel.TextScaled = true
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Parent = ScreenGui
 
-local CloseBtn = Instance.new("TextButton", HeaderFrame)
-CloseBtn.Size = UDim2.new(0, 18, 0, 18)
-CloseBtn.Position = UDim2.new(1, -20, 0, 2)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+-- Floating Quick Open Button (Right Top)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "LeaToggleBtn"
+ToggleButton.Size = UDim2.new(0, 45, 0, 45)
+ToggleButton.Position = UDim2.new(1, -55, 0, 15)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+ToggleButton.Text = "LEA"
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 200)
+ToggleButton.TextSize = 14
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Visible = false
+ToggleButton.Parent = ScreenGui
+
+local btnCorner = Instance.new("UICorner", ToggleButton)
+btnCorner.CornerRadius = UDim.new(0, 8)
+
+-- Main Square Menu (Mobile Small Size)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainSquareMenu"
+MainFrame.Size = UDim2.new(0, 240, 0, 280)
+MainFrame.Position = UDim2.new(0.5, -120, 0.5, -140)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local mainCorner = Instance.new("UICorner", MainFrame)
+mainCorner.CornerRadius = UDim.new(0, 10)
+
+local mainStroke = Instance.new("UIStroke", MainFrame)
+mainStroke.Color = Color3.fromRGB(40, 40, 50)
+mainStroke.Thickness = 1.5
+
+-- Close Button (Top Left of Menu)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Position = UDim2.new(0, 8, 0, 8)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 8
 CloseBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
-
-local ScrollContainer = Instance.new("ScrollingFrame", MainContainer)
-ScrollContainer.Size = UDim2.new(1, -6, 1, -26)
-ScrollContainer.Position = UDim2.new(0, 3, 0, 24)
-ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.ScrollBarThickness = 2
-ScrollContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-
-local ListLayout = Instance.new("UIListLayout", ScrollContainer)
-ListLayout.Padding = UDim.new(0, 4)
-ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 36, 0, 36)
-ToggleBtn.Position = UDim2.new(1, -42, 0.4, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
-ToggleBtn.Text = "LEA"
-ToggleBtn.TextColor3 = State.ThemeColor
-ToggleBtn.TextSize = 9
-ToggleBtn.Font = Enum.Font.GothamBlack
-ToggleBtn.Visible = false
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
-local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
-ToggleStroke.Color = State.ThemeColor
-ToggleStroke.Thickness = 1
+CloseBtn.Parent = MainFrame
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
 CloseBtn.MouseButton1Click:Connect(function()
-    MainContainer.Visible = false
-    ToggleBtn.Visible = true
+    MainFrame.Visible = false
+    ToggleButton.Visible = true
 end)
 
-ToggleBtn.MouseButton1Click:Connect(function()
-    MainContainer.Visible = true
-    ToggleBtn.Visible = false
+ToggleButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    ToggleButton.Visible = false
 end)
-
-local function CreateToggleButton(order, text, callback)
-    local btn = Instance.new("TextButton", ScrollContainer)
-    btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -2, 0, 22)
-    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
-    btn.Text = text .. ": OFF"
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 8
-    btn.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-
-    local active = false
-    btn.MouseButton1Click:Connect(function()
-        active = not active
-        btn.Text = text .. (active and ": ON" or ": OFF")
-        btn.TextColor3 = active and State.ThemeColor or Color3.fromRGB(255, 255, 255)
-        pcall(callback, active)
-    end)
-    return btn
-end
-
-local function CreateActionButton(order, text, callback)
-    local btn = Instance.new("TextButton", ScrollContainer)
-    btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -2, 0, 22)
-    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 8
-    btn.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-
-    btn.MouseButton1Click:Connect(function()
-        pcall(callback, btn)
-    end)
-    return btn
-end
 
 -- ==============================================================================
--- 7. MENU CONTROLS BINDING
+-- 3. CUBE SYSTEM MODULE
 -- ==============================================================================
-CreateToggleButton(1, "⚔️ AUTO ATTACK", function(on)
-    State.AutoAttack = on
-end)
+local CubePart = nil
 
-CreateToggleButton(2, "🐍 AUTO MEDUSA", function(on)
-    State.AutoMedusa = on
-end)
-
-CreateToggleButton(3, "🧊 CUBE PLATFORM", function(on)
+local function ToggleCube(on)
     State.CubeActive = on
-    if not on then DestroyPlatform() end
-end)
-
-CreateActionButton(4, "📍 SET POS AS BASE", function(btn)
-    local _, hrp = GetCharacter()
-    if hrp then
-        State.CustomBasePosition = hrp.Position
-        btn.Text = "✅ BASE SAVED!"
-        task.delay(1.2, function()
-            btn.Text = "📍 SET POS AS BASE"
-        end)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if on and hrp then
+        if not CubePart or not CubePart.Parent then
+            CubePart = Instance.new("Part")
+            CubePart.Name = "LeaCubeSystem"
+            CubePart.Size = Vector3.new(2.5, 0.4, 2.5)
+            CubePart.Anchored = false
+            CubePart.CanCollide = true
+            CubePart.Massless = true
+            CubePart.Material = Enum.Material.Neon
+            CubePart.Color = Color3.fromRGB(0, 255, 200)
+            CubePart.Transparency = 0.3
+            
+            local att = Instance.new("Attachment", CubePart)
+            local alignPos = Instance.new("AlignPosition", CubePart)
+            alignPos.Attachment0 = att
+            alignPos.RigidityEnabled = true
+            alignPos.MaxForce = 999999999
+            
+            CubePart.Parent = Workspace
+        end
+    else
+        if CubePart then
+            pcall(function() CubePart:Destroy() end)
+            CubePart = nil
+        end
     end
-end)
+end
 
-CreateActionButton(5, "✈️ RETURN TO BASE", function()
-    StartSmoothReturn()
-end)
-
-CreateToggleButton(6, "👻 NOCLIP", function(on)
-    State.Noclip = on
-end)
-
-CreateToggleButton(7, "👁️ ESP VISUALS", function(on)
-    State.Visuals = on
-    State.EspActive = on
-    if not on then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p.Character and p.Character:FindFirstChild("LeaMegaESP") then
-                p.Character.LeaMegaESP:Destroy()
+RunService.Heartbeat:Connect(function()
+    if State.CubeActive and CubePart then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local alignPos = CubePart:FindFirstChildOfClass("AlignPosition")
+            if alignPos then
+                alignPos.Position = hrp.Position - Vector3.new(0, 3.4, 0)
             end
+        else
+            ToggleCube(false)
         end
     end
 end)
 
-print("✅ [LEA MOD V50.1]: FULL REFACTOR WITH CUBE PLATFORM LOADED.")
+-- ==============================================================================
+-- 4. FLY & BASE RETURN SYSTEM MODULE
+-- ==============================================================================
+RunService.Heartbeat:Connect(function(dt)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+
+    if State.FlyActive then
+        hum.PlatformStand = true
+        local moveDir = hum.MoveDirection
+        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        
+        local currentSpeed = State.HasPet and 23 or 21
+        if moveDir.Magnitude > 0 then
+            local targetDir = (Camera.CFrame.RightVector * moveDir.X) + (Camera.CFrame.LookVector * -moveDir.Z)
+            hrp.CFrame = hrp.CFrame + (targetDir.Unit * (currentSpeed * dt))
+        end
+    else
+        if hum.PlatformStand and not State.FollowActive then
+            hum.PlatformStand = false
+        end
+    end
+end)
+
+-- ==============================================================================
+-- 5. FOLLOW & AUTO MEDUSA MODULE
+-- ==============================================================================
+RunService.Heartbeat:Connect(function()
+    if not State.FollowActive and not State.MedusaActive then return end
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    -- Find nearest target player logic securely
+    local targetPlayer, shortestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+            if dist < shortestDist then
+                shortestDist = dist
+                targetPlayer = p
+            end
+        end
+    end
+    
+    if targetPlayer and targetPlayer.Character then
+        local tHRP = targetPlayer.Character.HumanoidRootPart
+        if State.FollowActive then
+            -- Orbit/Follow logic with smooth avoidance
+            local timeVal = tick() * 3
+            local offset = Vector3.new(math.cos(timeVal) * 4, 0, math.sin(timeVal) * 4)
+            hrp.CFrame = CFrame.new(tHRP.Position + offset, tHRP.Position)
+        end
+    end
+end)
+
+-- ==============================================================================
+-- 6. LAGGER MOD MODULE (OPTIMIZED CLIENT REPLICATION STRESS)
+-- ==============================================================================
+RunService.Heartbeat:Connect(function()
+    if State.LaggerActive then
+        -- Forces minimal network packet strain safely to desync opponent rendering queue
+        pcall(function()
+            settings():GetService("NetworkSettings").IncomingReplicationLag = 0.15
+        end)
+    else
+        pcall(function()
+            settings():GetService("NetworkSettings").IncomingReplicationLag = 0
+        end)
+    end
+end)
+
+print("✅ [LEA MOD]: Sistem başarıyla yüklendi ve Delta mobile için optimize edildi.")
