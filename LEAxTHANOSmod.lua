@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V41.0 - STABLE MOBILE CORE EDITION
+-- LEA MOD ULTIMATE MEGA V42.1 - FULL STABLE RECONSTRUCTION EDITION
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -10,14 +10,14 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V41.0]: MOBİL STABLE KODU BAŞLATILIYOR...")
+print("⭐ [LEA V42.1]: FULL STABLE RECONSTRUCTION BAŞLATILIYOR...")
 
 -- ==============================================================================
 -- 1. SETTINGS & GLOBAL STATE (MERKEZİ DURUM YÖNETİMİ)
 -- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "41.0-MOBILE",
+        Version = "42.1-RECONSTRUCTED",
         Mode = "NONE",          -- "NONE", "BASE", "TARGET"
         Speed = 16,             -- Güvenli taban hız
         MoveSpeedIndex = 1,     -- 1: 16, 2: 18, 3: 20
@@ -30,7 +30,8 @@ if not getgenv().LeaModGlobalState then
         CubePart = nil,
         ThemeColor = Color3.fromRGB(0, 255, 200),
         Connections = {},
-        TweenStorage = {}
+        TweenStorage = {},
+        EspActive = false
     }
 end
 local State = getgenv().LeaModGlobalState
@@ -40,6 +41,7 @@ for _, conn in ipairs(State.Connections) do
     pcall(function() conn:Disconnect() end)
 end
 State.Connections = {}
+State.EspActive = false
 
 local function CancelActiveTweens()
     if State.TweenStorage.ActiveTween then
@@ -49,7 +51,7 @@ local function CancelActiveTweens()
 end
 
 -- ==============================================================================
--- 2. RESET & ÖLÜM KORUMASI (STABLE RECOVERY)
+-- 2. RESET & ÖLÜM KORUMASI (GÜÇLENDİRİLMİŞ STABLE RECOVERY)
 -- ==============================================================================
 local function SetupResetProtection(char)
     local humanoid = char:WaitForChild("Humanoid", 5)
@@ -64,7 +66,7 @@ local function SetupResetProtection(char)
                 State.Mode = "NONE"
                 State.Fly = false
                 if State.CubePart then
-                    State.CubePart:Destroy()
+                    pcall(function() State.CubePart:Destroy() end)
                     State.CubePart = nil
                 end
                 State.CubeActive = false
@@ -80,7 +82,7 @@ end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
 
 -- ==============================================================================
--- 3. MİKRO KÜP SİSTEMİ (ÇARPIŞMASIZ / GERİ TEPME YAPMAYAN YAPI)
+-- 3. KÜP (PLATFORM) SİSTEMİ (DÜZELTİLDİ: HITBOX AKTİF VE STABİL)
 -- ==============================================================================
 local function ToggleCube(on)
     State.CubeActive = on
@@ -91,24 +93,34 @@ local function ToggleCube(on)
         if not State.CubePart or not State.CubePart.Parent then
             local cube = Instance.new("Part")
             cube.Name = "LeaPlatformCube"
-            -- Karakteri itmeyen, pet alımında geri tepme yaratmayan mikro taban
-            cube.Size = Vector3.new(1.5, 0.2, 1.5)
-            cube.Position = hrp.Position - Vector3.new(0, 3.2, 0)
-            cube.Anchored = true
-            cube.CanCollide = false -- Çarpışma kapatıldı: Fiziksel geri tepme / fırlama riski tamamen sıfırlandı
+            -- Karakterin üzerine basabilmesi için boyut ve hitbox optimize edildi
+            cube.Size = Vector3.new(2.5, 0.4, 2.5)
+            cube.Position = hrp.Position - Vector3.new(0, 3.5, 0)
+            cube.Anchored = false -- Fizik tabanlı takip için ankraj kaldırıldı
+            cube.CanCollide = true  -- Hitbox / Çarpışma aktif (Ayakta durabilme sağlandı)
             cube.Massless = true
             cube.Material = Enum.Material.Neon
             cube.Color = State.ThemeColor
-            cube.Transparency = 0.4
+            cube.Transparency = 0.3
             
-            local mesh = Instance.new("SpecialMesh", cube)
-            mesh.MeshType = Enum.MeshType.Brick
+            -- Hızla fırlatmayı önlemek için LinearVelocity tabanlı kilit mekanizması
+            local att = Instance.new("Attachment", cube)
+            local alignPos = Instance.new("AlignPosition", cube)
+            alignPos.Attachment0 = att
+            alignPos.RigidityEnabled = true
+            alignPos.MaxForce = 999999999
+            
+            local alignOrient = Instance.new("AlignOrientation", cube)
+            alignOrient.Attachment0 = att
+            alignOrient.RigidityEnabled = true
+            alignOrient.MaxTorque = 999999999
+            
             cube.Parent = Workspace
             State.CubePart = cube
         end
     else
         if State.CubePart then
-            State.CubePart:Destroy()
+            pcall(function() State.CubePart:Destroy() end)
             State.CubePart = nil
         end
     end
@@ -142,7 +154,7 @@ ActiveWatermark.Name = "LeaActiveWatermark"
 ActiveWatermark.Size = UDim2.new(0, 180, 0, 20)
 ActiveWatermark.Position = UDim2.new(0.5, -90, 0.16, -10)
 ActiveWatermark.BackgroundTransparency = 1
-ActiveWatermark.Text = "⚡ LEA V41 ACTIVE ⚡"
+ActiveWatermark.Text = "⚡ LEA V42 ACTIVE ⚡"
 ActiveWatermark.TextColor3 = State.ThemeColor
 ActiveWatermark.TextSize = 10
 ActiveWatermark.Font = Enum.Font.GothamBlack
@@ -180,7 +192,7 @@ local TitleLabel = Instance.new("TextLabel", HeaderFrame)
 TitleLabel.Size = UDim2.new(1, -16, 1, 0)
 TitleLabel.Position = UDim2.new(0, 3, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA V41"
+TitleLabel.Text = "LEA V42"
 TitleLabel.TextColor3 = State.ThemeColor
 TitleLabel.TextSize = 7
 TitleLabel.Font = Enum.Font.GothamBlack
@@ -287,10 +299,9 @@ local function SafeMoveTo(targetPosition, timeToArrive)
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
-        -- 16 - 18 - 20 güvenli kademe aralığı
         local speeds = {16, 18, 20}
         local currentMoveSpeed = speeds[State.MoveSpeedIndex] or 16
-        local adjustedTime = math.max(timeToArrive * (16 / currentMoveSpeed), 0.3)
+        local adjustedTime = math.max(timeToArrive * (16 / currentMoveSpeed), 0.4)
         
         local tweenInfo = TweenInfo.new(adjustedTime, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
         local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetPosition})
@@ -360,6 +371,7 @@ end)
 
 CreateMenuButton(7, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Visuals = on
+    State.EspActive = on
     btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
 end)
 
@@ -386,7 +398,7 @@ CreateActionItem(9, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
 end)
 
 -- ==============================================================================
--- 6. MOTOR & FİZİK DÖNGÜLERİ (STABLE HEARTBEAT)
+-- 6. MOTOR & FİZİK DÖNGÜLERİ (STABLE HEARTBEAT & ESP FIX)
 -- ==============================================================================
 
 -- Noclip
@@ -396,6 +408,35 @@ table.insert(State.Connections, RunService.Stepped:Connect(function()
             for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") and part.CanCollide then
                     part.CanCollide = false
+                end
+            end
+        end)
+    end
+end))
+
+-- Güvenli ve Temizlenebilir ESP Döngüsü (Task.spawn yerine Connection tabanlı)
+local espTimeElapsed = 0
+table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
+    espTimeElapsed = espTimeElapsed + dt
+    if espTimeElapsed >= 1.5 then
+        espTimeElapsed = 0
+        pcall(function()
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local char = p.Character
+                    local hl = char:FindFirstChild("LeaMegaESP")
+                    if State.Visuals then
+                        if not hl then
+                            hl = Instance.new("Highlight")
+                            hl.Name = "LeaMegaESP"
+                            hl.FillColor = State.ThemeColor
+                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            hl.FillTransparency = 0.55
+                            hl.Parent = char
+                        end
+                    else
+                        if hl then hl:Destroy() end
+                    end
                 end
             end
         end)
@@ -418,9 +459,12 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         return
     end
 
-    -- Mikro Küp Güncellemesi (Ayak altında pürüzsüz takip)
+    -- Küp Takip ve Hitbox Pozisyonlama Düzeltmesi
     if State.CubeActive and State.CubePart then
-        State.CubePart.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - 3.35, hrp.Position.Z)
+        local alignPos = State.CubePart:FindFirstChildOfClass("AlignPosition")
+        if alignPos then
+            alignPos.Position = hrp.Position - Vector3.new(0, 3.4, 0)
+        end
     end
 
     -- Yürüme Hızı Sabitleme
@@ -445,12 +489,12 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Base Takip Sistemi
+    -- Base Takip Sistemi (Düzeltildi: Kesin Mesafe ve Tween Senkronizasyonu)
     if State.Mode == "BASE" and State.SpawnPos then
         local dist = (State.SpawnPos - hrp.Position).Magnitude
-        if dist > 3.5 then
-            if not State.TweenStorage.ActiveTween then
-                SafeMoveTo(CFrame.new(State.SpawnPos), math.clamp(dist / 80, 0.3, 2.0))
+        if dist > 4.0 then
+            if not State.TweenStorage.ActiveTween or State.TweenStorage.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                SafeMoveTo(CFrame.new(State.SpawnPos), math.clamp(dist / 75, 0.4, 2.5))
             end
         else
             CancelActiveTweens()
@@ -458,7 +502,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Target / Aura Takip Sistemi (Güvenli Max 20 Hız Aralığı)
+    -- Target / Aura Takip Sistemi
     if State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -481,7 +525,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
                 if dist > 4.5 then
                     local backPos = target.CFrame * CFrame.new(0, 0, 3.5)
                     if not State.TweenStorage.ActiveTween or State.TweenStorage.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing then
-                        SafeMoveTo(backPos, math.clamp(dist / 85, 0.1, 1.0))
+                        SafeMoveTo(backPos, math.clamp(dist / 80, 0.2, 1.2))
                     end
                 end
             else
@@ -491,31 +535,4 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
--- ESP (Highlight) Sistemi
-table.insert(State.Connections, task.spawn(function()
-    while true do
-        task.wait(1.5)
-        pcall(function()
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local char = p.Character
-                    local hl = char:FindFirstChild("LeaMegaESP")
-                    if State.Visuals then
-                        if not hl then
-                            hl = Instance.new("Highlight")
-                            hl.Name = "LeaMegaESP"
-                            hl.FillColor = State.ThemeColor
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.55
-                            hl.Parent = char
-                        end
-                    else
-                        if hl then hl:Destroy() end
-                    end
-                end
-            end
-        end)
-    end
-end))
-
-print("✅ [LEA V41.0]: MOBİL STABLE KOD BAŞARIYLA YÜKLENDİ!")
+print("✅ [LEA V42.1]: FULL STABLE RECONSTRUCTION BAŞARIYLA YÜKLENDİ!")
