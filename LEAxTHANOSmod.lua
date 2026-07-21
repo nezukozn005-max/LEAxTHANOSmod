@@ -2,6 +2,8 @@
 -- LEA MOD - PART 1/3 (ANTI-KICK & ANTI-RESET & KORUMA)
 -- ==============================================================================
 -- Bu dosya: Anti-kick, anti-reset, teleport engelleyici, koruma sistemleri
+-- LAGGER TAMAMEN KALDIRILDI - FPS DROP SORUNU ÇÖZÜLDÜ
+-- TARGET OTOMATİK EN YAKIN OYUNCUYA AYARLANDI
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -40,7 +42,7 @@ local function AntiKick()
         end
     end
     
-    -- 3. Teleport kicklerini engelle (TeleportService'i kullanma)
+    -- 3. Teleport kicklerini engelle
     local TeleportService = game:GetService("TeleportService")
     if TeleportService then
         local originalTeleport = TeleportService.Teleport
@@ -147,10 +149,10 @@ local function SessionProtection()
 end
 
 -- ==============================================================================
--- 5. ANTİCHEAT BYPASS
+-- 5. ANTİCHEAT BYPASS (HAFİF - FPS DROP ÖNLEME)
 -- ==============================================================================
 local function AdvancedBypass()
-    -- İsim gizleme
+    -- İsim gizleme (sadece gerekli olduğunda)
     local char = LocalPlayer.Character
     if char then
         for _, part in ipairs(char:GetChildren()) do
@@ -160,40 +162,52 @@ local function AdvancedBypass()
         end
     end
     
-    -- Remote manipülasyonu
+    -- Remote manipülasyonu (sadece gerekli remote'lar)
+    local remoteCount = 0
     for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
         if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-            local original = remote.OnServerEvent
-            remote.OnServerEvent = function(player, ...)
-                if player == LocalPlayer then
-                    return original and original(player, {})
+            if remoteCount < 10 then -- Sadece ilk 10 remote'u işle
+                local original = remote.OnServerEvent
+                remote.OnServerEvent = function(player, ...)
+                    if player == LocalPlayer then
+                        return original and original(player, {})
+                    end
+                    return original and original(player, ...)
                 end
-                return original and original(player, ...)
+                remoteCount = remoteCount + 1
             end
         end
     end
 end
 
 -- ==============================================================================
--- 6. KORUMA DÖNGÜSÜ
+-- 6. KORUMA DÖNGÜSÜ (OPTİMİZE)
 -- ==============================================================================
 local function ProtectionLoop()
     pcall(AntiKick)
     pcall(AntiReset)
     pcall(AntiTeleport)
     pcall(SessionProtection)
-    pcall(AdvancedBypass)
 end
 
--- Sürekli koruma
-RunService.Heartbeat:Connect(function()
-    ProtectionLoop()
+-- Her 2 saniyede bir koruma kontrolü (FPS koruması)
+task.spawn(function()
+    while task.wait(2) do
+        pcall(ProtectionLoop)
+    end
 end)
 
 -- Karakter değişiminde koruma
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.1)
-    ProtectionLoop()
+    pcall(ProtectionLoop)
+end)
+
+-- Bypass'i daha seyrek çalıştır
+task.spawn(function()
+    while task.wait(5) do
+        pcall(AdvancedBypass)
+    end
 end)
 
 print("✅ KORUMA SİSTEMLERİ AKTİF!")
@@ -201,12 +215,14 @@ print("🛡️ Anti-Kick: AKTİF")
 print("🛡️ Anti-Reset: AKTİF")
 print("🛡️ Anti-Teleport: AKTİF")
 print("🛡️ Session Protection: AKTİF")
-print("🛡️ Advanced Bypass: AKTİF")
+print("🛡️ Advanced Bypass: AKTİF (Hafif Mod)")
 
 -- PART 1 BİTTİ - PART 2'YE GEÇ-- ==============================================================================
--- LEA MOD - PART 2/3 (MOD SİSTEMLERİ)
+-- LEA MOD - PART 2/3 (MOD SİSTEMLERİ - OTOMATİK TARGET)
 -- ==============================================================================
--- Bu dosya: Cube, Fly, Base Dönüş, Takip (360°), Medusa, Lagger
+-- Bu dosya: Cube, Fly, Base Dönüş, Takip (360° - Otomatik Target), Medusa
+-- LAGGER TAMAMEN KALDIRILDI - FPS DROP SORUNU ÇÖZÜLDÜ
+-- TARGET OTOMATİK EN YAKIN OYUNCUYA AYARLANDI
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -224,8 +240,7 @@ Lea.Modules = {
     Cube = false,
     Fly = false,
     Follow = false,
-    Medusa = false,
-    Lagger = false
+    Medusa = false
 }
 
 Lea.Settings = {
@@ -241,12 +256,61 @@ Lea.IsReturning = false
 print("⚙️ MOD SİSTEMLERİ BAŞLATILIYOR...")
 
 -- ==============================================================================
--- 1. CUBE SİSTEMİ
+-- 1. OTOMATİK TARGET SEÇME (EN YAKIN OYUNCU)
+-- ==============================================================================
+local function GetClosestPlayer()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    
+    local closest = nil
+    local closestDist = math.huge
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local targetChar = player.Character
+            if targetChar then
+                local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
+                if targetHrp then
+                    local dist = (hrp.Position - targetHrp.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        closest = player
+                    end
+                end
+            end
+        end
+    end
+    
+    return closest
+end
+
+-- Target'i güncelle (otomatik)
+local function UpdateTarget()
+    local closest = GetClosestPlayer()
+    if closest then
+        Lea.Target = closest
+    end
+end
+
+-- Her 0.5 saniyede bir target güncelle
+task.spawn(function()
+    while task.wait(0.5) do
+        if Lea.Modules.Follow or Lea.Modules.Medusa then
+            UpdateTarget()
+        end
+    end
+end)
+
+-- ==============================================================================
+-- 2. CUBE SİSTEMİ (OPTİMİZE)
 -- ==============================================================================
 local cubePart = nil
+local cubeActive = false
 
 local function ToggleCube(state)
     Lea.Modules.Cube = state
+    cubeActive = state
     if state then
         local char = LocalPlayer.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -273,62 +337,71 @@ local function ToggleCube(state)
     end
 end
 
-RunService.Heartbeat:Connect(function()
-    if not Lea.Modules.Cube then
-        if cubePart then ToggleCube(false) end
-        return
-    end
-    
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if hrp and hum then
-        local isMoving = (hum.MoveDirection.Magnitude > 0.1)
-        local isJumping = (hum:GetState() == Enum.HumanoidStateType.Jumping)
+-- Cube döngüsü (optimize)
+task.spawn(function()
+    while task.wait(0.1) do
+        if not cubeActive then
+            if cubePart then ToggleCube(false) end
+            continue
+        end
         
-        if isMoving or isJumping then
-            ToggleCube(true)
-            if cubePart then
-                cubePart.Position = hrp.Position - Vector3.new(0, 3.4, 0)
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        
+        if hrp and hum then
+            local isMoving = (hum.MoveDirection.Magnitude > 0.1)
+            local isJumping = (hum:GetState() == Enum.HumanoidStateType.Jumping)
+            
+            if isMoving or isJumping then
+                ToggleCube(true)
+                if cubePart then
+                    cubePart.Position = hrp.Position - Vector3.new(0, 3.4, 0)
+                end
+            else
+                ToggleCube(false)
             end
         else
             ToggleCube(false)
         end
-    else
-        ToggleCube(false)
     end
 end)
 
 -- ==============================================================================
--- 2. FLY SİSTEMİ
+-- 3. FLY SİSTEMİ (OPTİMİZE)
 -- ==============================================================================
+local flyActive = false
+
 local function ToggleFly(state)
     Lea.Modules.Fly = state
+    flyActive = state
 end
 
-RunService.Heartbeat:Connect(function(dt)
-    if not Lea.Modules.Fly or Lea.IsReturning then return end
-    
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if not hrp or not hum then return end
-    
-    hum.PlatformStand = true
-    local moveDir = hum.MoveDirection
-    
-    if moveDir.Magnitude > 0 then
-        local targetDir = (Camera.CFrame.RightVector * moveDir.X) + (Camera.CFrame.LookVector * -moveDir.Z)
-        hrp.AssemblyLinearVelocity = targetDir.Unit * Lea.Settings.FlySpeed
-    else
-        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+-- Fly döngüsü (optimize - sadece aktifken çalışır)
+task.spawn(function()
+    while task.wait() do
+        if not flyActive or Lea.IsReturning then continue end
+        
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        
+        if not hrp or not hum then continue end
+        
+        hum.PlatformStand = true
+        local moveDir = hum.MoveDirection
+        
+        if moveDir.Magnitude > 0 then
+            local targetDir = (Camera.CFrame.RightVector * moveDir.X) + (Camera.CFrame.LookVector * -moveDir.Z)
+            hrp.AssemblyLinearVelocity = targetDir.Unit * Lea.Settings.FlySpeed
+        else
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        end
     end
 end)
 
 -- ==============================================================================
--- 3. BASE DÖNÜŞ (FLY İLE)
+-- 4. BASE DÖNÜŞ (FLY İLE - OPTİMİZE)
 -- ==============================================================================
 local function ReturnToBase()
     if not Lea.BasePosition then
@@ -341,7 +414,7 @@ local function ReturnToBase()
     if not hrp then return end
     
     Lea.IsReturning = true
-    Lea.Modules.Fly = true
+    flyActive = true
     
     local targetPos = Lea.BasePosition + Vector3.new(0, 3, 0)
     local speed = 21
@@ -364,6 +437,7 @@ local function ReturnToBase()
         
         if distance < 2 then
             Lea.IsReturning = false
+            flyActive = false
             Lea.Modules.Fly = false
             returnConn:Disconnect()
             print("✅ Base'e varıldı!")
@@ -377,7 +451,7 @@ local function ReturnToBase()
 end
 
 -- ==============================================================================
--- 4. TAKİP SİSTEMİ (360° DÖNEREK SALDIRI)
+-- 5. TAKİP SİSTEMİ (360° DÖNEREK SALDIRI - OTOMATİK TARGET)
 -- ==============================================================================
 local followActive = false
 local followAngle = 0
@@ -387,14 +461,20 @@ local function ToggleFollow(state)
     Lea.Modules.Follow = state
     followActive = state
     
-    if state and not Lea.Target then
-        print("❌ Hedef seçilmedi! Konsoldan: _G.Lea.SetTarget('isim')")
-        followActive = false
-        Lea.Modules.Follow = false
+    if state then
+        -- Otomatik target seç
+        UpdateTarget()
+        if Lea.Target then
+            print("✅ Otomatik hedef: " .. Lea.Target.Name)
+        else
+            print("❌ Yakında oyuncu yok!")
+            followActive = false
+            Lea.Modules.Follow = false
+        end
     end
 end
 
--- Saldırı fonksiyonu
+-- Saldırı fonksiyonu (optimize)
 local function DoAttack()
     if not Lea.Target or not Lea.Target.Character then return end
     
@@ -403,16 +483,15 @@ local function DoAttack()
     
     if not targetHrp then return end
     
-    -- Saldırı remote bul
+    -- Saldırı remote bul (sadece gerekli remote)
     for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
             local name = remote.Name:lower()
-            if name:match("attack") or name:match("hit") or name:match("damage") or name:match("click") then
+            if name:match("attack") or name:match("hit") or name:match("damage") then
                 pcall(function()
                     remote:FireServer(targetHrp)
-                    remote:FireServer(Lea.Target)
-                    remote:FireServer()
                 end)
+                break -- Sadece ilk bulunanı kullan
             end
         end
     end
@@ -422,72 +501,79 @@ local function DoAttack()
     end)
 end
 
-RunService.Heartbeat:Connect(function(dt)
-    if not followActive or not Lea.Modules.Follow then return end
-    
-    local target = Lea.Target
-    if not target or not target.Character then
-        followActive = false
-        Lea.Modules.Follow = false
-        print("❌ Hedef öldü veya oyundan çıktı!")
-        return
-    end
-    
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    local targetHrp = target.Character:FindFirstChild("HumanoidRootPart")
-    
-    if not hrp or not hum or not targetHrp then return end
-    
-    local distance = (hrp.Position - targetHrp.Position).Magnitude
-    
-    -- Takip ve 360° dönüş
-    if distance > 3 then
-        -- Fly modunu aktif et
-        hum.PlatformStand = true
+-- Takip döngüsü (optimize)
+task.spawn(function()
+    while task.wait() do
+        if not followActive or not Lea.Modules.Follow then continue end
         
-        -- Hedefe doğru uç
-        local direction = (targetHrp.Position - hrp.Position).Unit
-        hrp.AssemblyLinearVelocity = direction * Lea.Settings.FollowSpeed
+        -- Target kontrolü
+        if not Lea.Target or not Lea.Target.Character then
+            UpdateTarget()
+            if not Lea.Target then
+                followActive = false
+                Lea.Modules.Follow = false
+                print("❌ Hedef yok! Takip kapatıldı.")
+                continue
+            end
+        end
         
-        -- Hedef etrafında 360° dön
-        followAngle = followAngle + dt * 2
-        local radius = 3
-        local orbitPos = targetHrp.Position + Vector3.new(
-            math.cos(followAngle) * radius,
-            2,
-            math.sin(followAngle) * radius
-        )
+        local target = Lea.Target
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local targetHrp = target.Character:FindFirstChild("HumanoidRootPart")
         
-        hrp.CFrame = CFrame.lookAt(hrp.Position, orbitPos)
+        if not hrp or not hum or not targetHrp then continue end
         
-        -- Hedefe bak
-        hrp.CFrame = CFrame.lookAt(hrp.Position, targetHrp.Position)
+        local distance = (hrp.Position - targetHrp.Position).Magnitude
         
-    else
-        -- Saldır (360° dönerken vur)
-        attackTimer = attackTimer + dt
-        
-        if attackTimer > 0.1 then
-            attackTimer = 0
-            DoAttack()
+        -- Takip ve 360° dönüş
+        if distance > 3 then
+            -- Fly modunu aktif et
+            hum.PlatformStand = true
             
-            -- 360° dönüşü devam ettir
-            followAngle = followAngle + 0.5
-            local radius = 2.5
+            -- Hedefe doğru uç
+            local direction = (targetHrp.Position - hrp.Position).Unit
+            hrp.AssemblyLinearVelocity = direction * Lea.Settings.FollowSpeed
+            
+            -- Hedef etrafında 360° dön
+            followAngle = followAngle + 0.1
+            local radius = 3
             local orbitPos = targetHrp.Position + Vector3.new(
                 math.cos(followAngle) * radius,
-                1,
+                2,
                 math.sin(followAngle) * radius
             )
+            
             hrp.CFrame = CFrame.lookAt(hrp.Position, orbitPos)
+            
+            -- Hedefe bak
+            hrp.CFrame = CFrame.lookAt(hrp.Position, targetHrp.Position)
+            
+        else
+            -- Saldır (360° dönerken vur)
+            attackTimer = attackTimer + 0.1
+            
+            if attackTimer > 0.15 then
+                attackTimer = 0
+                DoAttack()
+                
+                -- 360° dönüşü devam ettir
+                followAngle = followAngle + 0.3
+                local radius = 2.5
+                local orbitPos = targetHrp.Position + Vector3.new(
+                    math.cos(followAngle) * radius,
+                    1,
+                    math.sin(followAngle) * radius
+                )
+                hrp.CFrame = CFrame.lookAt(hrp.Position, orbitPos)
+            end
         end
     end
 end)
 
 -- ==============================================================================
--- 5. MEDUSA SİSTEMİ
+-- 6. MEDUSA SİSTEMİ (OTOMATİK TARGET)
 -- ==============================================================================
 local medusaActive = false
 
@@ -496,141 +582,65 @@ local function ToggleMedusa(state)
     medusaActive = state
 end
 
-RunService.Heartbeat:Connect(function()
-    if not medusaActive then return end
-    
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    
-    -- Medusa tool bul
-    local medusaTool = nil
-    for _, tool in ipairs(Workspace:GetDescendants()) do
-        if tool:IsA("Tool") then
-            local name = tool.Name:lower()
-            if name:match("medusa") or name:match("head") or name:match("stone") then
-                medusaTool = tool
-                break
+-- Medusa döngüsü (optimize - daha seyrek çalışır)
+task.spawn(function()
+    while task.wait(0.5) do -- 0.5 saniyede bir kontrol
+        if not medusaActive then continue end
+        
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+        
+        -- Medusa tool bul
+        local medusaTool = nil
+        for _, tool in ipairs(Workspace:GetDescendants()) do
+            if tool:IsA("Tool") then
+                local name = tool.Name:lower()
+                if name:match("medusa") or name:match("head") or name:match("stone") then
+                    medusaTool = tool
+                    break
+                end
             end
         end
-    end
-    
-    if not medusaTool then return end
-    
-    -- En yakın oyuncuyu bul
-    local closest = nil
-    local closestDist = math.huge
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local targetChar = player.Character
+        
+        if not medusaTool then continue end
+        
+        -- En yakın oyuncuyu bul (otomatik)
+        local closest = GetClosestPlayer()
+        
+        if closest then
+            local targetChar = closest.Character
             if targetChar then
                 local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
                 if targetHrp then
                     local dist = (hrp.Position - targetHrp.Position).Magnitude
-                    if dist < closestDist and dist <= Lea.Settings.MedusaRange then
-                        closestDist = dist
-                        closest = player
+                    
+                    if dist <= Lea.Settings.MedusaRange then
+                        -- Hedefe koş
+                        local direction = (targetHrp.Position - hrp.Position).Unit
+                        hrp.AssemblyLinearVelocity = direction * 25
+                        
+                        -- Medusa bas
+                        if medusaTool:IsA("Tool") then
+                            pcall(function()
+                                medusaTool:Activate()
+                                mouse1click()
+                            end)
+                        end
                     end
                 end
             end
         end
     end
-    
-    if closest then
-        local targetHrp = closest.Character:FindFirstChild("HumanoidRootPart")
-        if targetHrp then
-            -- Hedefe koş
-            local direction = (targetHrp.Position - hrp.Position).Unit
-            hrp.AssemblyLinearVelocity = direction * 25
-            
-            -- Medusa bas
-            if medusaTool:IsA("Tool") then
-                pcall(function()
-                    medusaTool:Activate()
-                    mouse1click()
-                end)
-            end
-        end
-    end
 end)
 
--- ==============================================================================
--- 6. LAGGER SİSTEMİ (KARŞI TARAFTA LAG)
--- ==============================================================================
-local laggerActive = false
-
-local function ToggleLagger(state)
-    Lea.Modules.Lagger = state
-    laggerActive = state
-    
-    if state then
-        print("💀 LAGGER AKTİF - Karşı tarafta lag oluşuyor!")
-    else
-        print("💀 LAGGER KAPALI")
-    end
-end
-
-RunService.Heartbeat:Connect(function()
-    if not laggerActive then return end
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
-            
-            -- 1. Remote spam (karşı tarafa)
-            for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
-                if remote:IsA("RemoteEvent") then
-                    pcall(function()
-                        remote:FireServer(player, {})
-                        remote:FireServer(targetHrp, {})
-                        remote:FireServer()
-                    end)
-                end
-            end
-            
-            -- 2. Karşı tarafın karakterine velocity spam
-            if targetHrp then
-                for i = 1, 20 do
-                    targetHrp.AssemblyLinearVelocity = Vector3.new(
-                        math.random(-200, 200),
-                        math.random(-200, 200),
-                        math.random(-200, 200)
-                    )
-                end
-                targetHrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            end
-            
-            -- 3. Karşı tarafın CFrame'ini boz
-            if targetHrp then
-                for i = 1, 10 do
-                    targetHrp.CFrame = targetHrp.CFrame * CFrame.Angles(
-                        math.rad(math.random(0, 360)),
-                        math.rad(math.random(0, 360)),
-                        math.rad(math.random(0, 360))
-                    )
-                end
-            end
-            
-            -- 4. Karşı tarafın humanoid'ini yavaşlat
-            local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
-            if targetHum then
-                targetHum.WalkSpeed = 0
-                targetHum.JumpPower = 0
-                task.wait(0.1)
-                targetHum.WalkSpeed = 16
-                targetHum.JumpPower = 50
-            end
-        end
-    end
-end)
-
-print("✅ PART 2 YÜKLENDİ! (Mod Sistemleri)")
+print("✅ PART 2 YÜKLENDİ! (Mod Sistemleri - Otomatik Target)")
 
 -- PART 2 BİTTİ - PART 3'E GEÇ-- ==============================================================================
 -- LEA MOD - PART 3/3 (MENÜ & KONSOL KOMUTLARI)
 -- ==============================================================================
 -- Bu dosya: Menü sistemi, konsol komutları, kısayollar
+-- LAGGER TAMAMEN KALDIRILDI - TARGET OTOMATİK
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -642,7 +652,7 @@ local Lea = getgenv().Lea
 print("📋 MENÜ SİSTEMİ BAŞLATILIYOR...")
 
 -- ==============================================================================
--- 1. MENÜ SİSTEMİ (KÜÇÜK)
+-- 1. MENÜ SİSTEMİ (KÜÇÜK - OTOMATİK TARGET)
 -- ==============================================================================
 local function CreateMenu()
     local screenGui = Instance.new("ScreenGui")
@@ -650,11 +660,11 @@ local function CreateMenu()
     screenGui.Parent = LocalPlayer.PlayerGui
     screenGui.ResetOnSpawn = false
     
-    -- Ana Frame (150x200)
+    -- Ana Frame (150x170 - Lagger kaldırıldı)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 150, 0, 200)
-    mainFrame.Position = UDim2.new(0.5, -75, 0.5, -100)
+    mainFrame.Size = UDim2.new(0, 150, 0, 170)
+    mainFrame.Position = UDim2.new(0.5, -75, 0.5, -85)
     mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     mainFrame.BackgroundTransparency = 0.3
     mainFrame.BorderSizePixel = 0
@@ -690,13 +700,12 @@ local function CreateMenu()
     closeCorner.CornerRadius = UDim.new(0, 4)
     closeCorner.Parent = closeBtn
     
-    -- Mod butonları (2 sütun)
+    -- Mod butonları (2 sütun - Lagger yok)
     local mods = {
         {name = "Cube", label = "🔷KÜP"},
         {name = "Fly", label = "🛸UÇUŞ"},
         {name = "Follow", label = "🎯TAKİP"},
-        {name = "Medusa", label = "🐍MEDUSA"},
-        {name = "Lagger", label = "💀LAGGER"}
+        {name = "Medusa", label = "🐍MEDUSA"}
     }
     
     local yPos = 25
@@ -783,8 +792,6 @@ local function CreateMenu()
                 ToggleFollow(Lea.Modules.Follow)
             elseif moduleName == "Medusa" then
                 ToggleMedusa(Lea.Modules.Medusa)
-            elseif moduleName == "Lagger" then
-                ToggleLagger(Lea.Modules.Lagger)
             end
         end)
     end
@@ -840,36 +847,9 @@ local function CreateMenu()
 end
 
 -- ==============================================================================
--- 2. KONSOL KOMUTLARI
+-- 2. KONSOL KOMUTLARI (OTOMATİK TARGET - TARGET KOMUTU KALDIRILDI)
 -- ==============================================================================
 _G.Lea = _G.Lea or {}
-
-_G.Lea.SetTarget = function(name)
-    if not name or name == "" then
-        print("❌ Lütfen bir oyuncu adı girin!")
-        return
-    end
-    
-    local found = false
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name:lower():match(name:lower()) then
-            Lea.Target = player
-            print("✅ Hedef: " .. player.Name)
-            found = true
-            break
-        end
-    end
-    
-    if not found then
-        print("❌ '" .. name .. "' bulunamadı!")
-        print("📌 Mevcut oyuncular:")
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                print("   - " .. player.Name)
-            end
-        end
-    end
-end
 
 _G.Lea.SetBase = function()
     local char = LocalPlayer.Character
@@ -889,7 +869,7 @@ end
 _G.Lea.ToggleMod = function(modName, state)
     if not Lea.Modules[modName] then
         print("❌ Geçersiz mod: " .. tostring(modName))
-        print("📌 Modlar: Cube, Fly, Follow, Medusa, Lagger")
+        print("📌 Modlar: Cube, Fly, Follow, Medusa")
         return
     end
     
@@ -907,8 +887,6 @@ _G.Lea.ToggleMod = function(modName, state)
         ToggleFollow(state)
     elseif modName == "Medusa" then
         ToggleMedusa(state)
-    elseif modName == "Lagger" then
-        ToggleLagger(state)
     end
     
     print("✅ " .. modName .. " " .. (state and "AÇIK" or "KAPALI"))
@@ -920,7 +898,7 @@ _G.Lea.Status = function()
         print(mod .. ": " .. (state and "✅ AÇIK" or "❌ KAPALI"))
     end
     if Lea.Target then
-        print("🎯 Hedef: " .. Lea.Target.Name)
+        print("🎯 Hedef: " .. Lea.Target.Name .. " (Otomatik)")
     else
         print("🎯 Hedef: Yok")
     end
@@ -933,15 +911,15 @@ end
 
 _G.Lea.Help = function()
     print("=== LEA KOMUTLARI ===")
-    print("SetTarget('isim')  - Hedef seç")
     print("SetBase()          - Base kaydet")
     print("ReturnBase()       - Base dön")
     print("ToggleMod('mod')   - Mod aç/kapa")
     print("Status()           - Durum göster")
     print("")
-    print("📌 Modlar: Cube, Fly, Follow, Medusa, Lagger")
+    print("📌 Modlar: Cube, Fly, Follow, Medusa")
     print("📌 Örnek: _G.Lea.ToggleMod('Fly')")
     print("📌 Kısayollar: F5(Menü), F6(Fly), F7(Cube)")
+    print("📌 TARGET OTOMATİK - En yakın oyuncuyu seçer!")
 end
 
 -- ==============================================================================
@@ -983,7 +961,11 @@ print("========================================")
 print("🛡️ Anti-Kick: AKTİF")
 print("🛡️ Anti-Reset: AKTİF")
 print("🛡️ Anti-Teleport: AKTİF")
-print("🛡️ Bypass: AKTİF")
+print("🛡️ Bypass: AKTİF (Hafif Mod)")
+print("")
+print("🎯 TARGET OTOMATİK - En yakın oyuncu seçilir!")
+print("📌 LAGGER TAMAMEN KALDIRILDI!")
+print("📌 FPS DROP SORUNU ÇÖZÜLDÜ!")
 print("")
 print("📌 Menü açık (KÜÇÜK)")
 print("📌 Konsol: _G.Lea.Help()")
