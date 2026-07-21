@@ -1,93 +1,44 @@
 -- ==============================================================================
--- LEA MOD - ATLAS STREAMLINED ENGINE (PART 1/2 - CORE & SERVER HOPPER)
+-- LEA MOD - SERVER FINDER, AUTO-HOP & CONSOLIDATED CORE
 -- ==============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⚡ [LEA ATLAS]: Sunucu Tarayıcı ve Çekirdek Başlatılıyor...")
+print("⚡ [LEA CORE]: Server Finder ve Gelişmiş Sistemler Başlatılıyor...")
 
-getgenv().LeaAtlas = getgenv().LeaAtlas or {}
-local Lea = getgenv().LeaAtlas
-
-Lea.Modules = {
-    Cube = false,
-    Follow = false,
-    Medusa = false
+getgenv().LeaState = getgenv().LeaState or {
+    Modules = {
+        Cube = false,
+        Fly = false,
+        Follow = false,
+        ServerFinder = false,
+        AutoJoin = false
+    },
+    Settings = {
+        FlySpeed = 35,
+        FollowSpeed = 25,
+        MinServerPlayers = 1,
+        MaxServerPlayers = 10
+    },
+    BasePosition = nil,
+    IsReturning = false
 }
 
-Lea.Settings = {
-    FollowSpeed = 25,
-    MedusaRange = 15,
-    CubeDimensions = Vector3.new(2.5, 0.4, 2.5)
-}
-
-Lea.Target = nil
-Lea.BasePosition = nil
-Lea.IsReturning = false
-Lea.IsAllowingTeleport = false
+local Lea = getgenv().LeaState
 
 -- ==============================================================================
--- 1. ATLAS TARZI GELİŞMİŞ SERVER FINDER (SUB-SYSTEM 1)
--- ==============================================================================
-local function AtlasServerFinder()
-    pcall(function()
-        print("🔍 [ATLAS FINDER]: Optimize edilmiş sunucular taranıyor...")
-        local placeId = game.PlaceId
-        local cursor = ""
-        local foundServer = false
-        
-        repeat
-            local url = string.format("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100%s", tostring(placeId), cursor ~= "" and "&cursor=" .. cursor or "")
-            local success, response = pcall(function()
-                return game:HttpGet(url)
-            end)
-            
-            if success and response then
-                local data = HttpService:JSONDecode(response)
-                if data and data.data then
-                    for _, server in ipairs(data.data) do
-                        if server.id ~= game.JobId and server.playing and server.maxPlayers and server.playing < server.maxPlayers then
-                            if server.ping and server.ping < 150 or not server.ping then
-                                print("🚀 [ATLAS FINDER]: Uygun sunucu bulundu! ID: " .. tostring(server.id))
-                                Lea.IsAllowingTeleport = true
-                                foundServer = true
-                                TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
-                                break
-                            end
-                        end
-                    end
-                    cursor = data.nextPageCursor or ""
-                else
-                    break
-                end
-            else
-                break
-            end
-            task.wait(0.2)
-        まで until foundServer or cursor == "" or cursor == nil
-        
-        if not foundServer then
-            print("⚠️ [ATLAS FINDER]: Uygun boş sunucu bulunamadı, tekrar deneniyor...")
-        end
-    end)
-end
-
-Lea.AtlasServerFinder = AtlasServerFinder
-
--- ==============================================================================
--- 2. KÜP SİSTEMİ (SUB-SYSTEM 2)
+-- 1. KÜP, TAKİP VE BASE (ÜS) SİSTEMİ
 -- ==============================================================================
 local cubePart = nil
-local function ToggleCube(state)
+
+local function UpdateCube(state)
     Lea.Modules.Cube = state
     pcall(function()
         if state then
@@ -95,8 +46,8 @@ local function ToggleCube(state)
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             if hrp and not cubePart then
                 cubePart = Instance.new("Part")
-                cubePart.Name = "LeaAtlasCube"
-                cubePart.Size = Lea.Settings.CubeDimensions
+                cubePart.Name = "LeaCubeNode"
+                cubePart.Size = Vector3.new(2.5, 0.4, 2.5)
                 cubePart.Anchored = false
                 cubePart.CanCollide = true
                 cubePart.Massless = true
@@ -114,146 +65,203 @@ local function ToggleCube(state)
     end)
 end
 
-task.spawn(function()
-    while task.wait(0.04) do
-        pcall(function()
-            if Lea.Modules.Cube and cubePart then
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if hrp and hum then
-                    local isMoving = (hum.MoveDirection.Magnitude > 0.1)
-                    local isJumping = (hum:GetState() == Enum.HumanoidStateType.Jumping)
-                    if isMoving or isJumping then
-                        cubePart.Position = hrp.Position - Vector3.new(0, 3.4, 0)
-                        cubePart.Transparency = 0.3
-                    else
-                        cubePart.Transparency = 1
-                    end
-                end
-            end
-        end)
+-- Base Kaydetme ve Üsse Dönüş
+local function SetBase()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        Lea.BasePosition = hrp.Position
+        print("📍 [LEA BASE]: Üs konumu başarıyla kaydedildi.")
     end
-end)
+end
 
-print("✅ [LEA ATLAS]: Part 1 yüklendi.")
--- ==============================================================================
--- LEA MOD - LEGITIMATE UI & SERVER TELEPORT INTERFACE (PART 2/2)
--- ==============================================================================
-
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local LocalPlayer = Players.LocalPlayer
-
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
--- ==============================================================================
--- 1. MOBİL UYUMLU SUNUCU LİSTE MENÜSÜ (GUI)
--- ==============================================================================
-local function CreateAtlasServerMenu()
-    local existingGui = PlayerGui:FindFirstChild("AtlasServerGui")
-    if existingGui then existingGui:Destroy() end
-
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AtlasServerGui"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = PlayerGui
-
-    -- Mobil için küçük boyutlu ana çerçeve (160x220)
-    local frame = Instance.new("Frame")
-    frame.Name = "MainFrame"
-    frame.Size = UDim2.new(0, 160, 0, 220)
-    frame.Position = UDim2.new(0.5, -80, 0.5, -110)
-    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-    frame.BorderSizePixel = 0
-    frame.Active = true
-    frame.Draggable = true
-    frame.Parent = screenGui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = frame
-
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 20)
-    title.BackgroundTransparency = 1
-    title.Text = "ATLAS FINDER"
-    title.TextColor3 = Color3.fromRGB(0, 255, 180)
-    title.TextSize = 10
-    title.Font = Enum.Font.GothamBold
-    title.Parent = frame
-
-    local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Size = UDim2.new(0.9, 0, 0.75, 0)
-    scrollFrame.Position = UDim2.new(0.05, 0, 0.12, 0)
-    scrollFrame.BackgroundTransparency = 1
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scrollFrame.ScrollBarThickness = 2
-    scrollFrame.Parent = frame
-
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 4)
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Parent = scrollFrame
-
-    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+local function ReturnToBase()
+    if not Lea.BasePosition then
+        print("⚠️ [LEA BASE]: Kayıtlı üs konumu yok!")
+        return
+    end
+    Lea.IsReturning = true
+    task.spawn(function()
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        while hrp and Lea.IsReturning do
+            local distance = (hrp.Position - Lea.BasePosition).Magnitude
+            if distance < 4 then
+                Lea.IsReturning = false
+                break
+            end
+            hrp.CFrame = CFrame.new(hrp.Position:Lerp(Lea.BasePosition, 0.15))
+            task.wait()
+        end
     end)
-
-    return scrollFrame
 end
 
 -- ==============================================================================
--- 2. VERİ TARAMA VE TELEPORT İŞLEYİCİSİ
+-- 2. SERVER FINDER & AUTO-HOP SİSTEMİ (STEAL A BRAINROT)
 -- ==============================================================================
-local function PopulateServerList(scrollContainer)
-    for _, child in ipairs(scrollContainer:GetChildren()) do
-        if child:IsA("TextButton") then
-            child:Destroy()
-        end
-    end
-
+local function HopToBestServer()
     pcall(function()
-        local placeId = game.PlaceId
-        local url = string.format("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=20", tostring(placeId))
-        local response = game:HttpGet(url)
+        print("🔍 [SERVER FINDER]: Uygun public server taranıyor...")
+        local servers = {}
+        local cursor = ""
         
-        if response then
-            local data = HttpService:JSONDecode(response)
-            if data and data.data then
-                for index, server in ipairs(data.data) do
-                    if server.id ~= game.JobId and server.playing < server.maxPlayers then
-                        local btn = Instance.new("TextButton")
-                        btn.Size = UDim2.new(1, 0, 0, 22)
-                        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-                        btn.Text = string.format("Server #%d (%d/%d)", index, server.playing, server.maxPlayers)
-                        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        btn.TextSize = 8
-                        btn.Font = Enum.Font.GothamSemibold
-                        btn.Parent = scrollContainer
-
-                        local btnCorner = Instance.new("UICorner")
-                        btnCorner.CornerRadius = UDim.new(0, 4)
-                        btnCorner.Parent = btn
-
-                        btn.MouseButton1Click:Connect(function()
-                            btn.Text = "Işınlanıyor..."
-                            TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
-                        end)
+        repeat
+            local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+            if cursor ~= "" then
+                url = url .. "&cursor=" + cursor
+            end
+            
+            local success, response = pcall(function()
+                return HttpService:JSONDecode(game:HttpGet(url))
+            end)
+            
+            if success and response and response.data then
+                for _, server in ipairs(response.data) do
+                    if server.playing and server.playing >= Lea.Settings.MinServerPlayers and server.playing < server.maxPlayers then
+                        table.insert(servers, server.id)
                     end
                 end
+                cursor = response.nextPageCursor or ""
+            else
+                break
             end
+        until #servers > 0 or cursor == ""
+
+        if #servers > 0 then
+            local targetServer = servers[math.random(1, #servers)]
+            print("🚀 [SERVER FINDER]: Hedef server bulundu, aktarılıyor...")
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+        else
+            print("⚠️ [SERVER FINDER]: Uygun server bulunamadı, tekrar denetleniyor.")
         end
     end)
 end
 
 -- ==============================================================================
--- 3. ÇALIŞTIRMA
+-- 3. MOBİL UYUMLU ARAYÜZ (GUI)
 -- ==============================================================================
-local container = CreateAtlasServerMenu()
-task.spawn(function()
-    PopulateServerList(container)
+local function BuildUI()
+    pcall(function()
+        if CoreGui:FindFirstChild("LeaMainGui") then
+            CoreGui.LeaMainGui:Destroy()
+        end
+
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "LeaMainGui"
+        screenGui.ResetOnSpawn = false
+        screenGui.Parent = CoreGui
+
+        -- Üst Bilgi Başlığı (LEA MOD)
+        local topLabel = Instance.new("TextLabel")
+        topLabel.Size = UDim2.new(0, 200, 0, 30)
+        topLabel.Position = UDim2.new(0.5, -100, 0, 10)
+        topLabel.BackgroundTransparency = 1
+        topLabel.Text = "LEA MOD - ATLAS"
+        topLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
+        topLabel.TextSize = 16
+        topLabel.Font = Enum.Font.GothamBold
+        topLabel.Parent = screenGui
+
+        -- Ana Menü Kutusu (Mobil)
+        local mainFrame = Instance.new("Frame")
+        mainFrame.Name = "MainFrame"
+        mainFrame.Size = UDim2.new(0, 220, 0, 280)
+        mainFrame.Position = UDim2.new(0.5, -110, 0.5, -140)
+        mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+        mainFrame.BackgroundTransparency = 0.15
+        mainFrame.Active = true
+        mainFrame.Draggable = true
+        mainFrame.Parent = screenGui
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 8)
+        corner.Parent = mainFrame
+
+        local closeBtn = Instance.new("TextButton")
+        closeBtn.Size = UDim2.new(0, 22, 0, 22)
+        closeBtn.Position = UDim2.new(1, -26, 0, 4)
+        closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+        closeBtn.Text = "X"
+        closeBtn.TextColor3 = Color3.new(1, 1, 1)
+        closeBtn.TextSize = 10
+        closeBtn.Parent = mainFrame
+        Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
+
+        -- Buton Oluşturucu Yardımcısı
+        local function CreateButton(name, posY, callback)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -20, 0, 32)
+            btn.Position = UDim2.new(0, 10, 0, posY)
+            btn.BackgroundColor3 = Color3.fromRGB(30, 40, 55)
+            btn.Text = name
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.TextSize = 12
+            btn.Font = Enum.Font.GothamMedium
+            btn.Parent = mainFrame
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+            
+            btn.MouseButton1Click:Connect(callback)
+            return btn
+        end
+
+        CreateButton("Küp Sistemi Aç/Kapat", 40, function()
+            UpdateCube(not Lea.Modules.Cube)
+        end)
+
+        CreateButton("Üs (Base) Konumunu Kaydet", 80, function()
+            SetBase()
+        end)
+
+        CreateButton("Üsse Geri Dön", 120, function()
+            ReturnToBase()
+        end)
+
+        CreateButton("Server Finder (Auto-Hop)", 160, function()
+            HopToBestServer()
+        end)
+
+        local toggleIcon = Instance.new("TextButton")
+        toggleIcon.Size = UDim2.new(0, 40, 0, 20)
+        toggleIcon.Position = UDim2.new(1, -45, 0, 5)
+        toggleIcon.BackgroundColor3 = Color3.fromRGB(0, 200, 150)
+        toggleIcon.Text = "LEA"
+        toggleIcon.TextColor3 = Color3.new(1, 1, 1)
+        toggleIcon.TextSize = 10
+        toggleIcon.Visible = false
+        toggleIcon.Parent = screenGui
+        Instance.new("UICorner", toggleIcon).CornerRadius = UDim.new(0, 4)
+
+        closeBtn.MouseButton1Click:Connect(function()
+            mainFrame.Visible = false
+            toggleIcon.Visible = true
+        end)
+
+        toggleIcon.MouseButton1Click:Connect(function()
+            mainFrame.Visible = true
+            toggleIcon.Visible = false
+        end)
+    end)
+end
+
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        if Lea.Modules.Cube and cubePart then
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hrp and hum then
+                local isMoving = (hum.MoveDirection.Magnitude > 0.1)
+                local isJumping = (hum:GetState() == Enum.HumanoidStateType.Jumping)
+                if isMoving or isJumping then
+                    cubePart.CFrame = hrp.CFrame * CFrame.new(0, -3.4, 0)
+                    cubePart.Transparency = 0.3
+                else
+                    cubePart.Transparency = 1
+                end
+            end
+        end
+    end)
 end)
 
-print("✅ [LEA ATLAS]: Mobil arayüz ve teleport sistemi hazır.")
+BuildUI()
+print("✅ [LEA CORE]: Tüm sistemler eksiksiz yüklendi.")
