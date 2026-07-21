@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V50.0 - PART 1/2 (TEMEL SİSTEM & GÜVENLI BYPASS)
+-- LEA MOD ULTIMATE V50.0 - PART 1/2 (TEMEL SİSTEM & STABİL ALTYAPI)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -10,16 +10,14 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
-print("⭐ [LEA V50.0 ULTIMATE PART 1]: SİSTEM BAŞLATILIYOR...")
+print("⭐ [LEA V50.0 PART 1]: SİSTEM BAŞLATILIYOR...")
 
 -- ==============================================================================
--- 1. GLOBAL STATE YÖNETİMİ (ÖNCELİK SİRASI DEĞİŞTİRİLDİ)
+-- 1. GLOBAL STATE YÖNETİMİ
 -- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "50.0-ULTIMATE-PERFECT",
-        Speed = 16,
-        MoveSpeedIndex = 1,
+        Version = "50.0-STABLE",
         AutoAttack = false,
         AutoAttackLastTime = 0,
         AutoAttackCooldown = 0.5,
@@ -38,8 +36,6 @@ if not getgenv().LeaModGlobalState then
         InfiniteJump = false,
         InfiniteJumpActive = false,
         SpawnPosition = nil,
-        TargetPlayer = nil,
-        IsProtected = true,
         Noclip = false,
         NoclipLastTime = 0,
         NoclipDebounce = 0.05
@@ -54,56 +50,7 @@ end
 State.Connections = {}
 
 -- ==============================================================================
--- 2. GİZLİ HIZ VE GÜVENLI BYPASS KATMANI (DYNAMIC)
--- ==============================================================================
-pcall(function()
-    if hookmetamethod then
-        -- ✅ FİKS 1: WalkSpeed Dynamic (State.Speed'i döndür)
-        local oldIndex
-        oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-            if not checkcaller() and self:IsA("Humanoid") and key == "WalkSpeed" then
-                return State.Speed  -- ✅ SABÎT DEĞİL, STATE'DEN DÖNDÜR
-            end
-            return oldIndex(self, key)
-        end))
-
-        -- Anti-Kick ve Remote Bloğu (Geliştirilmiş)
-        local oldNamecall
-        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            
-            if not checkcaller() then
-                -- 1. Kick metodlarını engelle
-                if method == "Kick" or method == "kick" then
-                    return nil
-                end
-                
-                -- 2. Server remotelarını kontrol et (Geliştirilmiş filter)
-                if method == "FireServer" or method == "InvokeServer" then
-                    local remoteName = tostring(self.Name):lower()
-                    
-                    -- Tehlikeli remote'ları engelle
-                    local banWords = {
-                        "anticheat", "banremote", "cheatdetect", "punishplayer",
-                        "kickplayer", "kickclient", "ban", "detect", "detect_cheat",
-                        "admin_kick", "server_kick", "violation", "hack"
-                    }
-                    
-                    for _, word in ipairs(banWords) do
-                        if remoteName:find(word) then
-                            return nil
-                        end
-                    end
-                end
-            end
-            
-            return oldNamecall(self, ...)
-        end))
-    end
-end)
-
--- ==============================================================================
--- 3. STABİL KARAKTER YÖNETİMİ
+-- 2. STABİL KARAKTER YÖNETİMİ
 -- ==============================================================================
 local function ProtectCharacter(character)
     if not character then return end
@@ -127,10 +74,10 @@ if LocalPlayer.Character then ProtectCharacter(LocalPlayer.Character) end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(ProtectCharacter))
 
 -- ==============================================================================
--- 4. SPAWN TESPİTİ
+-- 3. SPAWN TESPİTİ
 -- ==============================================================================
 task.spawn(function()
-    task.wait(2)
+    task.wait(1.5)
     pcall(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             State.SpawnPosition = LocalPlayer.Character.HumanoidRootPart.Position
@@ -141,10 +88,9 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 5. YARDIMCI FONKSİYONLAR
+-- 4. YARDIMCI FONKSİYONLAR
 -- ==============================================================================
 
---- ✅ FİKS: Tüm fonksiyonları State'e kaydet
 function FindAndEquipTool(toolName)
     local character = LocalPlayer.Character
     if not character then return false end
@@ -205,6 +151,7 @@ function UseMedusa()
     return false
 end
 
+-- OPTİMİZE EDİLMİŞ VE RESET ENGELLEYİCİ BASE'E DÖNÜŞ
 function ReturnToSpawnFast()
     if not State.SpawnPosition then return end
     local character = LocalPlayer.Character
@@ -212,27 +159,13 @@ function ReturnToSpawnFast()
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    local startPos = hrp.Position
     local targetPos = State.SpawnPosition + Vector3.new(0, 3, 0)
-    local distance = (targetPos - startPos).Magnitude
-    if distance < 2 then return end
-    
-    local startTime = tick()
-    local duration = math.clamp(distance / 50, 0.2, 0.8)
-    
-    while tick() - startTime < duration do
-        task.wait()
-        if not character or not character:FindFirstChild("HumanoidRootPart") then break end
-        local alpha = math.min((tick() - startTime) / duration, 1)
-        pcall(function()
-            character.HumanoidRootPart.CFrame = CFrame.new(startPos:Lerp(targetPos, alpha))
-            character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-        end)
-    end
     
     pcall(function()
-        character.HumanoidRootPart.CFrame = CFrame.new(targetPos)
-        character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+        -- Hızı sıfırla ve güvenli şekilde hedefe konumlandır
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+        character:PivotTo(CFrame.new(targetPos))
     end)
 end
 
@@ -258,14 +191,14 @@ function GetNearestPlayer(maxDistance)
     return nearest
 end
 
--- ✅ FİKS: Fonksiyonları State'e kaydet (Part 2'de kullanabilmek için)
 State.FindAndEquipTool = FindAndEquipTool
 State.UseMedusa = UseMedusa
 State.ReturnToSpawnFast = ReturnToSpawnFast
 State.GetNearestPlayer = GetNearestPlayer
 
-print("✅ [PART 1 TAMAMLANDI]: Part 2'yi çalıştırabilirsiniz.")-- ==============================================================================
--- LEA MOD ULTIMATE MEGA V50.0 - PART 2/2 (GUI VE OYUN DÖNGÜSÜ - PERFECT)
+print("✅ [PART 1 TAMAMLANDI]: Part 2'yi çalıştırabilirsiniz.")
+-- ==============================================================================
+-- LEA MOD ULTIMATE V50.0 - PART 2/2 (GUI VE TEMİZ DÖNGÜ)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -282,11 +215,7 @@ if not getgenv().LeaModGlobalState then
 end
 local State = getgenv().LeaModGlobalState
 
-print("⭐ [LEA V50.0 ULTIMATE PART 2]: ARAYÜZ VE DÖNGÜLER YÜKLENİYOR...")
-
--- ==============================================================================
--- 1. GUI KURULUMU
--- ==============================================================================
+print("⭐ [LEA V50.0 PART 2]: ARAYÜZ YÜKLENİYOR...")
 
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
@@ -321,8 +250,8 @@ ActiveWatermark.Visible = false
 ActiveWatermark.TextStrokeTransparency = 0.3
 
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 145, 0, 210)
-MainContainer.Position = UDim2.new(0.5, -72, 0.5, -105)
+MainContainer.Size = UDim2.new(0, 145, 0, 190)
+MainContainer.Position = UDim2.new(0.5, -72, 0.5, -95)
 MainContainer.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
 MainContainer.BackgroundTransparency = 0.05
 MainContainer.BorderSizePixel = 0
@@ -362,7 +291,7 @@ ScrollContainer.Size = UDim2.new(1, -6, 1, -24)
 ScrollContainer.Position = UDim2.new(0, 3, 0, 22)
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.ScrollBarThickness = 2
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 280)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 240)
 
 local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
 ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -389,10 +318,6 @@ ToggleBtn.MouseButton1Click:Connect(function()
     ToggleBtn.Visible = false
     ActiveWatermark.Visible = false
 end)
-
--- ==============================================================================
--- 2. BUTON OLUŞTURMA FONKSİYONLARI
--- ==============================================================================
 
 local function CreateMenuButton(order, text, defaultColor, activeColor, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
@@ -433,10 +358,7 @@ local function CreateActionItem(order, text, color, callback)
     return btn
 end
 
--- ==============================================================================
--- 3. MENÜ ELEMANLAARI
--- ==============================================================================
-
+-- Menü Butonları (Hız Butonu Tamamen Kaldırıldı)
 CreateMenuButton(1, "⚔️ AUTO ATTACK OFF", Color3.fromRGB(45, 25, 25), Color3.fromRGB(255, 50, 50), function(on, btn)
     State.AutoAttack = on
     State.AutoAttackLastTime = tick()
@@ -464,32 +386,18 @@ CreateMenuButton(4, "🧊 CUBE PLATFORM OFF", Color3.fromRGB(35, 55, 55), Color3
     end
 end)
 
-CreateActionItem(5, "⚡ HIZ: 16", Color3.fromRGB(30, 30, 45), function()
-    State.MoveSpeedIndex = State.MoveSpeedIndex + 1
-    if State.MoveSpeedIndex > 4 then State.MoveSpeedIndex = 1 end
-    local speeds = {16, 20, 24, 28}
-    State.Speed = speeds[State.MoveSpeedIndex]
-    
-    for _, child in ipairs(ScrollContainer:GetChildren()) do
-        if child:IsA("TextButton") and child.Text:find("HIZ:") then
-            child.Text = "⚡ HIZ: " .. State.Speed
-            break
-        end
-    end
-end)
-
-CreateMenuButton(6, "👻 NOCLIP OFF", Color3.fromRGB(45, 35, 55), Color3.fromRGB(150, 50, 200), function(on, btn)
+CreateMenuButton(5, "👻 NOCLIP OFF", Color3.fromRGB(45, 35, 55), Color3.fromRGB(150, 50, 200), function(on, btn)
     State.Noclip = on
     btn.Text = on and "👻 NOCLIP ON" or "👻 NOCLIP OFF"
 end)
 
-CreateMenuButton(7, "🚀 INF JUMP OFF", Color3.fromRGB(35, 35, 55), Color3.fromRGB(0, 150, 255), function(on, btn)
+CreateMenuButton(6, "🚀 INF JUMP OFF", Color3.fromRGB(35, 35, 55), Color3.fromRGB(0, 150, 255), function(on, btn)
     State.InfiniteJump = on
     State.InfiniteJumpActive = false
     btn.Text = on and "🚀 INF JUMP ON" or "🚀 INF JUMP OFF"
 end)
 
-CreateMenuButton(8, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(7, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Visuals = on
     State.EspActive = on
     btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
@@ -503,10 +411,7 @@ CreateMenuButton(8, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRG
     end
 end)
 
--- ==============================================================================
--- 4. INFINITE JUMP KONTROL (✅ FİKS 7: KONTROLLÜ ZIPLAMA)
--- ==============================================================================
-
+-- Sınırsız Zıplama
 UserInputService.JumpRequest:Connect(function()
     if State.InfiniteJump and not State.InfiniteJumpActive then
         local char = LocalPlayer.Character
@@ -520,10 +425,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- ==============================================================================
--- 5. ANA OYUN DÖNGÜSÜ (PÜRÜZSÜZ & OPTİMİZE EDİLMİŞ)
--- ==============================================================================
-
+-- Ana Oyun Döngüsü
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     local character = LocalPlayer.Character
     if not character then return end
@@ -532,12 +434,6 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not hrp or not humanoid then return end
     
-    -- ✅ FİKS 1: WalkSpeed Smooth (Sadece farklıysa ayarla)
-    if humanoid.WalkSpeed ~= State.Speed then
-        humanoid.WalkSpeed = State.Speed
-    end
-    
-    -- ✅ FİKS 4: Noclip Debounce (CPU yükü azaltıldı)
     if State.Noclip then
         local now = tick()
         if now - State.NoclipLastTime >= State.NoclipDebounce then
@@ -552,7 +448,6 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
     
-    -- ✅ FİKS 5: Cube Platform (Optimize - daha az spawn)
     if State.CubeActive then
         local now = tick()
         local velocity = hrp.AssemblyLinearVelocity
@@ -577,18 +472,15 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
     
-    -- Hedef bulma ve ability kontroller
     local nearestTarget = State.GetNearestPlayer(45)
     if nearestTarget and nearestTarget.Character and nearestTarget.Character:FindFirstChild("HumanoidRootPart") then
         local targetHrp = nearestTarget.Character.HumanoidRootPart
         local dist = (hrp.Position - targetHrp.Position).Magnitude
         
-        -- Auto Medusa (Cooldown kontrollü)
         if State.AutoMedusa and dist <= 15 then
             State.UseMedusa()
         end
         
-        -- ✅ FİKS 6: AutoAttack Debounce (Spam engellendi)
         if State.AutoAttack then
             local now = tick()
             if now - State.AutoAttackLastTime >= State.AutoAttackCooldown then
@@ -606,7 +498,6 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         end
     end
     
-    -- ✅ FİKS 8: InfiniteJump Kontrol (Jump state'i sıfırla)
     if State.InfiniteJump then
         if humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
             State.InfiniteJumpActive = false
@@ -614,10 +505,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
--- ==============================================================================
--- 6. ESP DÖNGÜSÜ (✅ FİKS 3: Memory Leak engellendi)
--- ==============================================================================
-
+-- ESP Döngüsü
 local espTimer = 0
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     espTimer = espTimer + dt
@@ -629,8 +517,6 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
                     if player ~= LocalPlayer and player.Character then
                         local char = player.Character
                         local highlight = char:FindFirstChild("LeaMegaESP")
-                        
-                        -- ✅ FİKS: Yeni highlight oluşturmak yerine mevcut güncelle
                         if not highlight then
                             highlight = Instance.new("Highlight")
                             highlight.Name = "LeaMegaESP"
@@ -647,5 +533,4 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
-print("✅ [LEA V50.0 ULTIMATE]: SİSTEM BAŞARIYLA YÜKLENDİ.")
-print("📋 Tüm hatalar düzeltilmiştir!")
+print("✅ [LEA V50.0]: SİSTEM TEMİZ VE STABİL ŞEKİLDE YÜKLENDİ.")
