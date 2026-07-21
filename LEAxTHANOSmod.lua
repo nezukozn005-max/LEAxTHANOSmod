@@ -1,5 +1,6 @@
 -- ==============================================================================
--- LEA MOD - SERVER FINDER, AUTO-HOP & CONSOLIDATED CORE
+-- LEA MOD - ENTERPRISE PRODUCTION CONSOLIDATED ENGINE V3.5
+-- FULLY OPTIMIZED FOR MOBILE ARCHITECTURE & ASYNCHRONOUS EXECUTIONS
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -8,37 +9,75 @@ local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⚡ [LEA CORE]: Server Finder ve Gelişmiş Sistemler Başlatılıyor...")
+print("⚡ [LEA ENTERPRISE CORE]: Master initialization sequence started...")
 
 getgenv().LeaState = getgenv().LeaState or {
+    Version = "3.5.0-PROD",
     Modules = {
         Cube = false,
         Fly = false,
         Follow = false,
         ServerFinder = false,
-        AutoJoin = false
+        AutoHop = false,
+        PetStealth = false,
+        AntiKickCrash = true,
+        ESP = false
     },
     Settings = {
-        FlySpeed = 35,
-        FollowSpeed = 25,
+        FlySpeed = 45,
+        FollowSpeed = 30,
+        ReturnSpeed = 40,
         MinServerPlayers = 1,
-        MaxServerPlayers = 10
+        MaxServerPlayers = 12,
+        ScanInterval = 0.05,
+        TargetThreshold = 10000000
     },
     BasePosition = nil,
-    IsReturning = false
+    IsReturning = false,
+    ActiveConnections = {}
 }
 
 local Lea = getgenv().LeaState
 
+-- Clear old connections if re-executed
+for _, conn in pairs(Lea.ActiveConnections) do
+    if typeof(conn) == "RBXScriptConnection" then
+        conn:Disconnect()
+    end
+end
+Lea.ActiveConnections = {}
+
 -- ==============================================================================
--- 1. KÜP, TAKİP VE BASE (ÜS) SİSTEMİ
+-- 1. ADVANCED BYPASS & METATABLE SECURITY HOOKS
+-- ==============================================================================
+pcall(function()
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldNamecall = mt.__namecall
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        if (method == "Kick" or method == "Ban" or method == "ClientKick") and Lea.Modules.AntiKickCrash then
+            print("🛡️ [SECURITY BYPASS]: Intercepted malicious kick/ban execution attempt.")
+            return
+        end
+        return oldNamecall(self, unpack(args))
+    end)
+    setreadonly(mt, true)
+end)
+
+-- ==============================================================================
+-- 2. KUBE ENGINE & DYNAMIC BASE NAVIGATION SUBSYSTEM
 -- ==============================================================================
 local cubePart = nil
 
-local function UpdateCube(state)
+local function ToggleCube(state)
     Lea.Modules.Cube = state
     pcall(function()
         if state then
@@ -46,14 +85,14 @@ local function UpdateCube(state)
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             if hrp and not cubePart then
                 cubePart = Instance.new("Part")
-                cubePart.Name = "LeaCubeNode"
-                cubePart.Size = Vector3.new(2.5, 0.4, 2.5)
+                cubePart.Name = "LeaEnterpriseCubeNode"
+                cubePart.Size = Vector3.new(2.8, 0.45, 2.8)
                 cubePart.Anchored = false
-                cubePart.CanCollide = true
+                cubePart.CanCollide = false
                 cubePart.Massless = true
                 cubePart.Material = Enum.Material.Neon
                 cubePart.Color = Color3.fromRGB(0, 255, 200)
-                cubePart.Transparency = 0.3
+                cubePart.Transparency = 0.25
                 cubePart.Parent = Workspace
             end
         else
@@ -65,19 +104,20 @@ local function UpdateCube(state)
     end)
 end
 
--- Base Kaydetme ve Üsse Dönüş
-local function SetBase()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        Lea.BasePosition = hrp.Position
-        print("📍 [LEA BASE]: Üs konumu başarıyla kaydedildi.")
-    end
+local function SetBasePosition()
+    pcall(function()
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            Lea.BasePosition = hrp.Position
+            print("📍 [BASE MANAGER]: Coordinates locked at: " .. tostring(Lea.BasePosition))
+        end
+    end)
 end
 
-local function ReturnToBase()
+local function ReturnToBasePosition()
     if not Lea.BasePosition then
-        print("⚠️ [LEA BASE]: Kayıtlı üs konumu yok!")
+        print("⚠️ [BASE MANAGER]: No baseline vector established!")
         return
     end
     Lea.IsReturning = true
@@ -90,146 +130,239 @@ local function ReturnToBase()
                 Lea.IsReturning = false
                 break
             end
-            hrp.CFrame = CFrame.new(hrp.Position:Lerp(Lea.BasePosition, 0.15))
+            hrp.CFrame = CFrame.new(hrp.Position:Lerp(Lea.BasePosition, 0.20))
             task.wait()
         end
     end)
 end
 
 -- ==============================================================================
--- 2. SERVER FINDER & AUTO-HOP SİSTEMİ (STEAL A BRAINROT)
+-- 3. HIGH-PERFORMANCE SERVER HOPPER & PET TRACKER (STEAL A BRAINROT ENGINE)
 -- ==============================================================================
-local function HopToBestServer()
+local function ExecuteInstantServerHop()
     pcall(function()
-        print("🔍 [SERVER FINDER]: Uygun public server taranıyor...")
-        local servers = {}
+        print("🚀 [SERVER HOPPER]: High-value asset detected! Scanning public instances...")
+        local viableServers = {}
         local cursor = ""
         
-        repeat
-            local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-            if cursor ~= "" then
-                url = url .. "&cursor=" + cursor
-            end
-            
-            local success, response = pcall(function()
-                return HttpService:JSONDecode(game:HttpGet(url))
-            end)
-            
-            if success and response and response.data then
-                for _, server in ipairs(response.data) do
-                    if server.playing and server.playing >= Lea.Settings.MinServerPlayers and server.playing < server.maxPlayers then
-                        table.insert(servers, server.id)
-                    end
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        end)
+        
+        if success and result and result.data then
+            for _, s in ipairs(result.data) do
+                if s.playing and s.playing >= Lea.Settings.MinServerPlayers and s.playing < s.maxPlayers then
+                    table.insert(viableServers, s.id)
                 end
-                cursor = response.nextPageCursor or ""
-            else
-                break
             end
-        until #servers > 0 or cursor == ""
-
-        if #servers > 0 then
-            local targetServer = servers[math.random(1, #servers)]
-            print("🚀 [SERVER FINDER]: Hedef server bulundu, aktarılıyor...")
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+        end
+        
+        if #viableServers > 0 then
+            local targetInstance = viableServers[math.random(1, #viableServers)]
+            print("🌐 [SERVER HOPPER]: Teleporting to instance ID -> " .. tostring(targetInstance))
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetInstance, LocalPlayer)
         else
-            print("⚠️ [SERVER FINDER]: Uygun server bulunamadı, tekrar denetleniyor.")
+            print("⚠️ [SERVER HOPPER]: Retrying server query pool...")
         end
     end)
 end
 
 -- ==============================================================================
--- 3. MOBİL UYUMLU ARAYÜZ (GUI)
+-- 4. PET STEALTH & 180 DEGREE INVERSION EXPLOIT SUBSYSTEM
 -- ==============================================================================
-local function BuildUI()
+table.insert(Lea.ActiveConnections, RunService.Heartbeat:Connect(function()
     pcall(function()
-        if CoreGui:FindFirstChild("LeaMainGui") then
-            CoreGui.LeaMainGui:Destroy()
+        -- Cube positioning logic
+        if Lea.Modules.Cube and cubePart then
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hrp and hum then
+                local moving = (hum.MoveDirection.Magnitude > 0.05)
+                local jumping = (hum:GetState() == Enum.HumanoidStateType.Jumping)
+                if moving or jumping then
+                    cubePart.CFrame = hrp.CFrame * CFrame.new(0, -3.4, 0)
+                    cubePart.Transparency = 0.25
+                else
+                    cubePart.Transparency = 1
+                end
+            end
+        end
+
+        -- Pet Stealth & Inversion Bug Mechanics
+        if Lea.Modules.PetStealth then
+            local char = LocalPlayer.Character
+            if char then
+                for _, asset in ipairs(char:GetChildren()) do
+                    if asset:IsA("Tool") and (asset.Name:find("Pet") or asset.Name:find("Brainrot") or asset.Name:find("Secret") or asset.Name:find("Gold")) then
+                        local handle = asset:FindFirstChild("Handle") or asset:FindFirstChild("Part")
+                        if handle then
+                            handle.CFrame = handle.CFrame * CFrame.Angles(0, math.rad(180), 0) + Vector3.new(0, -10000, 0)
+                            handle.Transparency = 1
+                            handle.CanCollide = false
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Auto-Hop Scanning Engine Loop
+        if Lea.Modules.AutoHop then
+            for _, entity in ipairs(Workspace:GetChildren()) do
+                if entity:IsA("Model") and (entity.Name:find("Secret") or entity.Name:find("Brainrot") or entity.Name:find("Mythic")) then
+                    print("💎 [ASSET ACQUIRED]: Triggering instantaneous jump procedure.")
+                    ExecuteInstantServerHop()
+                    break
+                end
+            end
+        end
+    end)
+end))
+
+-- ==============================================================================
+-- 5. ENTERPRISE MOBILE UI FRAMEWORK CONSTRUCTOR
+-- ==============================================================================
+local function ConstructEnterpriseUI()
+    pcall(function()
+        if CoreGui:FindFirstChild("LeaEnterpriseMasterGui") then
+            CoreGui.LeaEnterpriseMasterGui:Destroy()
         end
 
         local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "LeaMainGui"
+        screenGui.Name = "LeaEnterpriseMasterGui"
         screenGui.ResetOnSpawn = false
         screenGui.Parent = CoreGui
 
-        -- Üst Bilgi Başlığı (LEA MOD)
-        local topLabel = Instance.new("TextLabel")
-        topLabel.Size = UDim2.new(0, 200, 0, 30)
-        topLabel.Position = UDim2.new(0.5, -100, 0, 10)
-        topLabel.BackgroundTransparency = 1
-        topLabel.Text = "LEA MOD - ATLAS"
-        topLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
-        topLabel.TextSize = 16
-        topLabel.Font = Enum.Font.GothamBold
-        topLabel.Parent = screenGui
+        -- Header Label
+        local header = Instance.new("TextLabel")
+        header.Size = UDim2.new(0, 240, 0, 28)
+        header.Position = UDim2.new(0.5, -120, 0, 8)
+        header.BackgroundTransparency = 1
+        header.Text = "LEA MOD [ENTERPRISE CORE]"
+        header.TextColor3 = Color3.fromRGB(0, 255, 200)
+        header.TextSize = 14
+        header.Font = Enum.Font.GothamBold
+        header.Parent = screenGui
 
-        -- Ana Menü Kutusu (Mobil)
+        -- Main Container Frame
         local mainFrame = Instance.new("Frame")
-        mainFrame.Name = "MainFrame"
-        mainFrame.Size = UDim2.new(0, 220, 0, 280)
-        mainFrame.Position = UDim2.new(0.5, -110, 0.5, -140)
-        mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-        mainFrame.BackgroundTransparency = 0.15
+        mainFrame.Name = "MasterContainer"
+        mainFrame.Size = UDim2.new(0, 260, 0, 360)
+        mainFrame.Position = UDim2.new(0.5, -130, 0.5, -180)
+        mainFrame.BackgroundColor3 = Color3.fromRGB(12, 14, 18)
+        mainFrame.BackgroundTransparency = 0.1
         mainFrame.Active = true
         mainFrame.Draggable = true
         mainFrame.Parent = screenGui
 
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = mainFrame
+        Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Color3.fromRGB(0, 255, 200)
+        stroke.Transparency = 0.5
+        stroke.Thickness = 1.5
+        stroke.Parent = mainFrame
+
+        -- Top Action Control Bar
+        local topBar = Instance.new("Frame")
+        topBar.Size = UDim2.new(1, 0, 0, 36)
+        topBar.BackgroundColor3 = Color3.fromRGB(20, 24, 32)
+        topBar.Parent = mainFrame
+        Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 10)
+
+        local titleText = Instance.new("TextLabel")
+        titleText.Size = UDim2.new(1, -40, 1, 0)
+        titleText.Position = UDim2.new(0, 12, 0, 0)
+        titleText.BackgroundTransparency = 1
+        titleText.Text = "Control Matrix"
+        titleText.TextColor3 = Color3.fromRGB(240, 240, 240)
+        titleText.TextSize = 12
+        titleText.Font = Enum.Font.GothamBold
+        titleText.TextXAlignment = Enum.TextXAlignment.Left
+        titleText.Parent = topBar
 
         local closeBtn = Instance.new("TextButton")
-        closeBtn.Size = UDim2.new(0, 22, 0, 22)
-        closeBtn.Position = UDim2.new(1, -26, 0, 4)
-        closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+        closeBtn.Size = UDim2.new(0, 24, 0, 24)
+        closeBtn.Position = UDim2.new(1, -28, 0, 6)
+        closeBtn.BackgroundColor3 = Color3.fromRGB(200, 45, 45)
         closeBtn.Text = "X"
         closeBtn.TextColor3 = Color3.new(1, 1, 1)
         closeBtn.TextSize = 10
-        closeBtn.Parent = mainFrame
-        Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
+        closeBtn.Parent = topBar
+        Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 
-        -- Buton Oluşturucu Yardımcısı
-        local function CreateButton(name, posY, callback)
+        -- Scrollable Component Container for Options
+        local scrollBox = Instance.new("ScrollingFrame")
+        scrollBox.Size = UDim2.new(1, -16, 1, -50)
+        scrollBox.Position = UDim2.new(0, 8, 0, 42)
+        scrollBox.BackgroundTransparency = 1
+        scrollBox.BorderSizePixel = 0
+        scrollBox.CanvasSize = UDim2.new(0, 0, 0, 340)
+        scrollBox.Parent = mainFrame
+
+        local listLayout = Instance.new("UIListLayout")
+        listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        listLayout.Padding = UDim.new(0, 8)
+        listLayout.Parent = scrollBox
+
+        -- Helper Function for Advanced Interactive Toggles
+        local function BuildFeatureButton(name, callback)
             local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -20, 0, 32)
-            btn.Position = UDim2.new(0, 10, 0, posY)
-            btn.BackgroundColor3 = Color3.fromRGB(30, 40, 55)
-            btn.Text = name
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.TextSize = 12
+            btn.Size = UDim2.new(1, 0, 0, 38)
+            btn.BackgroundColor3 = Color3.fromRGB(26, 32, 44)
+            btn.Text = name .. " -> [KAPALI]"
+            btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+            btn.TextSize = 11
             btn.Font = Enum.Font.GothamMedium
-            btn.Parent = mainFrame
+            btn.Parent = scrollBox
             Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-            
-            btn.MouseButton1Click:Connect(callback)
-            return btn
+
+            local state = false
+            btn.MouseButton1Click:Connect(function()
+                state = not state
+                btn.Text = name .. " -> " .. (state and "[AÇIK]" or "[KAPALI]")
+                btn.BackgroundColor3 = state and Color3.fromRGB(0, 160, 110) or Color3.fromRGB(26, 32, 44)
+                callback(state)
+            end)
         end
 
-        CreateButton("Küp Sistemi Aç/Kapat", 40, function()
-            UpdateCube(not Lea.Modules.Cube)
-        end)
+        -- Helper Function for Standard Execution Actions
+        local function BuildActionTrigger(name, callback)
+            local actBtn = Instance.new("TextButton")
+            actBtn.Size = UDim2.new(1, 0, 0, 38)
+            actBtn.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
+            actBtn.Text = name
+            actBtn.TextColor3 = Color3.new(1, 1, 1)
+            actBtn.TextSize = 11
+            actBtn.Font = Enum.Font.GothamBold
+            actBtn.Parent = scrollBox
+            Instance.new("UICorner", actBtn).CornerRadius = UDim.new(0, 6)
 
-        CreateButton("Üs (Base) Konumunu Kaydet", 80, function()
-            SetBase()
-        end)
+            actBtn.MouseButton1Click:Connect(callback)
+        end
 
-        CreateButton("Üsse Geri Dön", 120, function()
-            ReturnToBase()
-        end)
+        -- Populate UI Panels
+        BuildFeatureButton("Küp Node Sistemi", function(v) ToggleCube(v) end)
+        BuildFeatureButton("Pet Stealth / 180° Bug", function(v) Lea.Modules.PetStealth = v end)
+        BuildFeatureButton("Auto-Hop & Server Finder", function(v) Lea.Modules.AutoHop = v end)
+        BuildFeatureButton("Anti-Kick / Anti-Crash", function(v) Lea.Modules.AntiKickCrash = v end)
+        
+        BuildActionTrigger("Üs Konumunu Kaydet (Set Base)", function() SetBasePosition() end)
+        BuildActionTrigger("Üsse Işınlan / Dön (Return)", function() ReturnToBasePosition() end)
+        BuildActionTrigger("Manuel Server Değiştir (Hop)", function() ExecuteInstantServerHop() end)
 
-        CreateButton("Server Finder (Auto-Hop)", 160, function()
-            HopToBestServer()
-        end)
-
+        -- Minimized Toggle Floating Icon
         local toggleIcon = Instance.new("TextButton")
-        toggleIcon.Size = UDim2.new(0, 40, 0, 20)
-        toggleIcon.Position = UDim2.new(1, -45, 0, 5)
+        toggleIcon.Size = UDim2.new(0, 48, 0, 24)
+        toggleIcon.Position = UDim2.new(1, -55, 0, 6)
         toggleIcon.BackgroundColor3 = Color3.fromRGB(0, 200, 150)
         toggleIcon.Text = "LEA"
         toggleIcon.TextColor3 = Color3.new(1, 1, 1)
         toggleIcon.TextSize = 10
+        toggleIcon.Font = Enum.Font.GothamBold
         toggleIcon.Visible = false
         toggleIcon.Parent = screenGui
-        Instance.new("UICorner", toggleIcon).CornerRadius = UDim.new(0, 4)
+        Instance.new("UICorner", toggleIcon).CornerRadius = UDim.new(0, 6)
 
         closeBtn.MouseButton1Click:Connect(function()
             mainFrame.Visible = false
@@ -243,25 +376,5 @@ local function BuildUI()
     end)
 end
 
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        if Lea.Modules.Cube and cubePart then
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            if hrp and hum then
-                local isMoving = (hum.MoveDirection.Magnitude > 0.1)
-                local isJumping = (hum:GetState() == Enum.HumanoidStateType.Jumping)
-                if isMoving or isJumping then
-                    cubePart.CFrame = hrp.CFrame * CFrame.new(0, -3.4, 0)
-                    cubePart.Transparency = 0.3
-                else
-                    cubePart.Transparency = 1
-                end
-            end
-        end
-    end)
-end)
-
-BuildUI()
-print("✅ [LEA CORE]: Tüm sistemler eksiksiz yüklendi.")
+ConstructEnterpriseUI()
+print("✅ [LEA ENTERPRISE CORE]: All subsystems fully loaded and operational.")
