@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V21.5 (FULL FIXED MONOLITHIC EDITION)
+-- LEA MOD ULTIMATE V21.5 (FULL FIXED + ANTI-GERIATMA + INVIS ESP + PET ENGINE)
 -- ==============================================================================
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -111,7 +111,6 @@ local function HandlePelerinInvisible(enabled)
         if not char then return end
         
         if enabled then
-            -- Envanterde Pelerin/Cape/Invis arama ve kuşanma
             local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
             if backpack then
                 for _, item in ipairs(backpack:GetChildren()) do
@@ -125,7 +124,6 @@ local function HandlePelerinInvisible(enabled)
                 end
             end
             
-            -- Eldeki Pelerini Çalıştırma
             for _, item in ipairs(char:GetChildren()) do
                 if item:IsA("Tool") then
                     local name = item.Name:lower()
@@ -135,7 +133,6 @@ local function HandlePelerinInvisible(enabled)
                 end
             end
 
-            -- Görsel Destek Transparanlığı
             for _, part in ipairs(char:GetDescendants()) do
                 if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                     part.Transparency = 1
@@ -155,15 +152,12 @@ local function HandlePelerinInvisible(enabled)
     end)
 end
 
--- SEVİYE DİNAMİK OKUMA SİSTEMİ
 local function SyncRealLevel()
     pcall(function()
         local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
         if leaderstats then
             local lvlVal = leaderstats:FindFirstChild("Level") or leaderstats:FindFirstChild("Stage") or leaderstats:FindFirstChild("Rebirth")
-            if lvlVal then
-                State.CurrentLevel = lvlVal.Value
-            end
+            if lvlVal then State.CurrentLevel = lvlVal.Value end
         end
     end)
 end
@@ -192,7 +186,7 @@ LocalPlayer.CharacterAdded:Connect(SetupCharacterLifecycle)
 
 local UIButtons = {}
 
--- Satır 1
+-- Menü Butonları
 UIButtons.Invisible = CreateGridButton(8, 32, 98, 24, "👻 INVIS OFF", function()
     State.Invisible = not State.Invisible
     HandlePelerinInvisible(State.Invisible)
@@ -206,7 +200,6 @@ UIButtons.Base = CreateGridButton(112, 32, 98, 24, "🏠 BASE OFF", function()
     UIButtons.Base.BackgroundColor3 = (State.Mode == "BASE") and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
 end)
 
--- Satır 2
 UIButtons.HitboxAura = CreateGridButton(8, 60, 98, 24, "⚔️ SOPA AURA OFF", function()
     State.HitboxAura = not State.HitboxAura
     UIButtons.HitboxAura.Text = State.HitboxAura and "⚔️ SOPA AURA ON" or "⚔️ SOPA AURA OFF"
@@ -219,7 +212,6 @@ UIButtons.Noclip = CreateGridButton(112, 60, 98, 24, "🛡️ NOCLIP OFF", funct
     UIButtons.Noclip.BackgroundColor3 = State.Noclip and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
 end)
 
--- Satır 3
 UIButtons.Cube = CreateGridButton(8, 88, 98, 24, "🧊 CUBE OFF", function()
     State.Cube = not State.Cube
     UIButtons.Cube.Text = State.Cube and "🧊 CUBE ON" or "🧊 CUBE OFF"
@@ -232,7 +224,6 @@ UIButtons.Visuals = CreateGridButton(112, 88, 98, 24, "👁️ ESP OFF", functio
     UIButtons.Visuals.BackgroundColor3 = State.Visuals and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
 end)
 
--- Satır 4
 UIButtons.AutoAvoid = CreateGridButton(8, 116, 98, 24, "🛡️ KORUMA OFF", function()
     State.AutoAvoid = not State.AutoAvoid
     UIButtons.AutoAvoid.Text = State.AutoAvoid and "🛡️ KORUMA ON" or "🛡️ KORUMA OFF"
@@ -245,7 +236,7 @@ UIButtons.Target = CreateGridButton(112, 116, 98, 24, "🎯 TAKİP OFF", functio
     UIButtons.Target.BackgroundColor3 = (State.Mode == "TARGET") and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
 end)
 
--- Satır 5
+-- Hız Kontrolleri
 local SpeedLbl = Instance.new("TextLabel", MainFrame)
 SpeedLbl.Size = UDim2.new(0, 202, 0, 18)
 SpeedLbl.Position = UDim2.new(0, 8, 0, 146)
@@ -259,16 +250,13 @@ CreateGridButton(8, 166, 47, 22, "-5 Hız", function()
     State.Speed = math.clamp(State.Speed - 5, 16, 50)
     SpeedLbl.Text = "Hız Değeri: " .. State.Speed
 end)
-
 CreateGridButton(59, 166, 47, 22, "+5 Hız", function()
     State.Speed = math.clamp(State.Speed + 5, 16, 50)
-    SpeedLbl.Text = "Hız Değeri: " .. State.Speed
+    SpeedLbl.Text = "Hız Değeri: " / State.Speed
 end)
-
 CreateGridButton(8, 196, 202, 26, "🌐 SUNUCU DEĞİŞ & HIZLI HOP", function()
     pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
 end)
-
 CreateGridButton(8, 230, 202, 26, "🔄 GÜVENLİ RESET", function()
     State.BypassReset = true
     pcall(function() 
@@ -277,23 +265,44 @@ CreateGridButton(8, 230, 202, 26, "🔄 GÜVENLİ RESET", function()
     end)
 end)
 
--- ESP DÖNGÜSÜ
+-- BASE ŞEFFAFLAŞTIRICI MOTOR
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(2) do
+        pcall(function()
+            for _, part in ipairs(Workspace:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "Baseplate" and not part.Name:lower():find("terrain") then
+                    local isLarge = (part.Size.X > 25 or part.Size.Z > 25 or part.Size.Y > 25)
+                    local isBaseNode = part.Name:lower():find("base") or part.Name:lower():find("zone") or part.Name:lower():find("safe")
+                    
+                    if (isLarge or isBaseNode) and part.Transparency > 0 and part.Transparency < 0.85 then
+                        part.Transparency = 0.85
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- GÖRÜNMEZLERİ TESPİT EDEN GELİŞMİŞ ESP DÖNGÜSÜ
+task.spawn(function()
+    while task.wait(0.4) do
         SyncRealLevel()
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character then
-                    local hl = p.Character:FindFirstChild("LeaESP")
+                    local char = p.Character
+                    local hl = char:FindFirstChild("LeaESP")
+                    
+                    -- Görünmez (Invis) olanların parçalarını zorla görünür kıl veya ESP vurgusu ver
                     if State.Visuals then
                         if not hl then
                             hl = Instance.new("Highlight")
                             hl.Name = "LeaESP"
-                            hl.FillColor = Color3.fromRGB(0, 255, 200)
+                            hl.FillColor = Color3.fromRGB(255, 50, 50) -- Görünmezler için dikkat çekici kırmızı/özel renk
                             hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.5
-                            hl.OutlineTransparency = 0.1
-                            hl.Parent = p.Character
+                            hl.FillTransparency = 0.3
+                            hl.OutlineTransparency = 0.0
+                            hl.Parent = char
                         end
                     else
                         if hl then hl:Destroy() end
@@ -317,7 +326,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ANA KONTROL VE FİZİK DÖNGÜSÜ (HEARTBEAT)
+-- ANA FİZİK, ANTI-GERIATMA, PET DÖNDÜRME VE KÜP DÖNGÜSÜ
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -325,17 +334,33 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    -- Pelerin İnvis Tetikleyici Desteği
-    if State.Invisible then
-        HandlePelerinInvisible(true)
-    end
+    -- ANTI-GERIATMA / ANTI-KICK BYPASS (Konum sönümleme ve güvenlik kilidi)
+    pcall(function()
+        if hrp.AssemblyLinearVelocity.Magnitude > 120 then
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        end
+    end)
 
-    -- Hız Sınırı
+    -- PET / ÇALINAN OBJE 180 DERECE TERS ÇEVİRİCİ
+    pcall(function()
+        for _, joint in ipairs(char:GetDescendants()) do
+            if joint:IsA("Weld") or joint:IsA("Motor6D") then
+                if joint.Part1 and joint.Part1.Parent ~= char and joint.Part1.Parent ~= Workspace then
+                    if not joint:GetAttribute("Flipped180") then
+                        joint.C0 = joint.C0 * CFrame.Angles(math.rad(180), 0, 0)
+                        joint:SetAttribute("Flipped180", true)
+                    end
+                end
+            end
+        end
+    end)
+
+    if State.Invisible then HandlePelerinInvisible(true) end
+
     if hum.MoveDirection.Magnitude > 0 then
         hum.WalkSpeed = math.clamp(State.Speed, 16, 50)
     end
 
-    -- 1) BASE TELEPORT VE LERPING MOTORU
     if State.Mode == "BASE" and State.SpawnPos then
         pcall(function()
             local dist = (State.SpawnPos - hrp.Position).Magnitude
@@ -350,7 +375,6 @@ RunService.Heartbeat:Connect(function(dt)
             end
         end)
     
-    -- 2) TAKİP MOTORU (HEDEF OYUNCUYA YÖNELEREK SÜZÜLME)
     elseif State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -382,7 +406,6 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- 3) GELİŞTİRİLMİŞ SOPA AURA MOTORU
     if State.HitboxAura then
         pcall(function()
             local tool = char:FindFirstChildOfClass("Tool")
@@ -419,7 +442,6 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- KORUMA MOTORU (AutoAvoid)
     if State.AutoAvoid and State.Mode == "NONE" then
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
@@ -436,7 +458,6 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- KÜP MOTORU
     if State.Cube then
         pcall(function()
             if hrp.Velocity.Y < -1.5 and (os.clock() - State.LastCube > 0.15) then
@@ -448,7 +469,7 @@ RunService.Heartbeat:Connect(function(dt)
                 cube.Size = Vector3.new(5, 0.5, 5)
                 cube.Position = hrp.Position - Vector3.new(0, 3.2, 0)
                 cube.Anchored = true
-                cube.Transparency = 0.4
+                cube.Transparency = 0.75
                 cube.Material = Enum.Material.Neon
                 cube.Color = Color3.fromRGB(0, 255, 200)
                 cube.Parent = Workspace
@@ -459,4 +480,4 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-print("✅ LEA MOD ULTIMATE V21.5 - TAM SÜRÜM YÜKLENDİ!")
+print("✅ LEA MOD ULTIMATE V21.5 - ANTI-GERIATMA & INVIS ESP AKTİF!")
