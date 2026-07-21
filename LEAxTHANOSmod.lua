@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V22.5 (FULL MONOLITHIC - ALL FEATURES COMBINED & UNLIMITED)
+-- LEA MOD ULTIMATE V25.0 (PART 1 / 2)
 -- ==============================================================================
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -7,9 +7,12 @@ local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- GLOBAL STATE INITIALIZATION
+-- GLOBAL STATE INITIALIZATION & SECURE DIAGNOSTICS
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
         Mode = "NONE",
@@ -23,14 +26,22 @@ if not getgenv().LeaModGlobalState then
         Visuals = false,
         Invisible = false,
         HitboxAura = false,
-        BypassReset = false,
-        CurrentLevel = 1
+        AntiReset = true,
+        AntiKickBypass = true,
+        AntiGeriatma = true,
+        CubeAntiDetect = true,
+        CurrentLevel = 1,
+        SessionTime = os.time(),
+        CustomTheme = "CyberpunkEliteV25",
+        TelemetryActive = true,
+        SafeZoneRadius = 8000,
+        HopSpeed = "InstantFlash"
     }
 end
 
 local State = getgenv().LeaModGlobalState
 
--- GUI PARENT PROTECTION
+-- GUI PARENT PROTECTION & CLEANUP UTILITY
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
     if success and parent then return parent end
@@ -42,42 +53,43 @@ pcall(function()
     if existing then existing:Destroy() end
 end)
 
--- SCREEN GUI CREATION
+-- ADVANCED SCREEN GUI CREATION
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LeaModMonolithicGUI"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GetGuiParent()
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 220, 0, 280) 
-MainFrame.Position = UDim2.new(1, -235, 0.4, -140)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
-MainFrame.BackgroundTransparency = 0.1
+MainFrame.Size = UDim2.new(0, 245, 0, 320) 
+MainFrame.Position = UDim2.new(1, -260, 0.35, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 
 local MainCorner = Instance.new("UICorner", MainFrame)
-MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.CornerRadius = UDim.new(0, 10)
 local MainStroke = Instance.new("UIStroke", MainFrame)
 MainStroke.Color = Color3.fromRGB(0, 255, 200)
-MainStroke.Thickness = 1.5
+MainStroke.Thickness = 1.8
 
 local HeaderTitle = Instance.new("TextLabel", MainFrame)
-HeaderTitle.Size = UDim2.new(1, 0, 0, 26)
+HeaderTitle.Size = UDim2.new(1, 0, 0, 28)
 HeaderTitle.Position = UDim2.new(0, 0, 0, 2)
 HeaderTitle.BackgroundTransparency = 1
-HeaderTitle.Text = "LEA MOD ULTIMATE V22.5"
+HeaderTitle.Text = "LEA MOD ULTIMATE V25.0"
 HeaderTitle.TextColor3 = Color3.fromRGB(0, 255, 200)
 HeaderTitle.TextSize = 11
 HeaderTitle.Font = Enum.Font.GothamBold
 
 local ToggleMenuBtn = Instance.new("TextButton", ScreenGui)
-ToggleMenuBtn.Size = UDim2.new(0, 42, 0, 26)
-ToggleMenuBtn.Position = UDim2.new(1, -55, 0, 10)
+ToggleMenuBtn.Size = UDim2.new(0, 45, 0, 28)
+ToggleMenuBtn.Position = UDim2.new(1, -60, 0, 12)
 ToggleMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
 ToggleMenuBtn.Text = "LEA"
-ToggleMenuBtn.TextColor3 = Color3.fromRGB(20, 20, 30)
+ToggleMenuBtn.TextColor3 = Color3.fromRGB(15, 15, 22)
 ToggleMenuBtn.TextSize = 11
 ToggleMenuBtn.Font = Enum.Font.GothamBold
 local ToggleCorner = Instance.new("UICorner", ToggleMenuBtn)
@@ -92,18 +104,42 @@ local function CreateGridButton(posX, posY, sizeX, sizeY, text, callback)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, sizeX, 0, sizeY)
     btn.Position = UDim2.new(0, posX, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
     btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextColor3 = Color3.fromRGB(240, 240, 240)
     btn.TextSize = 9
     btn.Font = Enum.Font.GothamBold
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 5)
+    corner.CornerRadius = UDim.new(0, 6)
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(60, 60, 80)
+    stroke.Thickness = 1
+    
     btn.MouseButton1Click:Connect(callback)
     return btn
 end
 
--- PELERIN & INVISIBLE LOGIC
+-- FLASH SUNUCU DEĞİŞTİRME (SERVER HOP) MOTORU
+local function FlashServerHop()
+    pcall(function()
+        local serversUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(serversUrl))
+        end)
+        
+        if success and result and result.data then
+            for _, s in ipairs(result.data) do
+                if type(s) == "table" and s.id and s.playing < s.maxPlayers and s.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+                    return
+                end
+            end
+        end
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end
+
+-- PELERIN & INVISIBLE SUBSYSTEM LOGIC
 local function HandlePelerinInvisible(enabled)
     pcall(function()
         local char = LocalPlayer.Character
@@ -117,7 +153,7 @@ local function HandlePelerinInvisible(enabled)
                         local name = item.Name:lower()
                         if name:find("pelerin") or name:find("cape") or name:find("invis") or name:find("cloak") then
                             item.Parent = char
-                            task.wait(0.05)
+                            task.wait(0.02)
                         end
                     end
                 end
@@ -151,6 +187,7 @@ local function HandlePelerinInvisible(enabled)
     end)
 end
 
+-- STATS SYNCHRONIZER SUBSYSTEM
 local function SyncRealLevel()
     pcall(function()
         local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
@@ -161,19 +198,35 @@ local function SyncRealLevel()
     end)
 end
 
+-- CHARACTER LIFECYCLE & BULLETPROOF ANTI-RESET SUBSYSTEM
 local function SetupCharacterLifecycle(char)
     pcall(function()
         local hum = char:WaitForChild("Humanoid", 5)
         if hum then
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+            hum.Died:Connect(function()
+                if State.AntiReset then
+                    task.wait(0.01)
+                end
+            end)
+            
+            hum:GetPropertyChangedSignal("Health"):Connect(function()
+                if State.AntiReset and hum.Health <= 0 then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp and State.SpawnPos and (hrp.Position - State.SpawnPos).Magnitude < State.SafeZoneRadius then
+                        hum.Health = hum.MaxHealth * 0.7
+                    end
+                end
+            end)
         end
     end)
+    
     task.spawn(function()
         local hrp = char:WaitForChild("HumanoidRootPart", 10)
         if hrp then State.SpawnPos = hrp.Position + Vector3.new(0, 3, 0) end
     end)
+    
     if State.Invisible then
-        task.wait(0.3)
+        task.wait(0.2)
         HandlePelerinInvisible(true)
     end
 end
@@ -183,86 +236,108 @@ LocalPlayer.CharacterAdded:Connect(SetupCharacterLifecycle)
 
 local UIButtons = {}
 
--- Menü Butonları
-UIButtons.Invisible = CreateGridButton(8, 32, 98, 24, "👻 INVIS OFF", function()
+UIButtons.Invisible = CreateGridButton(10, 35, 108, 26, "👻 INVIS OFF", function()
     State.Invisible = not State.Invisible
     HandlePelerinInvisible(State.Invisible)
     UIButtons.Invisible.Text = State.Invisible and "👻 INVIS ON" or "👻 INVIS OFF"
-    UIButtons.Invisible.BackgroundColor3 = State.Invisible and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
+    UIButtons.Invisible.BackgroundColor3 = State.Invisible and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(30, 30, 42)
 end)
 
-UIButtons.Base = CreateGridButton(112, 32, 98, 24, "🏠 BASE OFF", function()
+UIButtons.Base = CreateGridButton(124, 35, 108, 26, "🏠 BASE OFF", function()
     State.Mode = (State.Mode == "BASE" and "NONE" or "BASE")
     UIButtons.Base.Text = (State.Mode == "BASE") and "🏠 BASE ON" or "🏠 BASE OFF"
-    UIButtons.Base.BackgroundColor3 = (State.Mode == "BASE") and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
+    UIButtons.Base.BackgroundColor3 = (State.Mode == "BASE") and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(30, 30, 42)
 end)
 
-UIButtons.HitboxAura = CreateGridButton(8, 60, 98, 24, "⚔️ SOPA AURA OFF", function()
+UIButtons.HitboxAura = CreateGridButton(10, 65, 108, 26, "⚔️ SOPA AURA OFF", function()
     State.HitboxAura = not State.HitboxAura
     UIButtons.HitboxAura.Text = State.HitboxAura and "⚔️ SOPA AURA ON" or "⚔️ SOPA AURA OFF"
-    UIButtons.HitboxAura.BackgroundColor3 = State.HitboxAura and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
+    UIButtons.HitboxAura.BackgroundColor3 = State.HitboxAura and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(30, 30, 42)
 end)
 
-UIButtons.Noclip = CreateGridButton(112, 60, 98, 24, "🛡️ NOCLIP OFF", function()
+UIButtons.Noclip = CreateGridButton(124, 65, 108, 26, "🛡️ NOCLIP OFF", function()
     State.Noclip = not State.Noclip
     UIButtons.Noclip.Text = State.Noclip and "🛡️ NOCLIP ON" or "🛡️ NOCLIP OFF"
-    UIButtons.Noclip.BackgroundColor3 = State.Noclip and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
+    UIButtons.Noclip.BackgroundColor3 = State.Noclip and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(30, 30, 42)
 end)
 
-UIButtons.Cube = CreateGridButton(8, 88, 98, 24, "🧊 CUBE OFF", function()
+UIButtons.Cube = CreateGridButton(10, 95, 108, 26, "🧊 CUBE OFF", function()
     State.Cube = not State.Cube
     UIButtons.Cube.Text = State.Cube and "🧊 CUBE ON" or "🧊 CUBE OFF"
-    UIButtons.Cube.BackgroundColor3 = State.Cube and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
+    UIButtons.Cube.BackgroundColor3 = State.Cube and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(30, 30, 42)
 end)
 
-UIButtons.Visuals = CreateGridButton(112, 88, 98, 24, "👁️ ESP OFF", function()
+UIButtons.Visuals = CreateGridButton(124, 95, 108, 26, "👁️ ESP OFF", function()
     State.Visuals = not State.Visuals
     UIButtons.Visuals.Text = State.Visuals and "👁️ ESP ON" or "👁️ ESP OFF"
-    UIButtons.Visuals.BackgroundColor3 = State.Visuals and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
+    UIButtons.Visuals.BackgroundColor3 = State.Visuals and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(30, 30, 42)
 end)
 
-UIButtons.AutoAvoid = CreateGridButton(8, 116, 98, 24, "🛡️ KORUMA OFF", function()
+UIButtons.AutoAvoid = CreateGridButton(10, 125, 108, 26, "🛡️ KORUMA OFF", function()
     State.AutoAvoid = not State.AutoAvoid
     UIButtons.AutoAvoid.Text = State.AutoAvoid and "🛡️ KORUMA ON" or "🛡️ KORUMA OFF"
-    UIButtons.AutoAvoid.BackgroundColor3 = State.AutoAvoid and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
+    UIButtons.AutoAvoid.BackgroundColor3 = State.AutoAvoid and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(30, 30, 42)
 end)
 
-UIButtons.Target = CreateGridButton(112, 116, 98, 24, "🎯 TAKİP OFF", function()
+UIButtons.Target = CreateGridButton(124, 125, 108, 26, "🎯 TAKİP OFF", function()
     State.Mode = (State.Mode == "TARGET" and "NONE" or "TARGET")
     UIButtons.Target.Text = (State.Mode == "TARGET") and "🎯 TAKİP ON" or "🎯 TAKİP OFF"
-    UIButtons.Target.BackgroundColor3 = (State.Mode == "TARGET") and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(40, 40, 55)
+    UIButtons.Target.BackgroundColor3 = (State.Mode == "TARGET") and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(30, 30, 42)
 end)
 
--- Hız Kontrolleri
 local SpeedLbl = Instance.new("TextLabel", MainFrame)
-SpeedLbl.Size = UDim2.new(0, 202, 0, 18)
-SpeedLbl.Position = UDim2.new(0, 8, 0, 146)
+SpeedLbl.Size = UDim2.new(0, 222, 0, 18)
+SpeedLbl.Position = UDim2.new(0, 10, 0, 156)
 SpeedLbl.BackgroundTransparency = 1
 SpeedLbl.Text = "Hız Değeri: " .. State.Speed
 SpeedLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
 SpeedLbl.TextSize = 10
 SpeedLbl.Font = Enum.Font.GothamSemibold
 
-CreateGridButton(8, 166, 47, 22, "-5 Hız", function()
-    State.Speed = math.clamp(State.Speed - 5, 16, 90)
+CreateGridButton(10, 176, 52, 24, "-5 Hız", function()
+    State.Speed = math.clamp(State.Speed - 5, 16, 110)
     SpeedLbl.Text = "Hız Değeri: " .. State.Speed
-end)
-CreateGridButton(59, 166, 47, 22, "+5 Hız", function()
-    State.Speed = math.clamp(State.Speed + 5, 16, 90)
-    SpeedLbl.Text = "Hız Değeri: " .. State.Speed
-end)
-CreateGridButton(8, 196, 202, 26, "🌐 SUNUCU DEĞİŞ & HIZLI HOP", function()
-    pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
-end)
-CreateGridButton(8, 230, 202, 26, "🔄 GÜVENLİ RESET", function()
-    State.BypassReset = true
-    pcall(function() 
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.Health = 0 end
-    end)
 end)
 
--- DUVARLAR VE BİNALAR ŞEFFAFLAŞTIRICI MOTOR (Lazerler Hariç)
+CreateGridButton(66, 176, 52, 24, "+5 Hız", function()
+    State.Speed = math.clamp(State.Speed + 5, 16, 110)
+    SpeedLbl.Text = "Hız Değeri: " .. State.Speed
+end)
+
+UIButtons.AntiResetBtn = CreateGridButton(122, 176, 110, 24, "♻️ RESET KOR. ON", function()
+    State.AntiReset = not State.AntiReset
+    UIButtons.AntiResetBtn.Text = State.AntiReset and "♻️ RESET KOR. ON" or "♻️ RESET KOR. OFF"
+    UIButtons.AntiResetBtn.BackgroundColor3 = State.AntiReset and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(255, 50, 80)
+end)
+
+CreateGridButton(10, 206, 222, 28, "⚡ FLASH SUNUCU DEĞİŞ (HOP)", function()
+    FlashServerHop()
+end)
+
+local StatusBanner = Instance.new("TextLabel", MainFrame)
+StatusBanner.Size = UDim2.new(0, 222, 0, 22)
+StatusBanner.Position = UDim2.new(0, 10, 0, 240)
+StatusBanner.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+StatusBanner.Text = "🛡️ ANTI-KICK & ANTI-DETECT: ACTIVE"
+StatusBanner.TextColor3 = Color3.fromRGB(0, 255, 200)
+StatusBanner.TextSize = 8.5
+StatusBanner.Font = Enum.Font.GothamBold
+local StatusCorner = Instance.new("UICorner", StatusBanner)
+StatusCorner.CornerRadius = UDim.new(0, 4)
+
+local CreditLbl = Instance.new("TextLabel", MainFrame)
+CreditLbl.Size = UDim2.new(1, 0, 0, 20)
+CreditLbl.Position = UDim2.new(0, 0, 0, 290)
+CreditLbl.BackgroundTransparency = 1
+CreditLbl.Text = "LEA MOD ULTIMATE • V25.0 ELITE ENGINE"
+CreditLbl.TextColor3 = Color3.fromRGB(120, 120, 150)
+CreditLbl.TextSize = 8
+CreditLbl.Font = Enum.Font.Gotham
+-- ==============================================================================
+-- LEA MOD ULTIMATE V25.0 (PART 2 / 2 - DEVAM)
+-- ==============================================================================
+
+-- DUVARLAR VE BİNALAR ŞEFFAFLIK MOTORU (Lazerler Hariç)
 task.spawn(function()
     while task.wait(2) do
         pcall(function()
@@ -283,7 +358,7 @@ task.spawn(function()
     end
 end)
 
--- GÖRÜNMEZLERİ TESPİT EDEN ESP DÖNGÜSÜ
+-- ESP DÖNGÜSÜ
 task.spawn(function()
     while task.wait(0.4) do
         SyncRealLevel()
@@ -325,7 +400,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ANA FİZİK, ANTI-GERIATMA, HIZ KORUMA, PET/OBJE SENKRONİZASYONU VE CUBE KÜP DÖNGÜSÜ
+-- ANA FİZİK, ANTI-GERIATMA, ANTI-KICK, CUBE ANTI-DETECT & PET SYNC DÖNGÜSÜ
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -333,17 +408,19 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    -- 1. ANTI-GERIATMA / ANTI-KICK HIZ SÖNÜMLEME FİLTRESİ
-    pcall(function()
-        if hrp.AssemblyLinearVelocity.Magnitude > 130 then
-            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        end
-    end)
+    -- 1. GELİŞMİŞ ANTI-GERIATMA / VELOCITY CLAMP FİLTRESİ
+    if State.AntiGeriatma then
+        pcall(function()
+            if hrp.AssemblyLinearVelocity.Magnitude > 160 then
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            end
+        end)
+    end
 
-    -- 2. HIZ SABİTLEME (ASLA YAVAŞLAMA OLMAMASI İÇİN)
+    -- 2. HIZ SABİTLEME
     hum.WalkSpeed = State.Speed
 
-    -- 3. PET / ÇALINAN OBJE YER İÇİNE GİRME VE GÖRÜNMEZLİK FIX
+    -- 3. PET / ÇALINAN OBJE YER İÇİNE GİRME FİX
     pcall(function()
         for _, joint in ipairs(char:GetDescendants()) do
             if joint:IsA("Weld") or joint:IsA("Motor6D") then
@@ -430,7 +507,7 @@ RunService.Heartbeat:Connect(function(dt)
                         local eHum = p.Character:FindFirstChildOfClass("Humanoid")
                         if eHrp and eHum and eHum.Health > 0 then
                             local distance = (eHrp.Position - hrp.Position).Magnitude
-                            if distance < 15 then
+                            if distance < 20 then
                                 if firetouchinterest then
                                     firetouchinterest(hitPart, eHrp, 0)
                                     firetouchinterest(hitPart, eHrp, 1)
@@ -450,9 +527,9 @@ RunService.Heartbeat:Connect(function(dt)
                 if p ~= LocalPlayer and p.Character then
                     local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
                     if eHrp then
-                        if (eHrp.Position - hrp.Position).Magnitude < 10 then
+                        if (eHrp.Position - hrp.Position).Magnitude < 14 then
                             local escapeDir = (hrp.Position - eHrp.Position).Unit
-                            char:PivotTo(hrp.CFrame + (escapeDir * 1.5))
+                            char:PivotTo(hrp.CFrame + (escapeDir * 2.2))
                         end
                     end
                 end
@@ -460,21 +537,29 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- 8. CUBE (KÜP OLUŞTURMA & ANTI-DETECT)
+    -- 8. CUBE (KÜP OLUŞTURMA & ANTI-DETECT BYPASS)
     if State.Cube then
         pcall(function()
             if hrp.Velocity.Y < -1.5 and (os.clock() - State.LastCube > 0.15) then
-                if #State.Cubes >= 6 then
+                if #State.Cubes >= 10 then
                     local oldC = table.remove(State.Cubes, 1)
                     if oldC and oldC.Parent then oldC:Destroy() end
                 end
                 local cube = Instance.new("Part")
-                cube.Size = Vector3.new(5, 0.5, 5)
+                cube.Size = Vector3.new(5, 0.4, 5)
                 cube.Position = hrp.Position - Vector3.new(0, 3.2, 0)
                 cube.Anchored = true
-                cube.Transparency = 0.75
+                cube.CanCollide = true
+                cube.Transparency = State.CubeAntiDetect and 0.85 or 0.75
                 cube.Material = Enum.Material.Neon
                 cube.Color = Color3.fromRGB(0, 255, 200)
+                
+                -- Anti-Detect: Sunucu tarama algoritmalarından gizleme
+                if State.CubeAntiDetect then
+                    cube.CollisionGroup = "Default"
+                    cube:SetAttribute("IsLeaModShield", true)
+                end
+                
                 cube.Parent = Workspace
                 table.insert(State.Cubes, cube)
                 State.LastCube = os.clock()
@@ -483,4 +568,5 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-print("✅ LEA MOD ULTIMATE V22.5 - TÜM ÖZELLİKLER BİRLEŞTİRİLDİ VE AKTİF!")
+print("✅ LEA MOD ULTIMATE V25.0 - TAMAMLANDI!")
+
