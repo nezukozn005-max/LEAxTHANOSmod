@@ -1,32 +1,33 @@
 -- ==============================================================================
--- LEA MOD - PART 1/3 (ANTI-KICK & ANTI-RESET SİSTEMİ)
+-- LEA MOD - PART 1/3 (ANTI-KICK & ANTI-RESET & KORUMA)
 -- ==============================================================================
--- Bu dosya: Anti-kick, anti-reset, koruma sistemleri
+-- Bu dosya: Anti-kick, anti-reset, teleport engelleyici, koruma sistemleri
 -- ==============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
+print("🛡️ LEA KORUMA SİSTEMİ BAŞLATILIYOR...")
+
 -- ==============================================================================
--- 1. ANTI-KICK SİSTEMİ
+-- 1. ANTI-KICK SİSTEMİ (GELİŞTİRİLMİŞ)
 -- ==============================================================================
 local function AntiKick()
-    -- Kick olayını engelle
+    -- 1. Kick fonksiyonunu devre dışı bırak
     local originalKick = LocalPlayer.Kick
     LocalPlayer.Kick = function(self, message)
         warn("⚠️ KICK ENGELLENDİ! Mesaj: " .. tostring(message))
         return nil
     end
     
-    -- Remote kickleri engelle
+    -- 2. Remote kickleri engelle
     for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
             local name = remote.Name:lower()
-            if name:match("kick") or name:match("ban") or name:match("remove") or name:match("delete") then
+            if name:match("kick") or name:match("ban") or name:match("remove") or name:match("delete") or name:match("destroy") then
                 local original = remote.OnServerEvent
                 remote.OnServerEvent = function(player, ...)
                     if player == LocalPlayer then
@@ -39,33 +40,42 @@ local function AntiKick()
         end
     end
     
-    -- Teleport kickleri engelle
-    local originalTeleport = TeleportService.Teleport
-    TeleportService.Teleport = function(self, ...)
-        warn("⚠️ TELEPORT KICK ENGELLENDİ!")
-        return nil
+    -- 3. Teleport kicklerini engelle (TeleportService'i kullanma)
+    local TeleportService = game:GetService("TeleportService")
+    if TeleportService then
+        local originalTeleport = TeleportService.Teleport
+        TeleportService.Teleport = function(self, ...)
+            warn("⚠️ TELEPORT ENGELLENDİ!")
+            return nil
+        end
     end
 end
 
 -- ==============================================================================
--- 2. ANTI-RESET SİSTEMİ
+-- 2. ANTI-RESET SİSTEMİ (GELİŞTİRİLMİŞ)
 -- ==============================================================================
 local function AntiReset()
-    -- Karakter resetini engelle
     local char = LocalPlayer.Character
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
-            -- Humanoid resetini engelle
-            local originalBreak = hum.BreakJointsOnDeath
-            hum.BreakJointsOnDeath = false
-            
             -- Health resetini engelle
-            local originalHealth = hum.Health
             hum:GetPropertyChangedSignal("Health"):Connect(function()
                 if hum.Health <= 0 then
                     hum.Health = 100
                     warn("⚠️ RESET ENGELLENDİ! Can yenilendi.")
+                end
+            end)
+            
+            -- BreakJointsOnDeath'i devre dışı bırak
+            hum.BreakJointsOnDeath = false
+            
+            -- State değişimini kontrol et
+            hum:GetPropertyChangedSignal("State"):Connect(function()
+                if hum.State == Enum.HumanoidStateType.Dead then
+                    hum.Health = 100
+                    hum:ChangeState(Enum.HumanoidStateType.Running)
+                    warn("⚠️ ÖLÜM ENGELLENDİ!")
                 end
             end)
         end
@@ -84,18 +94,50 @@ local function AntiReset()
 end
 
 -- ==============================================================================
--- 3. OTURUM KORUMASI
+-- 3. TELEPORT ENGELLEYİCİ
 -- ==============================================================================
-local function SessionProtection()
-    -- Oturumu koru
-    local originalDestroy = LocalPlayer.Destroy
-    LocalPlayer.Destroy = function(self)
-        warn("⚠️ OTURUM KORUMA AKTİF!")
-        return nil
+local function AntiTeleport()
+    -- Teleport remoted'ları engelle
+    for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
+        if remote:IsA("RemoteEvent") then
+            local name = remote.Name:lower()
+            if name:match("teleport") or name:match("tp") or name:match("move") or name:match("position") then
+                local original = remote.OnServerEvent
+                remote.OnServerEvent = function(player, ...)
+                    if player == LocalPlayer then
+                        warn("⚠️ TELEPORT REMOTE ENGELLENDİ: " .. remote.Name)
+                        return nil
+                    end
+                    return original and original(player, ...)
+                end
+            end
+        end
     end
     
+    -- CFrame değişimini kontrol et (aşırı teleportu engelle)
+    local char = LocalPlayer.Character
+    if char then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local lastPos = hrp.Position
+            hrp:GetPropertyChangedSignal("CFrame"):Connect(function()
+                local newPos = hrp.Position
+                local distance = (newPos - lastPos).Magnitude
+                if distance > 100 then
+                    warn("⚠️ AŞIRI TELEPORT ENGELLENDİ!")
+                    hrp.CFrame = CFrame.new(lastPos)
+                end
+                lastPos = newPos
+            end)
+        end
+    end
+end
+
+-- ==============================================================================
+-- 4. OTURUM KORUMASI
+-- ==============================================================================
+local function SessionProtection()
     -- Parent değişimini engelle
-    local originalParent = LocalPlayer.Parent
     LocalPlayer:GetPropertyChangedSignal("Parent"):Connect(function()
         if LocalPlayer.Parent == nil then
             warn("⚠️ PARENT DEĞİŞİMİ ENGELLENDİ!")
@@ -105,10 +147,10 @@ local function SessionProtection()
 end
 
 -- ==============================================================================
--- 4. ANTİCHEAT BYPASS (GELİŞTİRİLMİŞ)
+-- 5. ANTİCHEAT BYPASS
 -- ==============================================================================
 local function AdvancedBypass()
-    -- 1. İsim gizleme
+    -- İsim gizleme
     local char = LocalPlayer.Character
     if char then
         for _, part in ipairs(char:GetChildren()) do
@@ -118,46 +160,27 @@ local function AdvancedBypass()
         end
     end
     
-    -- 2. Remote manipülasyonu
+    -- Remote manipülasyonu
     for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
         if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
             local original = remote.OnServerEvent
             remote.OnServerEvent = function(player, ...)
                 if player == LocalPlayer then
-                    -- Anticheat'e yanlış veri gönder
                     return original and original(player, {})
                 end
                 return original and original(player, ...)
             end
         end
     end
-    
-    -- 3. Velocity smoothing
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local vel = hrp.AssemblyLinearVelocity
-        if vel.Magnitude > 80 then
-            hrp.AssemblyLinearVelocity = vel * 0.5
-        end
-    end
-    
-    -- 4. CFrame smoothing
-    if hrp then
-        local originalCFrame = hrp.CFrame
-        hrp:GetPropertyChangedSignal("CFrame"):Connect(function()
-            if hrp.CFrame.Y > 100 or hrp.CFrame.Y < -100 then
-                hrp.CFrame = CFrame.new(0, 5, 0)
-            end
-        end)
-    end
 end
 
 -- ==============================================================================
--- 5. KORUMA DÖNGÜSÜ
+-- 6. KORUMA DÖNGÜSÜ
 -- ==============================================================================
 local function ProtectionLoop()
     pcall(AntiKick)
     pcall(AntiReset)
+    pcall(AntiTeleport)
     pcall(SessionProtection)
     pcall(AdvancedBypass)
 end
@@ -173,73 +196,23 @@ LocalPlayer.CharacterAdded:Connect(function()
     ProtectionLoop()
 end)
 
--- ==============================================================================
--- 6. ACİL KURTARMA SİSTEMİ
--- ==============================================================================
-local function EmergencyRecovery()
-    -- Karakter yoksa oluştur
-    if not LocalPlayer.Character or not LocalPlayer.Character.Parent then
-        warn("⚠️ KARAKTER KURTARILIYOR...")
-        LocalPlayer.Character = LocalPlayer.CharacterAdded:Wait()
-    end
-    
-    -- Humanoid yoksa oluştur
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum then
-            hum = Instance.new("Humanoid")
-            hum.Parent = char
-            hum.Health = 100
-            warn("⚠️ HUMANİOD KURTARILDI!")
-        end
-    end
-end
-
--- Her 5 saniyede bir kurtarma kontrolü
-task.spawn(function()
-    while task.wait(5) do
-        pcall(EmergencyRecovery)
-    end
-end)
-
--- ==============================================================================
--- 7. KICK LOGLAMA
--- ==============================================================================
-local function KickLogger()
-    -- Kick mesajlarını yakala
-    local originalWarn = warn
-    warn = function(...)
-        local msg = table.concat({...}, " ")
-        if msg:match("kick") or msg:match("ban") or msg:match("remove") then
-            print("⚠️ KICK TESPİT EDİLDİ: " .. msg)
-        end
-        return originalWarn(...)
-    end
-end
-
-KickLogger()
-
 print("✅ KORUMA SİSTEMLERİ AKTİF!")
 print("🛡️ Anti-Kick: AKTİF")
 print("🛡️ Anti-Reset: AKTİF")
+print("🛡️ Anti-Teleport: AKTİF")
 print("🛡️ Session Protection: AKTİF")
 print("🛡️ Advanced Bypass: AKTİF")
-print("🛡️ Emergency Recovery: AKTİF")
 
--- ==============================================================================
--- PART 1 BİTTİ - PART 2'YE GEÇ
--- ==============================================================================-- ==============================================================================
+-- PART 1 BİTTİ - PART 2'YE GEÇ-- ==============================================================================
 -- LEA MOD - PART 2/3 (MOD SİSTEMLERİ)
 -- ==============================================================================
--- Bu dosya: Cube, Fly, Base Dönüş, Takip, Medusa, Lagger
+-- Bu dosya: Cube, Fly, Base Dönüş, Takip (360°), Medusa, Lagger
 -- ==============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
@@ -258,19 +231,19 @@ Lea.Modules = {
 Lea.Settings = {
     FlySpeed = 35,
     FollowSpeed = 25,
-    MedusaRange = 15,
-    LaggerIntensity = 50
+    MedusaRange = 15
 }
 
 Lea.Target = nil
 Lea.BasePosition = nil
 Lea.IsReturning = false
 
+print("⚙️ MOD SİSTEMLERİ BAŞLATILIYOR...")
+
 -- ==============================================================================
 -- 1. CUBE SİSTEMİ
 -- ==============================================================================
 local cubePart = nil
-local cubeConnection = nil
 
 local function ToggleCube(state)
     Lea.Modules.Cube = state
@@ -300,8 +273,7 @@ local function ToggleCube(state)
     end
 end
 
-if cubeConnection then cubeConnection:Disconnect() end
-cubeConnection = RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function()
     if not Lea.Modules.Cube then
         if cubePart then ToggleCube(false) end
         return
@@ -331,14 +303,11 @@ end)
 -- ==============================================================================
 -- 2. FLY SİSTEMİ
 -- ==============================================================================
-local flyConnection = nil
-
 local function ToggleFly(state)
     Lea.Modules.Fly = state
 end
 
-if flyConnection then flyConnection:Disconnect() end
-flyConnection = RunService.Heartbeat:Connect(function(dt)
+RunService.Heartbeat:Connect(function(dt)
     if not Lea.Modules.Fly or Lea.IsReturning then return end
     
     local char = LocalPlayer.Character
@@ -359,7 +328,7 @@ flyConnection = RunService.Heartbeat:Connect(function(dt)
 end)
 
 -- ==============================================================================
--- 3. BASE DÖNÜŞ
+-- 3. BASE DÖNÜŞ (FLY İLE)
 -- ==============================================================================
 local function ReturnToBase()
     if not Lea.BasePosition then
@@ -372,11 +341,10 @@ local function ReturnToBase()
     if not hrp then return end
     
     Lea.IsReturning = true
+    Lea.Modules.Fly = true
+    
     local targetPos = Lea.BasePosition + Vector3.new(0, 3, 0)
     local speed = 21
-    
-    local petInHand = char:FindFirstChildOfClass("Tool") ~= nil
-    if petInHand then speed = 23 end
     
     local returnConn
     returnConn = RunService.Heartbeat:Connect(function()
@@ -409,10 +377,10 @@ local function ReturnToBase()
 end
 
 -- ==============================================================================
--- 4. TAKİP SİSTEMİ
+-- 4. TAKİP SİSTEMİ (360° DÖNEREK SALDIRI)
 -- ==============================================================================
-local followConnection = nil
 local followActive = false
+local followAngle = 0
 local attackTimer = 0
 
 local function ToggleFollow(state)
@@ -426,32 +394,27 @@ local function ToggleFollow(state)
     end
 end
 
+-- Saldırı fonksiyonu
 local function DoAttack()
     if not Lea.Target or not Lea.Target.Character then return end
     
     local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local targetHrp = Lea.Target.Character:FindFirstChild("HumanoidRootPart")
     
-    if not hrp or not targetHrp then return end
+    if not targetHrp then return end
     
     -- Saldırı remote bul
-    local attackRemotes = {}
     for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
             local name = remote.Name:lower()
             if name:match("attack") or name:match("hit") or name:match("damage") or name:match("click") then
-                table.insert(attackRemotes, remote)
+                pcall(function()
+                    remote:FireServer(targetHrp)
+                    remote:FireServer(Lea.Target)
+                    remote:FireServer()
+                end)
             end
         end
-    end
-    
-    for _, remote in ipairs(attackRemotes) do
-        pcall(function()
-            remote:FireServer(targetHrp)
-            remote:FireServer(Lea.Target)
-            remote:FireServer()
-        end)
     end
     
     pcall(function()
@@ -459,8 +422,7 @@ local function DoAttack()
     end)
 end
 
-if followConnection then followConnection:Disconnect() end
-followConnection = RunService.Heartbeat:Connect(function(dt)
+RunService.Heartbeat:Connect(function(dt)
     if not followActive or not Lea.Modules.Follow then return end
     
     local target = Lea.Target
@@ -480,22 +442,46 @@ followConnection = RunService.Heartbeat:Connect(function(dt)
     
     local distance = (hrp.Position - targetHrp.Position).Magnitude
     
+    -- Takip ve 360° dönüş
     if distance > 3 then
+        -- Fly modunu aktif et
         hum.PlatformStand = true
+        
+        -- Hedefe doğru uç
         local direction = (targetHrp.Position - hrp.Position).Unit
         hrp.AssemblyLinearVelocity = direction * Lea.Settings.FollowSpeed
+        
+        -- Hedef etrafında 360° dön
+        followAngle = followAngle + dt * 2
+        local radius = 3
+        local orbitPos = targetHrp.Position + Vector3.new(
+            math.cos(followAngle) * radius,
+            2,
+            math.sin(followAngle) * radius
+        )
+        
+        hrp.CFrame = CFrame.lookAt(hrp.Position, orbitPos)
+        
+        -- Hedefe bak
         hrp.CFrame = CFrame.lookAt(hrp.Position, targetHrp.Position)
+        
     else
+        -- Saldır (360° dönerken vur)
         attackTimer = attackTimer + dt
-        if attackTimer > 0.15 then
+        
+        if attackTimer > 0.1 then
             attackTimer = 0
             DoAttack()
-        end
-        
-        local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
-        if targetHum and targetHum:GetState() == Enum.HumanoidStateType.Running then
-            local randomDir = Vector3.new(math.random(-10, 10), 0, math.random(-10, 10)).Unit
-            hrp.AssemblyLinearVelocity = randomDir * 30
+            
+            -- 360° dönüşü devam ettir
+            followAngle = followAngle + 0.5
+            local radius = 2.5
+            local orbitPos = targetHrp.Position + Vector3.new(
+                math.cos(followAngle) * radius,
+                1,
+                math.sin(followAngle) * radius
+            )
+            hrp.CFrame = CFrame.lookAt(hrp.Position, orbitPos)
         end
     end
 end)
@@ -503,7 +489,6 @@ end)
 -- ==============================================================================
 -- 5. MEDUSA SİSTEMİ
 -- ==============================================================================
-local medusaConnection = nil
 local medusaActive = false
 
 local function ToggleMedusa(state)
@@ -511,14 +496,14 @@ local function ToggleMedusa(state)
     medusaActive = state
 end
 
-if medusaConnection then medusaConnection:Disconnect() end
-medusaConnection = RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function()
     if not medusaActive then return end
     
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
+    -- Medusa tool bul
     local medusaTool = nil
     for _, tool in ipairs(Workspace:GetDescendants()) do
         if tool:IsA("Tool") then
@@ -532,6 +517,7 @@ medusaConnection = RunService.Heartbeat:Connect(function()
     
     if not medusaTool then return end
     
+    -- En yakın oyuncuyu bul
     local closest = nil
     local closestDist = math.huge
     
@@ -554,9 +540,11 @@ medusaConnection = RunService.Heartbeat:Connect(function()
     if closest then
         local targetHrp = closest.Character:FindFirstChild("HumanoidRootPart")
         if targetHrp then
+            -- Hedefe koş
             local direction = (targetHrp.Position - hrp.Position).Unit
             hrp.AssemblyLinearVelocity = direction * 25
             
+            -- Medusa bas
             if medusaTool:IsA("Tool") then
                 pcall(function()
                     medusaTool:Activate()
@@ -568,9 +556,8 @@ medusaConnection = RunService.Heartbeat:Connect(function()
 end)
 
 -- ==============================================================================
--- 6. LAGGER SİSTEMİ
+-- 6. LAGGER SİSTEMİ (KARŞI TARAFTA LAG)
 -- ==============================================================================
-local laggerConnection = nil
 local laggerActive = false
 
 local function ToggleLagger(state)
@@ -578,20 +565,20 @@ local function ToggleLagger(state)
     laggerActive = state
     
     if state then
-        print("💀 LAGGER AKTİF")
+        print("💀 LAGGER AKTİF - Karşı tarafta lag oluşuyor!")
     else
         print("💀 LAGGER KAPALI")
     end
 end
 
-if laggerConnection then laggerConnection:Disconnect() end
-laggerConnection = RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function()
     if not laggerActive then return end
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
             
+            -- 1. Remote spam (karşı tarafa)
             for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
                 if remote:IsA("RemoteEvent") then
                     pcall(function()
@@ -602,19 +589,21 @@ laggerConnection = RunService.Heartbeat:Connect(function()
                 end
             end
             
+            -- 2. Karşı tarafın karakterine velocity spam
             if targetHrp then
-                for i = 1, 10 do
+                for i = 1, 20 do
                     targetHrp.AssemblyLinearVelocity = Vector3.new(
-                        math.random(-100, 100),
-                        math.random(-100, 100),
-                        math.random(-100, 100)
+                        math.random(-200, 200),
+                        math.random(-200, 200),
+                        math.random(-200, 200)
                     )
                 end
                 targetHrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             end
             
+            -- 3. Karşı tarafın CFrame'ini boz
             if targetHrp then
-                for i = 1, 5 do
+                for i = 1, 10 do
                     targetHrp.CFrame = targetHrp.CFrame * CFrame.Angles(
                         math.rad(math.random(0, 360)),
                         math.rad(math.random(0, 360)),
@@ -622,26 +611,35 @@ laggerConnection = RunService.Heartbeat:Connect(function()
                     )
                 end
             end
+            
+            -- 4. Karşı tarafın humanoid'ini yavaşlat
+            local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+            if targetHum then
+                targetHum.WalkSpeed = 0
+                targetHum.JumpPower = 0
+                task.wait(0.1)
+                targetHum.WalkSpeed = 16
+                targetHum.JumpPower = 50
+            end
         end
     end
 end)
 
 print("✅ PART 2 YÜKLENDİ! (Mod Sistemleri)")
 
--- PART 2 BİTTİ - PART 3'E GEÇ
--- ==============================================================================-- ==============================================================================
+-- PART 2 BİTTİ - PART 3'E GEÇ-- ==============================================================================
 -- LEA MOD - PART 3/3 (MENÜ & KONSOL KOMUTLARI)
 -- ==============================================================================
 -- Bu dosya: Menü sistemi, konsol komutları, kısayollar
 -- ==============================================================================
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 local Lea = getgenv().Lea
+
+print("📋 MENÜ SİSTEMİ BAŞLATILIYOR...")
 
 -- ==============================================================================
 -- 1. MENÜ SİSTEMİ (KÜÇÜK)
@@ -652,12 +650,13 @@ local function CreateMenu()
     screenGui.Parent = LocalPlayer.PlayerGui
     screenGui.ResetOnSpawn = false
     
+    -- Ana Frame (150x200)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, 150, 0, 200)
     mainFrame.Position = UDim2.new(0.5, -75, 0.5, -100)
     mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    mainFrame.BackgroundTransparency = 0.2
+    mainFrame.BackgroundTransparency = 0.3
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
     
@@ -665,16 +664,18 @@ local function CreateMenu()
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = mainFrame
     
+    -- Başlık
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 20)
     title.Position = UDim2.new(0, 0, 0, 2)
     title.BackgroundTransparency = 1
-    title.Text = "⚡LEA"
+    title.Text = "⚡LEA MOD"
     title.TextColor3 = Color3.fromRGB(0, 255, 200)
-    title.TextSize = 14
+    title.TextSize = 12
     title.Font = Enum.Font.GothamBold
     title.Parent = mainFrame
     
+    -- Kapatma butonu
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 20, 0, 20)
     closeBtn.Position = UDim2.new(0, 3, 0, 3)
@@ -689,29 +690,30 @@ local function CreateMenu()
     closeCorner.CornerRadius = UDim.new(0, 4)
     closeCorner.Parent = closeBtn
     
+    -- Mod butonları (2 sütun)
     local mods = {
-        {name = "Cube", label = "🔷K"},
-        {name = "Fly", label = "🛸F"},
-        {name = "Follow", label = "🎯T"},
-        {name = "Medusa", label = "🐍M"},
-        {name = "Lagger", label = "💀L"}
+        {name = "Cube", label = "🔷KÜP"},
+        {name = "Fly", label = "🛸UÇUŞ"},
+        {name = "Follow", label = "🎯TAKİP"},
+        {name = "Medusa", label = "🐍MEDUSA"},
+        {name = "Lagger", label = "💀LAGGER"}
     }
     
     local yPos = 25
-    local btnHeight = 22
+    local btnHeight = 25
     local spacing = 3
-    local btnWidth = 0.42
+    local btnWidth = 0.45
     local buttons = {}
     
     for i, mod in ipairs(mods) do
         local btn = Instance.new("TextButton")
         btn.Name = mod.name .. "Btn"
         btn.Size = UDim2.new(btnWidth, 0, 0, btnHeight)
-        btn.Position = UDim2.new(i % 2 == 1 and 0.05 or 0.53, 0, 0, yPos)
+        btn.Position = UDim2.new(i % 2 == 1 and 0.03 or 0.52, 0, 0, yPos)
         btn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
         btn.Text = mod.label
         btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.TextSize = 10
+        btn.TextSize = 9
         btn.Font = Enum.Font.GothamSemibold
         btn.Parent = mainFrame
         
@@ -726,13 +728,14 @@ local function CreateMenu()
         end
     end
     
+    -- Base butonları
     local baseBtn = Instance.new("TextButton")
-    baseBtn.Size = UDim2.new(0.42, 0, 0, 20)
-    baseBtn.Position = UDim2.new(0.05, 0, 0, yPos + 2)
+    baseBtn.Size = UDim2.new(0.45, 0, 0, 22)
+    baseBtn.Position = UDim2.new(0.03, 0, 0, yPos + 2)
     baseBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-    baseBtn.Text = "📍K"
+    baseBtn.Text = "📍BASE KAYDET"
     baseBtn.TextColor3 = Color3.new(1, 1, 1)
-    baseBtn.TextSize = 9
+    baseBtn.TextSize = 8
     baseBtn.Font = Enum.Font.GothamSemibold
     baseBtn.Parent = mainFrame
     
@@ -741,12 +744,12 @@ local function CreateMenu()
     baseCorner.Parent = baseBtn
     
     local returnBtn = Instance.new("TextButton")
-    returnBtn.Size = UDim2.new(0.42, 0, 0, 20)
-    returnBtn.Position = UDim2.new(0.53, 0, 0, yPos + 2)
+    returnBtn.Size = UDim2.new(0.45, 0, 0, 22)
+    returnBtn.Position = UDim2.new(0.52, 0, 0, yPos + 2)
     returnBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
-    returnBtn.Text = "🏠D"
+    returnBtn.Text = "🏠BASE DÖN"
     returnBtn.TextColor3 = Color3.new(1, 1, 1)
-    returnBtn.TextSize = 9
+    returnBtn.TextSize = 8
     returnBtn.Font = Enum.Font.GothamSemibold
     returnBtn.Parent = mainFrame
     
@@ -754,6 +757,7 @@ local function CreateMenu()
     returnCorner.CornerRadius = UDim.new(0, 4)
     returnCorner.Parent = returnBtn
     
+    -- Buton işlevleri
     local function UpdateButton(moduleName, state)
         local btn = buttons[moduleName]
         if btn then
@@ -785,31 +789,35 @@ local function CreateMenu()
         end)
     end
     
+    -- Base kaydet
     baseBtn.MouseButton1Click:Connect(function()
         local char = LocalPlayer.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hrp then
             Lea.BasePosition = hrp.Position
-            baseBtn.Text = "✅K"
-            task.wait(0.5)
-            baseBtn.Text = "📍K"
+            baseBtn.Text = "✅KAYDEDİLDİ"
+            task.wait(1)
+            baseBtn.Text = "📍BASE KAYDET"
+            print("✅ Base kaydedildi!")
         end
     end)
     
+    -- Base dön
     returnBtn.MouseButton1Click:Connect(function()
         ReturnToBase()
     end)
     
+    -- Kapatma
     closeBtn.MouseButton1Click:Connect(function()
         mainFrame.Visible = false
         
         if not screenGui:FindFirstChild("LeaToggle") then
             local leaBtn = Instance.new("TextButton")
             leaBtn.Name = "LeaToggle"
-            leaBtn.Size = UDim2.new(0, 40, 0, 20)
-            leaBtn.Position = UDim2.new(1, -45, 0, 5)
+            leaBtn.Size = UDim2.new(0, 45, 0, 22)
+            leaBtn.Position = UDim2.new(1, -50, 0, 5)
             leaBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 150)
-            leaBtn.Text = "⚡L"
+            leaBtn.Text = "⚡LEA"
             leaBtn.TextColor3 = Color3.new(1, 1, 1)
             leaBtn.TextSize = 12
             leaBtn.Font = Enum.Font.GothamBold
@@ -827,6 +835,8 @@ local function CreateMenu()
             screenGui.LeaToggle.Visible = true
         end
     end)
+    
+    return screenGui
 end
 
 -- ==============================================================================
@@ -905,40 +915,38 @@ _G.Lea.ToggleMod = function(modName, state)
 end
 
 _G.Lea.Status = function()
-    print("=== LEA MOD ===")
+    print("=== LEA MOD DURUMU ===")
     for mod, state in pairs(Lea.Modules) do
-        print(mod .. ": " .. (state and "✅" or "❌"))
+        print(mod .. ": " .. (state and "✅ AÇIK" or "❌ KAPALI"))
     end
     if Lea.Target then
-        print("🎯 " .. Lea.Target.Name)
+        print("🎯 Hedef: " .. Lea.Target.Name)
+    else
+        print("🎯 Hedef: Yok")
     end
     if Lea.BasePosition then
-        print("📍 Kayıtlı")
+        print("📍 Base: Kayıtlı")
+    else
+        print("📍 Base: Yok")
     end
 end
 
 _G.Lea.Help = function()
-    print("=== LEA KOMUTLAR ===")
-    print("SetTarget('isim') - Hedef seç")
-    print("SetBase() - Base kaydet")
-    print("ReturnBase() - Base dön")
-    print("ToggleMod('mod') - Mod aç/kapa")
-    print("Status() - Durum göster")
-    print("Modlar: Cube, Fly, Follow, Medusa, Lagger")
+    print("=== LEA KOMUTLARI ===")
+    print("SetTarget('isim')  - Hedef seç")
+    print("SetBase()          - Base kaydet")
+    print("ReturnBase()       - Base dön")
+    print("ToggleMod('mod')   - Mod aç/kapa")
+    print("Status()           - Durum göster")
+    print("")
+    print("📌 Modlar: Cube, Fly, Follow, Medusa, Lagger")
+    print("📌 Örnek: _G.Lea.ToggleMod('Fly')")
+    print("📌 Kısayollar: F5(Menü), F6(Fly), F7(Cube)")
 end
 
 -- ==============================================================================
--- 3. BAŞLAT
+-- 3. KISAYOLLAR
 -- ==============================================================================
-CreateMenu()
-
-print("✅ LEA MOD YÜKLENDİ!")
-print("🛡️ Anti-Kick: AKTİF")
-print("🛡️ Anti-Reset: AKTİF")
-print("📌 Menü açık (KÜÇÜK)")
-print("📌 Konsol: _G.Lea.Help()")
-print("📌 Kısayollar: F5(Menü), F6(Fly), F7(Cube)")
-
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
@@ -960,3 +968,25 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     
     if input.KeyCode == Enum.KeyCode.F7 then
         _G.Lea.ToggleMod("Cube")
+    end
+end)
+
+-- ==============================================================================
+-- 4. BAŞLAT
+-- ==============================================================================
+CreateMenu()
+
+print("")
+print("========================================")
+print("✅ LEA MOD TAMAMEN YÜKLENDİ!")
+print("========================================")
+print("🛡️ Anti-Kick: AKTİF")
+print("🛡️ Anti-Reset: AKTİF")
+print("🛡️ Anti-Teleport: AKTİF")
+print("🛡️ Bypass: AKTİF")
+print("")
+print("📌 Menü açık (KÜÇÜK)")
+print("📌 Konsol: _G.Lea.Help()")
+print("📌 Kısayollar: F5(Menü), F6(Fly), F7(Cube)")
+print("========================================")
+print("🚀 LEA MOD HAZIR! İYİ OYUNLAR!")
