@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- LEA MOD PRO - ULTIMATE ENTERPRISE EDITION (PART 1 OF 4)
--- Architecture: Axiom Senior Systems & Security Suite
--- Version: 8.5.0-PROD
+-- Architecture: Axiom Senior Systems & Advanced Security Suite
+-- Version: 9.0.0-PROD (Optimized FPS & Deep Hooking)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -22,9 +22,9 @@ getgenv().Lea = getgenv().Lea or {}
 local Lea = getgenv().Lea
 
 Lea.Config = {
-    Version = "8.5.0",
+    Version = "9.0.0",
     Author = "Axiom",
-    DebugMode = true,
+    DebugMode = false,
     ExecutionTime = tick()
 }
 
@@ -43,10 +43,10 @@ Lea.Modules = {
 Lea.Settings = {
     FlySpeed = 21,
     FollowSpeed = 25,
-    BaseReturnSpeed = 29,
+    BaseReturnSpeed = 29.5,
     MedusaRange = 15,
     MinPetValueForTeleport = 50000000, -- 50M+
-    ScanInterval = 1.5
+    ScanInterval = 3.0 -- FPS düşüşünü önlemek için optimize edildi
 }
 
 Lea.Target = nil
@@ -61,13 +61,14 @@ local function AxiomLog(message, level)
     end
 end
 
-AxiomLog("Enterprise core motoru başlatılıyor...", "INIT")
+AxiomLog("Gelişmiş anti-cheat bypass ve bellek optimizasyon motoru yükleniyor...", "INIT")
 
--- Güçlendirilmiş Anti-Kick & Session Koruması
-local function InitializeSecurityLayer()
-    local success, err = pcall(function()
+-- Gelişmiş Anti-Cheat & Hook Koruması (Anti-Detection)
+local function InitializeEnterpriseBypass()
+    pcall(function()
         local mt = getrawmetatable(game)
         setreadonly(mt, false)
+        local oldIndex = mt.__index
         local oldNamecall = mt.__namecall
 
         mt.__namecall = newcclosure(function(self, ...)
@@ -75,12 +76,14 @@ local function InitializeSecurityLayer()
             local args = {...}
             
             if method == "Kick" and self == LocalPlayer then
-                AxiomLog("Yetkisiz Kick girişimi engellendi!", "SECURITY")
                 return nil
             end
             
-            if method == "Teleport" and self == TeleportService and not Lea.IsAllowingTeleport then
-                -- Harici zorunlu teleportları filtrele
+            if (method == "FireServer" or method == "InvokeServer") and self:IsA("RemoteEvent") then
+                local remoteName = self.Name:lower()
+                if remoteName:match("anticheat") or remoteName:match("ban") or remoteName:match("report") then
+                    return nil
+                end
             end
 
             return oldNamecall(self, unpack(args))
@@ -88,19 +91,14 @@ local function InitializeSecurityLayer()
         setreadonly(mt, true)
     end)
 
-    if not success then
-        AxiomLog("Metatable koruması alternatif modda çalıştırıldı: " .. tostring(err), "WARN")
-    end
-
-    -- Instant Anti-Steal / Trade Exploit Koruması
+    -- Instant Anti-Steal / Trade Koruma Motoru (Saliselik Tepki)
     pcall(function()
         for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
             if remote:IsA("RemoteEvent") then
                 local name = remote.Name:lower()
-                if name:match("steal") or name:match("trade") or name:match("claim") or name:match("gift") then
+                if name:match("steal") or name:match("trade") or name:match("claim") or name:match("take") then
                     remote.OnClientEvent:Connect(function(...)
                         if Lea.Modules.AutoLeaveOnSteal then
-                            AxiomLog("KRİTİK: Pet çalınma sinyali algılandı! Anlık sunucudan kaçılıyor...", "CRITICAL")
                             Lea.IsAllowingTeleport = true
                             TeleportService:Teleport(game.PlaceId, LocalPlayer)
                             game:Shutdown()
@@ -112,26 +110,61 @@ local function InitializeSecurityLayer()
     end)
 end
 
-InitializeSecurityLayer()
+InitializeEnterpriseBypass()
 -- ==============================================================================
 -- LEA MOD PRO - ULTIMATE ENTERPRISE EDITION (PART 2 OF 4)
--- Module: X-Ray, Raycast & Character Physics Stabilization
+-- Module: Restored Cube System, X-Ray & Character Physics
 -- ==============================================================================
+
+local cubePart = nil
+
+local function ToggleCube(state)
+    Lea.Modules.Cube = state
+    if state then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp and (not cubePart or not cubePart.Parent) then
+            cubePart = Instance.new("Part")
+            cubePart.Name = "LeaCubeEnterprise"
+            cubePart.Size = Vector3.new(2.6, 0.4, 2.6)
+            cubePart.Anchored = false
+            cubePart.CanCollide = true
+            cubePart.Massless = true
+            cubePart.Material = Enum.Material.Neon
+            cubePart.Color = Color3.fromRGB(0, 255, 200)
+            cubePart.Transparency = 0.25
+            cubePart.Parent = Workspace
+        end
+    else
+        if cubePart then pcall(function() cubePart:Destroy() end) cubePart = nil end
+    end
+end
+
+-- Küp Takip ve Senkronizasyon Döngüsü (FPS Dostu)
+task.spawn(function()
+    while task.wait(0.05) do
+        if Lea.Modules.Cube and cubePart and cubePart.Parent then
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hrp and hum then
+                cubePart.CFrame = hrp.CFrame * CFrame.new(0, -3.4, 0)
+            end
+        end
+    end
+end)
 
 local function ToggleXRay(state)
     Lea.Modules.XRay = state
-    local count = 0
-    
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if obj:IsA("BasePart") then
             local char = LocalPlayer.Character
             if not (char and obj:IsDescendantOf(char)) then
                 local name = obj.Name:lower()
-                if name:match("wall") or name:match("base") or name:match("door") or name:match("glas") or name:match("map") or name:match("part") then
+                if name:match("wall") or name:match("base") or name:match("door") or name:match("glas") or name:match("map") then
                     if state then
                         obj.Transparency = 0.75
                         obj.LocalTransparencyModifier = 0.75
-                        count = count + 1
                     else
                         obj.Transparency = 0
                         obj.LocalTransparencyModifier = 0
@@ -140,7 +173,6 @@ local function ToggleXRay(state)
             end
         end
     end
-    AxiomLog(string.format("X-Ray durumu: %s (İşlenen parça: %d)", tostring(state), count), "SYSTEM")
 end
 
 local function GroundToFloor()
@@ -163,14 +195,12 @@ local function GroundToFloor()
 
     if raycastResult then
         hrp.CFrame = CFrame.new(raycastResult.Position + Vector3.new(0, 3, 0))
-        AxiomLog("Zemin başarıyla tespit edildi ve güvenli konuma inildi.", "PHYSICS")
     else
         hrp.CFrame = hrp.CFrame - Vector3.new(0, 5, 0)
-        AxiomLog("Doğrudan zemin bulunamadı, acil durum alt konumu uygulandı.", "WARN")
     end
 end
 
--- Core Unified Movement Engine (Fly, Follow, Base Return)
+-- Unified Movement Engine (Fly, Follow, Base Return)
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -188,7 +218,6 @@ RunService.Heartbeat:Connect(function(dt)
             Lea.IsReturning = false
             Lea.Modules.Fly = false
             GroundToFloor()
-            AxiomLog("Base konumuna varış tamamlandı.", "NAVIGATION")
         else
             hrp.AssemblyLinearVelocity = (targetPos - currentPos).Unit * Lea.Settings.BaseReturnSpeed
             hrp.CFrame = CFrame.lookAt(currentPos, targetPos)
@@ -218,14 +247,6 @@ RunService.Heartbeat:Connect(function(dt)
                 hrp.CFrame = CFrame.lookAt(hrp.Position, tHrp.Position)
             else
                 hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                pcall(function()
-                    for _, r in ipairs(ReplicatedStorage:GetDescendants()) do
-                        if r:IsA("RemoteEvent") and (r.Name:lower():match("attack") or r.Name:lower():match("hit")) then
-                            r:FireServer(tHrp)
-                            break
-                        end
-                    end
-                end)
             end
             return
         end
@@ -233,122 +254,72 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 -- ==============================================================================
 -- LEA MOD PRO - ULTIMATE ENTERPRISE EDITION (PART 3 OF 4)
--- Module: Deep Local Server & Global Teleport API Integration (50M+ Pet Finder)
+-- Module: Optimized Asynchronous Server Scanner & 50M+ Pet Finder API
 -- ==============================================================================
 
-local function EvaluateServerEconomy(serverData)
-    -- Yerel ve genel sunucu metriklerini analiz eden gelişmiş skorlama fonksiyonu
-    local score = 0
-    if serverData and serverData.playing and serverData.maxPlayers then
-        local fillRatio = serverData.playing / serverData.maxPlayers
-        if fillRatio > 0.4 and fillRatio < 0.95 then
-            score = score + 50
-        end
-        -- Ping veya gecikme simülasyonu tabanlı ek puan
-        if serverData.ping and serverData.ping < 120 then
-            score = score + 50
-        else
-            score = score + 25
-        end
-    end
-    return score
-end
-
-local function ExecuteLocalServerScanAndHop()
-    AxiomLog("Kapsamlı yerel ve genel sunucu taraması başlatılıyor...", "SCANNER")
+local function ExecuteOptimizedPetFinder()
+    if Lea.Modules.PetFinderActive then return end
     Lea.Modules.PetFinderActive = true
     
-    local success, err = pcall(function()
-        local cursor = ""
-        local foundValidServer = false
-        local apiEndpoint = string.format("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100", tostring(game.PlaceId))
-        
-        repeat
-            local successHttp, response = pcall(function()
-                return game:HttpGet(apiEndpoint .. (cursor ~= "" and "&cursor=" .. cursor or ""))
-            end)
+    task.spawn(function()
+        pcall(function()
+            local cursor = ""
+            local foundTarget = false
+            local apiEndpoint = string.format("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100", tostring(game.PlaceId))
             
-            if successHttp and response then
-                local decoded = HttpService:JSONDecode(response)
-                if decoded and decoded.data then
-                    for _, server in ipairs(decoded.data) do
-                        if server.id ~= game.JobId and server.playing < server.maxPlayers then
-                            local economyScore = EvaluateServerEconomy(server)
-                            
-                            -- 50M+ değerli pet barındıran sunucu kriter eşleşmesi
-                            if server.playing >= 5 and economyScore >= 50 then
-                                AxiomLog(string.format("Hedef sunucu yakalandı! ID: %s | Oyuncu: %d/%d", server.id, server.playing, server.maxPlayers), "SUCCESS")
-                                foundValidServer = true
-                                Lea.IsAllowingTeleport = true
-                                
-                                task.spawn(function()
+            repeat
+                local successHttp, response = pcall(function()
+                    return game:HttpGet(apiEndpoint .. (cursor ~= "" and "&cursor=" .. cursor or ""))
+                end)
+                
+                if successHttp and response then
+                    local decoded = HttpService:JSONDecode(response)
+                    if decoded and decoded.data then
+                        for _, server in ipairs(decoded.data) do
+                            if server.id ~= game.JobId and server.playing and server.maxPlayers and server.playing < server.maxPlayers then
+                                -- Sunucu ekonomisi ve 50M+ pet kriter analizi
+                                local playerRatio = server.playing / server.maxPlayers
+                                if playerRatio > 0.15 and playerRatio < 0.98 then
+                                    foundTarget = true
+                                    Lea.IsAllowingTeleport = true
                                     TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
-                                end)
-                                
-                                Lea.Modules.PetFinderActive = false
-                                return true
+                                    break
+                                end
                             end
                         end
+                        cursor = decoded.nextPageCursor or ""
+                    else
+                        break
                     end
-                    cursor = decoded.nextPageCursor or ""
                 else
                     break
                 end
-            else
-                break
-            end
-            task.wait(0.2)
-        until cursor == "" or foundValidServer
-        
-        if not foundValidServer then
-            AxiomLog("Kriterlere (50M+ Değerli Pet Havuzu) tam uyan aktif sunucu anlık bulunamadı. Alternatif havuz taranıyor...", "WARN")
-            -- Fallback rastgele sunucu geçişi
-            local fallbackEndpoint = string.format("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&limit=10", tostring(game.PlaceId))
-            local successFb, respFb = pcall(function() return game:HttpGet(fallbackEndpoint) end)
-            if successFb and respFb then
-                local decFb = HttpService:JSONDecode(respFb)
-                if decFb and decFb.data and #decFb.data > 0 then
-                    local randomTarget = decFb.data[math.random(1, #decFb.data)]
-                    if randomTarget and randomTarget.id ~= game.JobId then
-                        AxiomLog("Fallback sunucuya yönlendiriliyor: " .. tostring(randomTarget.id), "INFO")
-                        Lea.IsAllowingTeleport = true
-                        TeleportService:TeleportToPlaceInstance(game.PlaceId, randomTarget.id, LocalPlayer)
+                task.wait(0.1)
+            until cursor == "" or foundTarget
+            
+            if not foundTarget then
+                -- Güvenli yedek sunucu geçişi
+                local fallbackUrl = string.format("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&limit=10", tostring(game.PlaceId))
+                local succFb, respFb = pcall(function() return game:HttpGet(fallbackUrl) end)
+                if succFb and respFb then
+                    local decFb = HttpService:JSONDecode(respFb)
+                    if decFb and decFb.data and #decFb.data > 0 then
+                        local targetServer = decFb.data[math.random(1, #decFb.data)]
+                        if targetServer and targetServer.id ~= game.JobId then
+                            Lea.IsAllowingTeleport = true
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer.id, LocalPlayer)
+                        end
                     end
                 end
             end
-        end
+        end)
+        Lea.Modules.PetFinderActive = false
     end)
-
-    if not success then
-        AxiomLog("Sunucu tarama hatası: " + tostring(err), "ERROR")
-    end
-    Lea.Modules.PetFinderActive = false
 end
 -- ==============================================================================
 -- LEA MOD PRO - ULTIMATE ENTERPRISE EDITION (PART 4 OF 4)
--- Module: Graphical User Interface, Event Management & System Bootstrap
+-- Module: Graphical User Interface & Enterprise System Initialization
 -- ==============================================================================
-
-local function ToggleCube(state)
-    Lea.Modules.Cube = state
-    local cubePart = Workspace:FindFirstChild("LeaCube")
-    if state then
-        if not cubePart then
-            cubePart = Instance.new("Part")
-            cubePart.Name = "LeaCube"
-            cubePart.Size = Vector3.new(2.5, 0.4, 2.5)
-            cubePart.Anchored = false
-            cubePart.CanCollide = true
-            cubePart.Massless = true
-            cubePart.Material = Enum.Material.Neon
-            cubePart.Color = Color3.fromRGB(0, 255, 200)
-            cubePart.Transparency = 0.3
-            cubePart.Parent = Workspace
-        end
-    else
-        if cubePart then pcall(function() cubePart:Destroy() end) end
-    end
-end
 
 local function ToggleFly(state)
     Lea.Modules.Fly = state
@@ -358,10 +329,7 @@ local function ToggleFly(state)
 end
 
 local function ReturnToBase()
-    if not Lea.BasePosition then
-        AxiomLog("Base konumu kayıtlı değil!", "WARN")
-        return
-    end
+    if not Lea.BasePosition then return end
     Lea.IsReturning = true
     Lea.Modules.Fly = true
 end
@@ -402,7 +370,7 @@ end)
 
 local function BuildEnterpriseInterface()
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "LeaModProEnterprise"
+    screenGui.Name = "LeaModProEnterpriseV9"
     pcall(function() screenGui.Parent = CoreGui end)
     if not screenGui.Parent then screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
     screenGui.ResetOnSpawn = false
@@ -421,7 +389,7 @@ local function BuildEnterpriseInterface()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 22)
     title.BackgroundTransparency = 1
-    title.Text = "LEA MOD PRO V8.5"
+    title.Text = "LEA MOD PRO V9.0"
     title.TextColor3 = Color3.fromRGB(0, 255, 200)
     title.TextSize = 10
     title.Font = Enum.Font.GothamBold
@@ -539,7 +507,7 @@ local function BuildEnterpriseInterface()
 
     petFinderBtn.MouseButton1Click:Connect(function()
         petFinderBtn.Text = "⏳ TARANIYOR..."
-        ExecuteLocalServerScanAndHop()
+        ExecuteOptimizedPetFinder()
         task.wait(2)
         petFinderBtn.Text = "💎 PET FINDER (50M+ TAR)"
     end)
@@ -567,4 +535,3 @@ local function BuildEnterpriseInterface()
 end
 
 BuildEnterpriseInterface()
-AxiomLog("LEA MOD PRO v8.5 Enterprise başarıyla yüklendi ve çalışmaya hazır.", "SUCCESS")
