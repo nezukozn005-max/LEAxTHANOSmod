@@ -1,22 +1,18 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V44.0 - ADVANCED BYPASS & AUTO-DODGE EDITION (PART 1)
+-- LEA MOD ULTIMATE MEGA V45.0 - DUEL EDITION (STEAL A BRIANROT) - PART 1/3
 -- ==============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V44.0]: ADVANCED CORE & BYPASS BAŞLATILIYOR...")
+print("⭐ [LEA V45.0 DUEL PART 1/3]: GÜÇLÜ BYPASS VE TEMEL SİSTEM BAŞLATILIYOR...")
 
 -- ==============================================================================
--- 1. ULTRA GÜÇLÜ BYPASS, ANTI-KICK & ANTI-DETECTION SİSTEMİ
+-- 1. GELİŞTİRİLMİŞ ULTRA BYPASS SİSTEMİ (GitHub & Topluluk Standartları)
 -- ==============================================================================
 pcall(function()
-    -- Metod kancalama koruması ve temel metin engelleme
     local mt = getrawmetatable(game)
     local oldNamecall = mt.__namecall
     setreadonly(mt, false)
@@ -25,14 +21,26 @@ pcall(function()
         local method = getnamecallmethod()
         local args = {...}
         
-        -- Anti-Kick: Sunucunun oyuncuyu atmaya çalışmasını engelle
-        if method == "Kick" or method == "kick" then
+        -- Anti-Kick ve Anti-Teleport Back
+        if method == "Kick" or method == "kick" or method == "Teleport" then
             return nil
         end
         
-        -- Anti-Cheat hız/teleport algılama loglarını blokla
-        if tostring(method) == "FireServer" and self.Name:lower():find("anticheat") or self.Name:lower():find("ban") or self.Name:lower():find("report") then
-            return nil
+        -- Gelişmiş Anti-Detection / Anti-Cheat FireServer Engelleme
+        if tostring(method) == "FireServer" or tostring(method) == "InvokeServer" then
+            local parent = self.Parent
+            if parent then
+                local parentName = parent.Name:lower()
+                if parentName:find("anticheat") or 
+                   parentName:find("ban") or 
+                   parentName:find("report") or 
+                   parentName:find("detect") or
+                   parentName:find("mod") or
+                   parentName:find("admin") or
+                   parentName:find("ac") then
+                    return nil
+                end
+            end
         end
         
         return oldNamecall(self, ...)
@@ -40,161 +48,331 @@ pcall(function()
     setreadonly(mt, true)
 end)
 
--- Fizik ve Hız Sınırlandırmalarını Bypass Etme (Anti-Speed Cap / Anti-Clamp)
-task.spawn(function()
-    pcall(function()
-        for _, v in ipairs(getgc(true)) do
-            if typeof(v) == "table" and rawget(v, "WalkSpeed") then
-                rawset(v, "WalkSpeed", 100)
-            end
-        end
-    end)
-end)
-
+-- ==============================================================================
+-- 2. GLOBAL STATE OLUŞTURMA
+-- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "44.0-ULTRA-BYPASS",
-        Mode = "NONE",          -- "NONE", "BASE", "TARGET"
-        Speed = 16,             
-        MoveSpeedIndex = 1,     
-        SpawnPos = nil,
+        Version = "45.0-DUEL-ULTIMATE",
+        Speed = 16,
+        MoveSpeedIndex = 1,
         Fly = false,
-        FlySpeed = 45,
-        Visuals = false,
+        FlySpeed = 19, -- 19-21 Güvenli aralık
         CubeActive = false,
-        CubeList = {},          
-        LastCubeTime = 0,       
-        AutoDodge = false,      -- Otomatik Kaçış Sistemi
+        CubeList = {},
+        LastCubeTime = 0,
         ThemeColor = Color3.fromRGB(0, 255, 200),
         Connections = {},
-        TweenStorage = {},
         EspActive = false,
-        ReturnSpeedIndex = 2    
+        Visuals = false,
+        DuelMode = false,
+        AutoAttack = false,
+        SpawnPosition = nil,
+        TargetPlayer = nil,
+        PetEquipped = false,
+        LastMedusaTime = 0,
+        MedusaCooldown = 2.0,
+        IsProtected = true,
+        LastHealthCheck = 0
     }
 end
 local State = getgenv().LeaModGlobalState
 
+print("✅ [PART 1/3]: State oluşturuldu - Versiyon: " .. State.Version)
+
+-- ==============================================================================
+-- 3. BAĞLANTI TEMİZLİĞİ
+-- ==============================================================================
 for _, conn in ipairs(State.Connections) do
     pcall(function() conn:Disconnect() end)
 end
 State.Connections = {}
-State.EspActive = false
 
-local function CancelActiveTweens()
-    if State.TweenStorage.ActiveTween then
-        State.TweenStorage.ActiveTween:Cancel()
-        State.TweenStorage.ActiveTween = nil
+-- ==============================================================================
+-- 4. KARAKTER KORUMA SİSTEMİ
+-- ==============================================================================
+local function ProtectCharacter(character)
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then
+        humanoid = character:WaitForChild("Humanoid", 10)
     end
-end
-
--- ==============================================================================
--- 2. CUBE SİSTEMİ
--- ==============================================================================
-local function ClearCubes()
-    for _, v in ipairs(State.CubeList) do
-        if v and v.Parent then pcall(function() v:Destroy() end) end
-    end
-    State.CubeList = {}
-end
-
-local function CreateCube(pos)
-    if #State.CubeList > 15 then
-        local old = table.remove(State.CubeList, 1)
-        if old and old.Parent then pcall(function() old:Destroy() end) end
-    end
-
-    local cube = Instance.new("Part")
-    cube.Size = Vector3.new(4, 0.5, 4)
-    cube.Position = pos
-    cube.Anchored = true
-    cube.CanCollide = true
-    cube.Transparency = 0.8
-    cube.Material = Enum.Material.SmoothPlastic
-    cube.Color = Color3.fromRGB(0, 170, 255)
-    cube.Parent = Workspace
-    table.insert(State.CubeList, cube)
-end
-
--- ==============================================================================
--- 3. RESET KORUMASI
--- ==============================================================================
-local function SetupResetProtection(newChar)
-    local humanoid = newChar:WaitForChild("Humanoid", 5)
     
     if humanoid then
         humanoid.BreakJointsOnDeath = false
         
         local healthConn = humanoid.HealthChanged:Connect(function(health)
             if health <= 0 then
-                CancelActiveTweens()
-                State.Mode = "NONE"
                 State.Fly = false
                 State.CubeActive = false
-                ClearCubes()
+                State.AutoAttack = false
+                State.DuelMode = false
+                
+                for _, cube in ipairs(State.CubeList) do
+                    if cube and cube.Parent then
+                        pcall(function() cube:Destroy() end)
+                    end
+                end
+                State.CubeList = {}
+                
                 pcall(function()
                     humanoid.Health = 100
                 end)
+                
+                print("🛡️ [KORUMA]: Karakter ölümden korundu!")
             end
         end)
         table.insert(State.Connections, healthConn)
-        
-        task.spawn(function()
-            while newChar and newChar.Parent do
-                pcall(function()
-                    local forceField = newChar:FindFirstChildOfClass("ForceField")
-                    if not forceField then
-                        forceField = Instance.new("ForceField")
-                        forceField.Parent = newChar
-                    end
-                    forceField.Visible = false
-                end)
-                task.wait(0.5)
-            end
-        end)
     end
 end
 
 if LocalPlayer.Character then
-    task.spawn(function() SetupResetProtection(LocalPlayer.Character) end)
+    ProtectCharacter(LocalPlayer.Character)
 end
-table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
+table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(ProtectCharacter))
 
 -- ==============================================================================
--- 4. GELİŞTİRİLMİŞ FLY (BYPASS DESTEKLİ SÜZÜLME)
+-- 5. SPAWN KONUMU TESPİTİ (5 Saniye Sonra)
 -- ==============================================================================
-local function StopFly(humanoid, rootPart)
-    if humanoid then
-        humanoid.PlatformStand = false
-        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
-    if rootPart then
-        rootPart.AssemblyLinearVelocity = Vector3.zero
-    end
-end
+print("⏳ [PART 1/3]: 5 saniye içinde spawn konumu tespit ediliyor...")
+task.wait(5)
 
-local function UpdateFly(humanoid, rootPart)
-    if not State.Fly or not rootPart or not humanoid then return end
-
-    humanoid.PlatformStand = true
-    local cam = Workspace.CurrentCamera
-    local moveDir = humanoid.MoveDirection
-
-    if moveDir.Magnitude > 0 then
-        local camCFrame = cam.CFrame
-        local targetDir = (camCFrame.RightVector * moveDir.X) + (camCFrame.LookVector * moveDir.Z)
-        
-        if targetDir.Magnitude > 0 then
-            -- Hız kesici engeller tamamen kaldırıldı, doğrudan tam güç veriliyor
-            rootPart.AssemblyLinearVelocity = targetDir.Unit * State.FlySpeed
-        end
+pcall(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        State.SpawnPosition = LocalPlayer.Character.HumanoidRootPart.Position
+        print("📍 [PART 1/3]: SPAWN KONUMU KAYDEDILDI: " .. tostring(State.SpawnPosition))
     else
-        rootPart.AssemblyLinearVelocity = Vector3.zero
+        warn("⚠️ [PART 1/3]: Spawn konumu tespit edilemedi, yedek konum atanıyor.")
+        State.SpawnPosition = Vector3.new(0, 5, 0)
     end
+end)
+
+-- ==============================================================================
+-- 6. OYUNCU TESPİT FONKSİYONU
+-- ==============================================================================
+function GetNearestPlayer(maxDistance)
+    local nearest = nil
+    local shortestDistance = maxDistance or 60
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            
+            if hrp and humanoid and humanoid.Health > 0 then
+                local myChar = LocalPlayer.Character
+                if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                    local distance = (myChar.HumanoidRootPart.Position - hrp.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        nearest = player
+                    end
+                end
+            end
+        end
+    end
+    
+    return nearest
 end
 
-print("✅ [LEA V44.0]: PART 1 (BYPASS & CORE) YÜKLENDİ.")
+print("✅ [PART 1/3 TAMAMLANDI]: Temel sistem hazır!")
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V44.0 - PART 2 / 2 (GUI & AUTO-DODGE MOTORU)
+-- LEA MOD ULTIMATE MEGA V45.0 - DUEL EDITION (STEAL A BRIANROT) - PART 2/3
+-- ==============================================================================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+if not getgenv().LeaModGlobalState then
+    warn("❌ [HATA]: Part 1 çalıştırılmamış! Önce Part 1'i çalıştırın.")
+    return
+end
+local State = getgenv().LeaModGlobalState
+
+print("⭐ [LEA V45.0 DUEL PART 2/3]: FONKSİYONLAR YÜKLENİYOR...")
+
+-- ==============================================================================
+-- 1. TOOL/PET BULMA VE EKİPMANLAMA
+-- ==============================================================================
+function FindAndEquipTool(toolName)
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            local toolLower = tool.Name:lower()
+            if toolLower:find(toolName:lower()) then
+                return true
+            end
+        end
+    end
+    
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                local toolLower = tool.Name:lower()
+                if toolLower:find(toolName:lower()) then
+                    local equipped = false
+                    pcall(function()
+                        tool.Parent = character
+                        equipped = true
+                    end)
+                    if equipped then
+                        task.wait(0.03)
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    
+    return false
+end
+
+-- ==============================================================================
+-- 2. MEDUSA KULLANMA SİSTEMİ (Anti-Ban Korumalı)
+-- ==============================================================================
+function UseMedusa()
+    local now = tick()
+    if now - State.LastMedusaTime < State.MedusaCooldown then
+        return false
+    end
+    
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    local medusaTool = nil
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name:lower():find("medusa") then
+            medusaTool = tool
+            break
+        end
+    end
+    
+    if not medusaTool then
+        local backpack = LocalPlayer:FindFirstChild("Backpack")
+        if backpack then
+            for _, tool in ipairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") and tool.Name:lower():find("medusa") then
+                    pcall(function() tool.Parent = character end)
+                    task.wait(0.05)
+                    medusaTool = character:FindFirstChild(tool.Name)
+                    break
+                end
+            end
+        end
+    end
+    
+    if medusaTool then
+        local activated = false
+        pcall(function()
+            medusaTool:Activate()
+            activated = true
+        end)
+        
+        if activated then
+            State.LastMedusaTime = now
+            print("🐍 [MEDUSA]: Anlık tetiklendi!")
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- ==============================================================================
+-- 3. GÜVENLİ SPAWN'A DÖNÜŞ SİSTEMİ (19-21 Hız Sınırı)
+-- ==============================================================================
+function ReturnToSpawn()
+    if not State.SpawnPosition then return false end
+    
+    local character = LocalPlayer.Character
+    if not character then return false end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    
+    local wasFlying = State.Fly
+    State.Fly = false
+    
+    local flySpeed = math.random(19, 21) / 10
+    local startPos = hrp.Position
+    local targetPos = State.SpawnPosition + Vector3.new(0, 3, 0)
+    local distance = (targetPos - startPos).Magnitude
+    
+    if distance < 2 then return true end
+    
+    local startTime = tick()
+    local duration = math.max(distance / (flySpeed * 10), 0.5)
+    
+    while tick() - startTime < duration do
+        task.wait()
+        if not character or not character:FindFirstChild("HumanoidRootPart") then break end
+        
+        local alpha = math.min((tick() - startTime) / duration, 1)
+        local currentPos = startPos:Lerp(targetPos, alpha)
+        
+        pcall(function()
+            character.HumanoidRootPart.CFrame = CFrame.new(currentPos)
+            character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+        end)
+    end
+    
+    pcall(function()
+        character.HumanoidRootPart.CFrame = CFrame.new(State.SpawnPosition + Vector3.new(0, 2, 0))
+        character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+    end)
+    
+    if wasFlying then
+        State.Fly = true
+    end
+    
+    print("✅ [SPAWN]: Güvenli dönüş yapıldı!")
+    return true
+end
+
+-- ==============================================================================
+-- 4. CUBE SİSTEMİ
+-- ==============================================================================
+function ClearAllCubes()
+    for _, cube in ipairs(State.CubeList) do
+        if cube and cube.Parent then pcall(function() cube:Destroy() end) end
+    end
+    State.CubeList = {}
+end
+
+function CreateCube(position)
+    if #State.CubeList > 12 then
+        local oldCube = table.remove(State.CubeList, 1)
+        if oldCube and oldCube.Parent then pcall(function() oldCube:Destroy() end) end
+    end
+    
+    local cube = Instance.new("Part")
+    cube.Name = "LeaCube"
+    cube.Size = Vector3.new(4, 0.5, 4)
+    cube.Position = position
+    cube.Anchored = true
+    cube.CanCollide = true
+    cube.Transparency = 0.8
+    cube.Material = Enum.Material.SmoothPlastic
+    cube.Color = Color3.fromRGB(0, 170, 255)
+    cube.Parent = Workspace
+    
+    table.insert(State.CubeList, cube)
+    return cube
+end
+
+getgenv().LeaFindAndEquipTool = FindAndEquipTool
+getgenv().LeaUseMedusa = UseMedusa
+getgenv().LeaReturnToSpawn = ReturnToSpawn
+getgenv().LeaClearCubes = ClearAllCubes
+getgenv().LeaCreateCube = CreateCube
+
+print("✅ [PART 2/3 TAMAMLANDI]: Fonksiyonlar yüklendi!")
+-- ==============================================================================
+-- LEA MOD ULTIMATE MEGA V45.0 - DUEL EDITION (STEAL A BRIANROT) - PART 3/3
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -204,13 +382,15 @@ local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-print("⭐ [LEA V44.0]: PART 2 (GUI & DODGE) BAŞLATILIYOR...")
-
-local State = getgenv().LeaModGlobalState
-if not State then
-    error("Önce Part 1 kodunu çalıştırmalısın!")
+if not getgenv().LeaModGlobalState then
+    warn("❌ [HATA]: Part 1 çalıştırılmamış! Önce Part 1'i çalıştırın.")
+    return
 end
+local State = getgenv().LeaModGlobalState
 
+print("⭐ [LEA V45.0 DUEL PART 3/3]: GUI VE DÖNGÜ BAŞLATILIYOR...")
+
+-- GUI Kurulumu
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
     if success and parent then return parent end
@@ -231,23 +411,23 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GetGuiParent()
 
+-- Watermark
 local ActiveWatermark = Instance.new("TextLabel", ScreenGui)
 ActiveWatermark.Name = "LeaActiveWatermark"
-ActiveWatermark.Size = UDim2.new(0, 180, 0, 20)
-ActiveWatermark.Position = UDim2.new(0.5, -90, 0.16, -10)
+ActiveWatermark.Size = UDim2.new(0, 200, 0, 20)
+ActiveWatermark.Position = UDim2.new(0.5, -100, 0.16, -10)
 ActiveWatermark.BackgroundTransparency = 1
-ActiveWatermark.Text = "⚡ LEA V44 ACTIVE (BYPASS) ⚡"
+ActiveWatermark.Text = "⚡ LEA V45 ULTIMATE DUEL ⚡"
 ActiveWatermark.TextColor3 = State.ThemeColor
 ActiveWatermark.TextSize = 10
 ActiveWatermark.Font = Enum.Font.GothamBlack
 ActiveWatermark.Visible = false
 ActiveWatermark.TextStrokeTransparency = 0.3
-ActiveWatermark.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 
--- Genişletilmiş Panel (10 buton sığması için yükseklik artırıldı)
+-- Ana Konteyner
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 125, 0, 175)
-MainContainer.Position = UDim2.new(0.5, -62, 0.5, -87)
+MainContainer.Size = UDim2.new(0, 130, 0, 165)
+MainContainer.Position = UDim2.new(0.5, -65, 0.5, -82)
 MainContainer.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
 MainContainer.BackgroundTransparency = 0.05
 MainContainer.BorderSizePixel = 0
@@ -256,29 +436,23 @@ MainContainer.Draggable = true
 
 local MainCorner = Instance.new("UICorner", MainContainer)
 MainCorner.CornerRadius = UDim.new(0, 5)
-
 local MainStroke = Instance.new("UIStroke", MainContainer)
 MainStroke.Color = State.ThemeColor
 MainStroke.Thickness = 1
-MainStroke.Transparency = 0.15
 
 local HeaderFrame = Instance.new("Frame", MainContainer)
 HeaderFrame.Size = UDim2.new(1, 0, 0, 18)
 HeaderFrame.BackgroundColor3 = Color3.fromRGB(3, 3, 6)
 HeaderFrame.BorderSizePixel = 0
 
-local HeaderCorner = Instance.new("UICorner", HeaderFrame)
-HeaderCorner.CornerRadius = UDim.new(0, 5)
-
 local TitleLabel = Instance.new("TextLabel", HeaderFrame)
 TitleLabel.Size = UDim2.new(1, -18, 1, 0)
 TitleLabel.Position = UDim2.new(0, 4, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA V44"
+TitleLabel.Text = "LEA DUEL V45"
 TitleLabel.TextColor3 = State.ThemeColor
 TitleLabel.TextSize = 8
 TitleLabel.Font = Enum.Font.GothamBlack
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseButton = Instance.new("TextButton", HeaderFrame)
 CloseButton.Size = UDim2.new(0, 14, 0, 14)
@@ -286,23 +460,18 @@ CloseButton.Position = UDim2.new(1, -16, 0, 2)
 CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.Font = Enum.Font.GothamBold
 CloseButton.TextSize = 7
-
-local CloseCorner = Instance.new("UICorner", CloseButton)
-CloseCorner.CornerRadius = UDim.new(0, 3)
 
 local ScrollContainer = Instance.new("ScrollingFrame", MainContainer)
 ScrollContainer.Size = UDim2.new(1, -6, 1, -22)
 ScrollContainer.Position = UDim2.new(0, 3, 0, 20)
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.ScrollBarThickness = 2
-ScrollContainer.ScrollBarImageColor3 = State.ThemeColor
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 220)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 200)
 
 local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
 ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ButtonListLayout.Padding = UDim.new(0, 3)
+ButtonListLayout.Padding = UDim.new(0, 4)
 ButtonListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
@@ -312,14 +481,7 @@ ToggleBtn.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
 ToggleBtn.Text = "LEA"
 ToggleBtn.TextColor3 = State.ThemeColor
 ToggleBtn.TextSize = 8
-ToggleBtn.Font = Enum.Font.GothamBlack
 ToggleBtn.Visible = false
-
-local ToggleCorner = Instance.new("UICorner", ToggleBtn)
-ToggleCorner.CornerRadius = UDim.new(1, 0)
-local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
-ToggleStroke.Color = State.ThemeColor
-ToggleStroke.Thickness = 1
 
 CloseButton.MouseButton1Click:Connect(function()
     MainContainer.Visible = false
@@ -333,18 +495,16 @@ ToggleBtn.MouseButton1Click:Connect(function()
     ActiveWatermark.Visible = false
 end)
 
-local FlyButtonRef
-
+-- Buton oluşturucular
 local function CreateMenuButton(order, text, defaultColor, activeColor, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -2, 0, 19)
+    btn.Size = UDim2.new(1, -2, 0, 21)
     btn.BackgroundColor3 = defaultColor
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 7.5
+    btn.TextSize = 8
     btn.Font = Enum.Font.GothamBold
-    btn.AutoButtonColor = false
     
     local corner = Instance.new("UICorner", btn)
     corner.CornerRadius = UDim.new(0, 4)
@@ -361,11 +521,11 @@ end
 local function CreateActionItem(order, text, color, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -2, 0, 19)
+    btn.Size = UDim2.new(1, -2, 0, 21)
     btn.BackgroundColor3 = color
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 7.5
+    btn.TextSize = 8
     btn.Font = Enum.Font.GothamBold
     
     local corner = Instance.new("UICorner", btn)
@@ -375,326 +535,135 @@ local function CreateActionItem(order, text, color, callback)
     return btn
 end
 
-local function CancelActiveTweens()
-    if State.TweenStorage.ActiveTween then
-        State.TweenStorage.ActiveTween:Cancel()
-        State.TweenStorage.ActiveTween = nil
-    end
-end
-
-local function SafeMoveTo(targetPosition, timeToArrive)
-    CancelActiveTweens()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local returnSpeeds = {25, 30, 45}
-        local activeSpeed = returnSpeeds[State.ReturnSpeedIndex] or 30
-        local dist = (targetPosition.Position - hrp.Position).Magnitude
-        local adjustedTime = math.max(dist / activeSpeed, 0.2)
-        
-        local tweenInfo = TweenInfo.new(adjustedTime, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
-        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetPosition})
-        State.TweenStorage.ActiveTween = tween
-        tween:Play()
-    end
-end
-State.TweenStorage.SafeMoveTo = SafeMoveTo
-
-local function StopFlyInternal(humanoid, rootPart)
-    if humanoid then
-        humanoid.PlatformStand = false
-        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
-    if rootPart then
-        rootPart.AssemblyLinearVelocity = Vector3.zero
-    end
-end
-
--- Menü Butonları Oluşturuluyor
-FlyButtonRef = CreateMenuButton(1, "🚀 FLY OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
+-- Menü Butonları
+CreateMenuButton(1, "🎯 DUEL FLY OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Fly = on
-    btn.Text = on and "🚀 FLY ON" or "🚀 FLY OFF"
-    if on then
-        State.Mode = "NONE"
-    else
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        StopFlyInternal(hum, hrp)
-    end
+    State.DuelMode = on
+    btn.Text = on and "🎯 DUEL FLY ON" or "🎯 DUEL FLY OFF"
 end)
 
-CreateMenuButton(2, "🧊 CUBE OFF", Color3.fromRGB(35, 55, 55), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(2, "⚔️ AUTO ATTACK OFF", Color3.fromRGB(45, 25, 25), Color3.fromRGB(255, 50, 50), function(on, btn)
+    State.AutoAttack = on
+    btn.Text = on and "⚔️ AUTO ATTACK ON" or "⚔️ AUTO ATTACK OFF"
+end)
+
+CreateActionItem(3, "🏠 SPAWN'A DÖN", Color3.fromRGB(30, 30, 45), function()
+    if getgenv().LeaReturnToSpawn then getgenv().LeaReturnToSpawn() end
+end)
+
+CreateMenuButton(4, "🧊 CUBE OFF", Color3.fromRGB(35, 55, 55), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.CubeActive = on
     btn.Text = on and "🧊 CUBE ON" or "🧊 CUBE OFF"
-    if not on then
-        for _, v in ipairs(State.CubeList) do
-            if v and v.Parent then pcall(function() v:Destroy() end) end
-        end
-        State.CubeList = {}
-    end
+    if not on and getgenv().LeaClearCubes then getgenv().LeaClearCubes() end
 end)
 
-CreateMenuButton(3, "🏠 BASE OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(0, 180, 90), function(on, btn)
-    if on then
-        State.Mode = "BASE"
-        State.Fly = false
-        if FlyButtonRef then
-            FlyButtonRef.Text = "🚀 FLY OFF"
-            TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
-        end
-        local char = LocalPlayer.Character
-        StopFlyInternal(char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart"))
-    else
-        State.Mode = "NONE"
-        CancelActiveTweens()
-    end
-    btn.Text = on and "🏠 BASE ON" or "🏠 BASE OFF"
-end)
-
-CreateMenuButton(4, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRGB(0, 180, 90), function(on, btn)
-    if on then
-        State.Mode = "TARGET"
-        State.Fly = false
-        if FlyButtonRef then
-            FlyButtonRef.Text = "🚀 FLY OFF"
-            TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
-        end
-        local char = LocalPlayer.Character
-        StopFlyInternal(char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart"))
-    else
-        State.Mode = "NONE"
-        CancelActiveTweens()
-    end
-    btn.Text = on and "🎯 TARGET ON" or "🎯 TARGET OFF"
-end)
-
--- Yeni Eklenen Otomatik Kaçış (Auto-Dodge) Tuşu
-CreateMenuButton(5, "🛡️ AUTO-DODGE OFF", Color3.fromRGB(50, 25, 60), Color3.fromRGB(0, 180, 90), function(on, btn)
-    State.AutoDodge = on
-    btn.Text = on and "🛡️ AUTO-DODGE ON" or "🛡️ AUTO-DODGE OFF"
-end)
-
-CreateActionItem(6, "🛬 YERE İN", Color3.fromRGB(30, 45, 55), function()
-    State.Mode = "NONE"
-    State.Fly = false
-    if FlyButtonRef then
-        FlyButtonRef.Text = "🚀 FLY OFF"
-        TweenService:Create(FlyButtonRef, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 35, 65)}):Play()
-    end
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    StopFlyInternal(hum, hrp)
-    CancelActiveTweens()
-    if hrp then
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {char}
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        
-        local result = Workspace:Raycast(hrp.Position, Vector3.new(0, -500, 0), raycastParams)
-        if result then
-            hrp.CFrame = CFrame.new(result.Position + Vector3.new(0, 3, 0))
+CreateActionItem(5, "⚡ HIZ: 16", Color3.fromRGB(30, 30, 45), function()
+    State.MoveSpeedIndex = State.MoveSpeedIndex + 1
+    if State.MoveSpeedIndex > 3 then State.MoveSpeedIndex = 1 end
+    local speeds = {16, 19, 21}
+    State.Speed = speeds[State.MoveSpeedIndex]
+    for _, child in ipairs(ScrollContainer:GetChildren()) do
+        if child:IsA("TextButton") and child.Text:find("HIZ:") then
+            child.Text = "⚡ HIZ: " .. State.Speed
+            break
         end
     end
 end)
 
-CreateMenuButton(7, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(6, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Visuals = on
     State.EspActive = on
     btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
 end)
 
-CreateActionItem(8, "⚡ YÜRÜME HIZI: 16", Color3.fromRGB(30, 30, 45), function()
-    State.MoveSpeedIndex = State.MoveSpeedIndex + 1
-    if State.MoveSpeedIndex > 3 then State.MoveSpeedIndex = 1 end
-    
-    local speeds = {16, 18, 20}
-    State.Speed = speeds[State.MoveSpeedIndex]
-    
-    local targetBtn = ScrollContainer:GetChildren()[8]
-    if targetBtn and targetBtn:IsA("TextButton") then
-        targetBtn.Text = "⚡ YÜRÜME HIZI: " .. State.Speed
-    end
-end)
-
-CreateActionItem(9, "🏎️ DÖNÜŞ HIZI: 30", Color3.fromRGB(45, 30, 30), function()
-    State.ReturnSpeedIndex = State.ReturnSpeedIndex + 1
-    if State.ReturnSpeedIndex > 3 then State.ReturnSpeedIndex = 1 end
-    
-    local returnSpeeds = {25, 30, 45}
-    local currentReturnSpeed = returnSpeeds[State.ReturnSpeedIndex]
-    
-    local targetBtn = ScrollContainer:GetChildren()[9]
-    if targetBtn and targetBtn:IsA("TextButton") then
-        targetBtn.Text = "🏎️ DÖNÜŞ HIZI: " .. currentReturnSpeed
-    end
-end)
-
-CreateActionItem(10, "📍 ÜS YAP", Color3.fromRGB(30, 45, 35), function()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        State.SpawnPos = hrp.Position + Vector3.new(0, 3, 0)
-    end
-end)
-
--- ESP Döngüsü
-local espTimeElapsed = 0
+-- ==============================================================================
+-- ANA OYUN DÖNGÜSÜ (Bypass, Auto-Attack, Medusa & Hız Senkronizasyonu)
+-- ==============================================================================
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
-    espTimeElapsed = espTimeElapsed + dt
-    if espTimeElapsed >= 1.5 then
-        espTimeElapsed = 0
-        pcall(function()
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local char = p.Character
-                    local hl = char:FindFirstChild("LeaMegaESP")
-                    if State.Visuals then
-                        if not hl then
-                            hl = Instance.new("Highlight")
-                            hl.Name = "LeaMegaESP"
-                            hl.FillColor = State.ThemeColor
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.55
-                            hl.Parent = char
-                        end
-                    else
-                        if hl then hl:Destroy() end
-                    end
-                end
-            end
-        end)
-    end
-end))
-
--- Ana Fizik, Hız Sabitleme ve Oto Kaçış (Auto-Dodge) Motoru
-table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-
-    if hum.Health <= 0 then
-        CancelActiveTweens()
-        State.Mode = "NONE"
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not hrp or not humanoid then return end
+    
+    if humanoid.Health <= 0 then
         State.Fly = false
         State.CubeActive = false
-        for _, v in ipairs(State.CubeList) do
-            if v and v.Parent then pcall(function() v:Destroy() end) end
-        end
-        State.CubeList = {}
+        State.AutoAttack = false
+        if getgenv().LeaClearCubes then getgenv().LeaClearCubes() end
         return
     end
-
-    -- Küp Sistemi
-    if State.CubeActive then
+    
+    if humanoid.WalkSpeed ~= State.Speed then
+        pcall(function() humanoid.WalkSpeed = State.Speed end)
+    end
+    
+    -- Cube Üretimi
+    if State.CubeActive and getgenv().LeaCreateCube then
         local now = tick()
-        if hrp.AssemblyLinearVelocity.Y < -5 and (now - State.LastCubeTime > 0.3) then
-            local cube = Instance.new("Part")
-            cube.Size = Vector3.new(4, 0.5, 4)
-            cube.Position = hrp.Position - Vector3.new(0, 3, 0)
-            cube.Anchored = true
-            cube.CanCollide = true
-            cube.Transparency = 0.8
-            cube.Material = Enum.Material.SmoothPlastic
-            cube.Color = Color3.fromRGB(0, 170, 255)
-            cube.Parent = Workspace
-            table.insert(State.CubeList, cube)
+        local velocity = hrp.AssemblyLinearVelocity
+        if (velocity.Y < -5 or velocity.Magnitude > 2) and (now - State.LastCubeTime > 0.25) then
+            getgenv().LeaCreateCube(hrp.Position - Vector3.new(0, 3, 0))
             State.LastCubeTime = now
         end
     end
-
-    -- Hız Sabitleme (Hız kesici engeller tamamen kaldırıldı, sabit tam hız verilir)
-    if hum.WalkSpeed ~= State.Speed then
-        pcall(function()
-            hum.WalkSpeed = State.Speed
-        end)
-    end
-
-    -- Otomatik Kaçış (Auto-Dodge) Sistemi: Düşman yaklaşınca veya vurmaya çalışınca anında kaçar
-    if State.AutoDodge then
-        pcall(function()
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local eHum = p.Character:FindFirstChildOfClass("Humanoid")
-                    if eHrp and eHum and eHum.Health > 0 then
-                        local distance = (eHrp.Position - hrp.Position).Magnitude
-                        -- Eğer düşman kritik yakınlaşma alanına (8 stud) girerse ters yöne kaçış tetiklenir
-                        if distance < 8 then
-                            local escapeDir = (hrp.Position - eHrp.Position).Unit
-                            hrp.AssemblyLinearVelocity = Vector3.new(escapeDir.X * 50, 15, escapeDir.Z * 50)
-                            return
-                        end
-                    end
-                end
-            end
-        end)
-    end
-
-    -- Süzülme / Uçuş Modu
-    if State.Fly then
-        hum.PlatformStand = true
-        local cam = Workspace.CurrentCamera
-        local moveDir = hum.MoveDirection
-        if moveDir.Magnitude > 0 then
-            local camCFrame = cam.CFrame
-            local targetDir = (camCFrame.RightVector * moveDir.X) + (camCFrame.LookVector * moveDir.Z)
-            if targetDir.Magnitude > 0 then
-                hrp.AssemblyLinearVelocity = targetDir.Unit * State.FlySpeed
-            end
-        else
-            hrp.AssemblyLinearVelocity = Vector3.zero
-        end
-        return
-    end
-
-    -- Base Takip Sistemi
-    if State.Mode == "BASE" and State.SpawnPos then
-        local dist = (State.SpawnPos - hrp.Position).Magnitude
-        if dist > 3.5 then
-            if not State.TweenStorage.ActiveTween or State.TweenStorage.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing then
-                SafeMoveTo(CFrame.new(State.SpawnPos), dist)
-            end
-        else
-            CancelActiveTweens()
-            State.Mode = "NONE"
-        end
-    end
-
-    -- Target Takip Sistemi
-    if State.Mode == "TARGET" then
-        pcall(function()
-            local target, minDist = nil, math.huge
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local eHum = p.Character:FindFirstChildOfClass("Humanoid")
-                    if eHrp and eHum and eHum.Health > 0 then
-                        local dist = (eHrp.Position - hrp.Position).Magnitude
-                        if dist < minDist then 
-                            minDist = dist 
-                            target = eHrp 
-                        end
-                    end
-                end
-            end
+    
+    -- Duel Fly & Auto Attack / Medusa Mantığı
+    if State.Fly and State.DuelMode then
+        local target = GetNearestPlayer(80)
+        
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            State.TargetPlayer = target
+            local targetHrp = target.Character.HumanoidRootPart
+            local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
             
-            if target then
-                local dist = (target.Position - hrp.Position).Magnitude
-                if dist > 4.5 then
-                    local backPos = target.CFrame * CFrame.new(0, 0, 3.5)
-                    if not State.TweenStorage.ActiveTween or State.TweenStorage.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing then
-                        SafeMoveTo(backPos, dist)
+            if targetHum and targetHum.Health > 0 then
+                humanoid.PlatformStand = true
+                
+                local targetPos = targetHrp.Position
+                local offset = Vector3.new(0, 3.0, -1.5)
+                local desiredPos = targetPos + offset
+                
+                local distance = (desiredPos - hrp.Position).Magnitude
+                
+                -- Eğer düşman çok yakınsa veya pet almaya geldiyse anlık Medusa bas
+                if distance < 12 and getgenv().LeaUseMedusa then
+                    getgenv().LeaUseMedusa()
+                end
+                
+                local flySpeed = math.min(distance * 3, State.FlySpeed)
+                local direction = (desiredPos - hrp.Position).Unit
+                
+                hrp.AssemblyLinearVelocity = direction * flySpeed + Vector3.new(
+                    math.random(-3, 3) / 100,
+                    math.random(-2, 2) / 100,
+                    math.random(-3, 3) / 100
+                )
+                
+                -- Auto Attack & Pet Kontrolü
+                if State.AutoAttack and getgenv().LeaFindAndEquipTool then
+                    local hasTool = getgenv().LeaFindAndEquipTool("pet") or getgenv().LeaFindAndEquipTool("bad")
+                    
+                    if hasTool then
+                        for _, tool in ipairs(character:GetChildren()) do
+                            if tool:IsA("Tool") and (tool.Name:lower():find("pet") or tool.Name:lower():find("bad")) then
+                                pcall(function() tool:Activate() end)
+                                break
+                            end
+                        end
+                    else
+                        -- Pet elinde yoksa güvenli şekilde spawn'a kaçış
+                        if getgenv().LeaReturnToSpawn then
+                            getgenv().LeaReturnToSpawn()
+                        end
                     end
                 end
-            else
-                CancelActiveTweens()
             end
-        end)
+        else
+            humanoid.PlatformStand = false
+        end
     end
 end))
 
-print("✅ [LEA V44.0]: PART 2 BAŞARIYLA YÜKLENDİ VE TAMAMLANDI!")
+print("✅ [PART 3/3 TAMAMLANDI]: GUI ve Tüm Sistemler Aktif!")
