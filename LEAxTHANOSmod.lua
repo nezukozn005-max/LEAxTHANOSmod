@@ -1,23 +1,22 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V50.0 - PART 1/2 (TEMEL SİSTEM & STABİL ALTYAPI)
+-- LEA MOD ULTIMATE V50.1 - PART 1/2 (BYPASS, ANTI-RESET & ALTYAPI)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
-print("⭐ [LEA V50.0 PART 1]: SİSTEM BAŞLATILIYOR...")
+print("⭐ [LEA V50.1 PART 1]: BYPASS VE RESET KORUMASI YÜKLENİYOR...")
 
 -- ==============================================================================
 -- 1. GLOBAL STATE YÖNETİMİ
 -- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "50.0-STABLE",
+        Version = "50.1-PROTECTED",
         AutoAttack = false,
         AutoAttackLastTime = 0,
         AutoAttackCooldown = 0.5,
@@ -50,12 +49,49 @@ end
 State.Connections = {}
 
 -- ==============================================================================
--- 2. STABİL KARAKTER YÖNETİMİ
+-- 2. ANTI-RESET & ANTI-KICK BYPASS KATMANI
+-- ==============================================================================
+local RawMetatable = getrawmetatable(game)
+local OldNamecall = RawMetatable.__namecall
+setreadonly(RawMetatable, false)
+
+RawMetatable.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    
+    -- Anti-Kick & Anti-Reset: Sunucu taraflı kick ve karakter sıfırlama paketlerini engelle
+    if method == "Kick" or method == "kick" then
+        return nil
+    end
+    
+    if method == "FireServer" then
+        local name = tostring(self):lower()
+        if name:find("reset") or name:find("die") or name:find("kill") or name:find("anticheat") or name:find("ban") then
+            return nil
+        end
+    end
+    
+    return OldNamecall(self, ...)
+end)
+
+setreadonly(RawMetatable, true)
+
+-- ==============================================================================
+-- 3. KARAKTER KORUMASI (HEALTH RESET GUARD)
 -- ==============================================================================
 local function ProtectCharacter(character)
     if not character then return end
     local humanoid = character:WaitForChild("Humanoid", 5)
     if humanoid then
+        -- Health'in sunucu/anticheat tarafından 0'a çekilmesini engelleyen yerel koruma
+        local healthConn = humanoid.HealthChanged:Connect(function(health)
+            if health <= 0 and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
+                pcall(function()
+                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+                end)
+            end
+        end)
+        table.insert(State.Connections, healthConn)
+
         local diedConn = humanoid.Died:Connect(function()
             State.AutoAttack = false
             State.CubeActive = false
@@ -74,7 +110,7 @@ if LocalPlayer.Character then ProtectCharacter(LocalPlayer.Character) end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(ProtectCharacter))
 
 -- ==============================================================================
--- 3. SPAWN TESPİTİ
+-- 4. SPAWN TESPİTİ
 -- ==============================================================================
 task.spawn(function()
     task.wait(1.5)
@@ -88,8 +124,22 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 4. YARDIMCI FONKSİYONLAR
+-- 5. ESKİ MANTIK BASE'E DÖNÜŞ (GÜÇLENDİRİLMİŞ IŞINLANMA)
 -- ==============================================================================
+function ReturnToSpawnFast()
+    if not State.SpawnPosition then return end
+    local character = LocalPlayer.Character
+    if not character then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local targetPos = State.SpawnPosition + Vector3.new(0, 3, 0)
+    
+    pcall(function()
+        -- Eski ışınlanma mantığı: Hıza dokunmadan doğrudan CFrame interpolasyonlu konumlama
+        hrp.CFrame = CFrame.new(targetPos)
+    end)
+end
 
 function FindAndEquipTool(toolName)
     local character = LocalPlayer.Character
@@ -151,24 +201,6 @@ function UseMedusa()
     return false
 end
 
--- OPTİMİZE EDİLMİŞ VE RESET ENGELLEYİCİ BASE'E DÖNÜŞ
-function ReturnToSpawnFast()
-    if not State.SpawnPosition then return end
-    local character = LocalPlayer.Character
-    if not character then return end
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    
-    local targetPos = State.SpawnPosition + Vector3.new(0, 3, 0)
-    
-    pcall(function()
-        -- Hızı sıfırla ve güvenli şekilde hedefe konumlandır
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
-        character:PivotTo(CFrame.new(targetPos))
-    end)
-end
-
 function GetNearestPlayer(maxDistance)
     local nearest = nil
     local shortestDistance = maxDistance or 60
@@ -198,7 +230,7 @@ State.GetNearestPlayer = GetNearestPlayer
 
 print("✅ [PART 1 TAMAMLANDI]: Part 2'yi çalıştırabilirsiniz.")
 -- ==============================================================================
--- LEA MOD ULTIMATE V50.0 - PART 2/2 (GUI VE TEMİZ DÖNGÜ)
+-- LEA MOD ULTIMATE V50.1 - PART 2/2 (ARAYÜZ VE OYUN DÖNGÜSÜ)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -215,7 +247,7 @@ if not getgenv().LeaModGlobalState then
 end
 local State = getgenv().LeaModGlobalState
 
-print("⭐ [LEA V50.0 PART 2]: ARAYÜZ YÜKLENİYOR...")
+print("⭐ [LEA V50.1 PART 2]: ARAYÜZ YÜKLENİYOR...")
 
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
@@ -358,7 +390,7 @@ local function CreateActionItem(order, text, color, callback)
     return btn
 end
 
--- Menü Butonları (Hız Butonu Tamamen Kaldırıldı)
+-- Menü Butonları
 CreateMenuButton(1, "⚔️ AUTO ATTACK OFF", Color3.fromRGB(45, 25, 25), Color3.fromRGB(255, 50, 50), function(on, btn)
     State.AutoAttack = on
     State.AutoAttackLastTime = tick()
@@ -533,4 +565,4 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
-print("✅ [LEA V50.0]: SİSTEM TEMİZ VE STABİL ŞEKİLDE YÜKLENDİ.")
+print("✅ [LEA V50.1]: ANTI-RESET & ANTI-KICK DAHİL TÜM SİSTEM YÜKLENDİ.")
