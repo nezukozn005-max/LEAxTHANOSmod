@@ -1,18 +1,15 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V28.0 (PART 1 / 2 - KALICI ARKA PLAN RESET KORUMASI)
+-- LEA MOD ULTIMATE V29.0 (PART 1 / 2 - STABLE CORE & UI)
 -- ==============================================================================
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- GLOBAL STATE INITIALIZATION & SECURE DIAGNOSTICS
+-- GLOBAL STATE INITIALIZATION
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
         Mode = "NONE",
@@ -26,18 +23,16 @@ if not getgenv().LeaModGlobalState then
         Visuals = false,
         Invisible = false,
         HitboxAura = false,
-        -- Reset Koruması buton olmaktan tamamen çıkarıldı, her zaman otomatik ve aktif!
         AntiGeriatma = true,
         CubeAntiDetect = true,
         CurrentLevel = 1,
-        SessionTime = os.time(),
-        SafeZoneRadius = 10000
+        SessionTime = os.time()
     }
 end
 
 local State = getgenv().LeaModGlobalState
 
--- GUI PARENT PROTECTION & CLEANUP UTILITY
+-- GÜVENLİ GUI YÖNETİMİ VE TEMİZLİK (MEMORY LEAK FIX)
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
     if success and parent then return parent end
@@ -49,7 +44,6 @@ pcall(function()
     if existing then existing:Destroy() end
 end)
 
--- ADVANCED SCREEN GUI CREATION
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LeaModMonolithicGUI"
 ScreenGui.ResetOnSpawn = false
@@ -75,7 +69,7 @@ local HeaderTitle = Instance.new("TextLabel", MainFrame)
 HeaderTitle.Size = UDim2.new(1, 0, 0, 28)
 HeaderTitle.Position = UDim2.new(0, 0, 0, 2)
 HeaderTitle.BackgroundTransparency = 1
-HeaderTitle.Text = "LEA MOD ULTIMATE V28.0"
+HeaderTitle.Text = "LEA MOD ULTIMATE V29.0"
 HeaderTitle.TextColor3 = Color3.fromRGB(0, 255, 200)
 HeaderTitle.TextSize = 11
 HeaderTitle.Font = Enum.Font.GothamBold
@@ -115,7 +109,7 @@ local function CreateGridButton(posX, posY, sizeX, sizeY, text, callback)
     return btn
 end
 
--- FLASH SUNUCU DEĞİŞTİRME (SERVER HOP) MOTORU
+-- SUNUCU DEĞİŞTİRME (STATE KORUMALI SERVER HOP)
 local function FlashServerHop()
     pcall(function()
         local serversUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -135,7 +129,7 @@ local function FlashServerHop()
     end)
 end
 
--- PELERIN & INVISIBLE SUBSYSTEM LOGIC
+-- PELERİN / GÖRünMEZLİK YÖNETİCİSİ
 local function HandlePelerinInvisible(enabled)
     pcall(function()
         local char = LocalPlayer.Character
@@ -183,7 +177,7 @@ local function HandlePelerinInvisible(enabled)
     end)
 end
 
--- STATS SYNCHRONIZER
+-- STATS SENKRONİZASYONU
 local function SyncRealLevel()
     pcall(function()
         local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
@@ -194,19 +188,19 @@ local function SyncRealLevel()
     end)
 end
 
--- SÜREKLİ VE ZORUNLU ARKA PLAN RESET KORUMASI (BUTONSUZ & KAPATıLAMAZ)
+-- KARARLI KARAKTER YAŞAM DÖNGÜSÜ & KESİNTİSİZ RESET KORUMASI (BEKLENMEYEN RE-SPAWN FIX)
 local function SetupCharacterLifecycle(char)
     pcall(function()
         local hum = char:WaitForChild("Humanoid", 5)
         if hum then
-            -- Can sıfırlanmak istediğinde kesinlikle engelle ve fulle
+            -- Can düşmelerini engelle ve sonsuz zırh sağla
             hum:GetPropertyChangedSignal("Health"):Connect(function()
                 if hum.Health < 5 then
                     hum.Health = hum.MaxHealth
                 end
             end)
             
-            -- Ölüm olayını tamamen iptal et
+            -- Ölüm döngüsünü tamamen kır ve karakterin yok olmasını engelle
             hum.BreakJointsOnDeath = false
             hum.Died:Connect(function()
                 hum.Health = hum.MaxHealth
@@ -306,7 +300,7 @@ local StatusBanner = Instance.new("TextLabel", MainFrame)
 StatusBanner.Size = UDim2.new(0, 222, 0, 22)
 StatusBanner.Position = UDim2.new(0, 10, 0, 240)
 StatusBanner.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-StatusBanner.Text = "🛡️ RESET KORUMASI: HER ZAMAN AKTİF"
+StatusBanner.Text = "🛡️ STABLE MODE: V29.0 ACTIVE"
 StatusBanner.TextColor3 = Color3.fromRGB(0, 255, 200)
 StatusBanner.TextSize = 8.5
 StatusBanner.Font = Enum.Font.GothamBold
@@ -317,28 +311,26 @@ local CreditLbl = Instance.new("TextLabel", MainFrame)
 CreditLbl.Size = UDim2.new(1, 0, 0, 20)
 CreditLbl.Position = UDim2.new(0, 0, 0, 285)
 CreditLbl.BackgroundTransparency = 1
-CreditLbl.Text = "LEA MOD ULTIMATE • V28.0 ELITE ENGINE"
+CreditLbl.Text = "LEA MOD ULTIMATE • V29.0 STABILITY"
 CreditLbl.TextColor3 = Color3.fromRGB(120, 120, 150)
 CreditLbl.TextSize = 8
 CreditLbl.Font = Enum.Font.Gotham
 -- ==============================================================================
--- LEA MOD ULTIMATE V28.0 (PART 2 / 2 - DEVAM)
+-- LEA MOD ULTIMATE V29.0 (PART 2 / 2 - OPTIMIZED ENGINE & ISOLATED MODULES)
 -- ==============================================================================
 
--- DUVARLAR VE BİNALAR ŞEFFAFLIK MOTORU (Lazerler Hariç)
+-- 1. OPTİMİZE EDİLMİŞ DUVAR SAYDAMLAŞTIRMA (SADECE BÜYÜK YAPILAR, GEREKSİZ NESNELER HARİÇ)
 task.spawn(function()
-    while task.wait(2) do
+    while task.wait(4) do
         pcall(function()
             for _, part in ipairs(Workspace:GetDescendants()) do
-                if part:IsA("BasePart") and part.Name ~= "Baseplate" then
+                if part:IsA("BasePart") and part.Name ~= "Baseplate" and not part.Anchored then
+                    -- Sabit büyük yapıları hedef al, küçük eşya/partları yorma
                     local nameL = part.Name:lower()
-                    local isLaser = nameL:find("laser") or nameL:find("lazer") or nameL:find("kill") or nameL:find("hazard")
+                    local isHazard = nameL:find("laser") or nameL:find("lazer") or nameL:find("kill") or nameL:find("hazard")
                     
-                    if not isLaser then
-                        local isWallOrBuilding = (part.Size.Y > 4 or part.Size.X > 8 or part.Size.Z > 8) or nameL:find("wall") or nameL:find("duvar") or nameL:find("building") or nameL:find("part")
-                        if isWallOrBuilding and part.Transparency < 0.75 and part.Transparency > 0 then
-                            part.Transparency = 0.75
-                        end
+                    if not isHazard and part.Size.Magnitude > 15 and part.Transparency < 0.75 then
+                        part.Transparency = 0.75
                     end
                 end
             end
@@ -346,9 +338,9 @@ task.spawn(function()
     end
 end)
 
--- ESP DÖNGÜSÜ
+-- 2. HAFİFLETİLMİŞ ESP DÖNGÜSÜ
 task.spawn(function()
-    while task.wait(0.4) do
+    while task.wait(1.0) do
         SyncRealLevel()
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
@@ -375,7 +367,7 @@ task.spawn(function()
     end
 end)
 
--- NOCLIP MOTORU
+-- NOCLIP MODÜLÜ
 RunService.Stepped:Connect(function()
     if State.Noclip and LocalPlayer.Character then
         pcall(function()
@@ -388,7 +380,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- HIZ SABİTLEME VE FİZİK DÖNGÜSÜ
+-- 3. ANA MOTOR: KESİNTİSİZ HIZ, AKICI BASE VE İZOLASYONLU ALT SİSTEMLER
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -396,12 +388,12 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    -- HIZIN DÜŞMESİNİ KESİN OLARAK ENGELLE
+    -- HIZ SABİTLEME (ZAMANLA DÜŞMEYİ KESİN OLARAK ÖNLER)
     if hum.WalkSpeed ~= State.Speed then
         hum.WalkSpeed = State.Speed
     end
 
-    -- ANTI-GERIATMA / VELOCITY CLAMP FİLTRESİ
+    -- ANTI-GERİATMA / FİZİK FİLTRESİ
     if State.AntiGeriatma then
         pcall(function()
             if hrp.AssemblyLinearVelocity.Magnitude > 180 then
@@ -410,38 +402,28 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- PET / ÇALINAN OBJE YER İÇİNE GİRME FIX
-    pcall(function()
-        for _, joint in ipairs(char:GetDescendants()) do
-            if joint:IsA("Weld") or joint:IsA("Motor6D") then
-                if joint.Part1 and joint.Part1.Parent ~= char and joint.Part1.Parent ~= Workspace then
-                    if not joint:GetAttribute("SyncedPet") then
-                        joint.C0 = joint.C0 * CFrame.new(0, 0, 0)
-                        joint:SetAttribute("SyncedPet", true)
-                    end
-                end
-            end
-        end
-    end)
-
     if State.Invisible then HandlePelerinInvisible(true) end
 
-    -- 1. BASE DÖNÜŞ MOTORU
+    -- A. AKICI VE KESİNTİSİZ BASE HAREKET SİSTEMİ (GERİ DÖNME / TAKILMA FIX)
     if State.Mode == "BASE" and State.SpawnPos then
         pcall(function()
-            local dist = (State.SpawnPos - hrp.Position).Magnitude
-            if dist > 2 then
-                local dir = (State.SpawnPos - hrp.Position).Unit
-                local moveStep = math.min(dist, State.Speed * dt * 3)
-                char:PivotTo(hrp.CFrame + (dir * moveStep))
-                hrp.Velocity = Vector3.zero
+            local targetPos = State.SpawnPos
+            local currentPos = hrp.Position
+            local flatTarget = Vector3.new(targetPos.X, currentPos.Y, targetPos.Z)
+            local dist = (flatTarget - currentPos).Magnitude
+            
+            if dist > 3 then
+                local dir = (flatTarget - currentPos).Unit
+                local step = math.min(dist, State.Speed * dt * 2.5)
+                char:PivotTo(hrp.CFrame + (dir * step))
+                hrp.AssemblyLinearVelocity = Vector3.zero
             else
-                char:PivotTo(CFrame.new(State.SpawnPos))
+                char:PivotTo(CFrame.new(targetPos))
                 State.Mode = "NONE"
             end
         end)
     
-    -- 2. HEDEF (TARGET) TAKİP MOTORU
+    -- B. HEDEF (TARGET) TAKİP SİSTEMİ
     elseif State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -464,16 +446,16 @@ RunService.Heartbeat:Connect(function(dt)
                 if dist > 3.5 then
                     local targetPos = Vector3.new(target.Position.X, hrp.Position.Y, target.Position.Z)
                     local dir = (targetPos - hrp.Position).Unit
-                    local moveStep = math.min(dist, State.Speed * dt * 3)
+                    local moveStep = math.min(dist, State.Speed * dt * 2.5)
                     local newCFrame = CFrame.lookAt(hrp.Position + (dir * moveStep), targetPos)
                     char:PivotTo(newCFrame)
-                    hrp.Velocity = Vector3.zero
+                    hrp.AssemblyLinearVelocity = Vector3.zero
                 end
             end
         end)
     end
 
-    -- 3. SOPA / HITBOX AURA MOTORU
+    -- C. SOPA / HITBOX AURA SİSTEMİ
     if State.HitboxAura then
         pcall(function()
             local tool = char:FindFirstChildOfClass("Tool")
@@ -489,15 +471,14 @@ RunService.Heartbeat:Connect(function(dt)
 
             if tool then
                 tool:Activate()
-                local hitPart = tool:FindFirstChild("Handle") or tool:FindFirstChildWhichIsA("BasePart") or char:FindFirstChild("Right Hand") or hrp
+                local hitPart = tool:FindFirstChild("Handle") or tool:FindFirstChildWhichIsA("BasePart") or hrp
 
                 for _, p in ipairs(Players:GetPlayers()) do
                     if p ~= LocalPlayer and p.Character then
                         local eHrp = p.Character:FindFirstChild("HumanoidRootPart")
                         local eHum = p.Character:FindFirstChildOfClass("Humanoid")
                         if eHrp and eHum and eHum.Health > 0 then
-                            local distance = (eHrp.Position - hrp.Position).Magnitude
-                            if distance < 20 then
+                            if (eHrp.Position - hrp.Position).Magnitude < 20 then
                                 if firetouchinterest then
                                     firetouchinterest(hitPart, eHrp, 0)
                                     firetouchinterest(hitPart, eHrp, 1)
@@ -510,7 +491,7 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- 4. OTOMATİK KORUMA (AUTO AVOID)
+    -- D. OTOMATİK KORUMA (AUTO AVOID)
     if State.AutoAvoid and State.Mode == "NONE" then
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
@@ -527,11 +508,11 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
-    -- 5. CUBE (KÜP OLUŞTURMA & ANTI-DETECT BYPASS)
+    -- E. CUBE (KÜP OLUŞTURMA VE BELLEK OPTİMİZASYONU)
     if State.Cube then
         pcall(function()
-            if hrp.Velocity.Y < -1.5 and (os.clock() - State.LastCube > 0.15) then
-                if #State.Cubes >= 10 then
+            if hrp.AssemblyLinearVelocity.Y < -1.5 and (os.clock() - State.LastCube > 0.2) then
+                if #State.Cubes >= 8 then
                     local oldC = table.remove(State.Cubes, 1)
                     if oldC and oldC.Parent then oldC:Destroy() end
                 end
@@ -545,7 +526,6 @@ RunService.Heartbeat:Connect(function(dt)
                 cube.Color = Color3.fromRGB(0, 255, 200)
                 
                 if State.CubeAntiDetect then
-                    cube.CollisionGroup = "Default"
                     cube:SetAttribute("IsLeaModShield", true)
                 end
                 
@@ -557,5 +537,4 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-print("✅ LEA MOD ULTIMATE V28.0 - KALICI ARKA PLAN RESET KORUMASI AKTİF!")
-
+print("✅ LEA MOD ULTIMATE V29.0 - STABILITY & OPTIMIZATION APPLIED!")
