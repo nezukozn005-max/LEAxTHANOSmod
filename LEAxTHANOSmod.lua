@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V35.0 - BÖLÜM 1 / 3 (BYPASS & ARAYÜZ)
+-- LEA MOD ULTIMATE MEGA V35.1 - FULL FIX (TEK PARÇA STABİL SÜRÜM)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -7,19 +7,18 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V35.0 - BÖLÜM 1]: ULTRA BYPASS VE MEGA ARAYÜZ BAŞLATILIYOR...")
+print("⭐ [LEA V35.1]: STABİL MEGA KOD BAŞLATILIYOR...")
 
 -- ==============================================================================
--- 1. DEVASA DURUM VE GÜVENLİK YÖNETİMİ (GLOBAL STATE)
+-- 1. GLOBAL STATE VE GÜVENLİK
 -- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "35.0-MEGA",
-        Mode = "NONE",
+        Version = "35.1-MEGA",
+        Mode = "NONE", -- "NONE", "BASE", "TARGET", "LAND"
         Speed = 30,
         SpawnPos = nil,
         Fly = false,
@@ -29,8 +28,7 @@ if not getgenv().LeaModGlobalState then
         ResetProtection = true,
         ThemeColor = Color3.fromRGB(0, 255, 200),
         Connections = {},
-        TweenStorage = {},
-        DiagnosticLogs = {}
+        TweenStorage = {}
     }
 end
 local State = getgenv().LeaModGlobalState
@@ -41,33 +39,20 @@ for _, conn in ipairs(State.Connections) do
 end
 State.Connections = {}
 
-local function LogEvent(message, level)
-    local prefix = level == "ERROR" and "❌ [LEA ERROR]: " or "✅ [LEA INFO]: "
-    local formatted = os.date("%H:%M:%S") .. " | " .. prefix .. tostring(message)
-    table.insert(State.DiagnosticLogs, formatted)
-    if #State.DiagnosticLogs > 200 then
-        table.remove(State.DiagnosticLogs, 1)
-    end
-end
-
 -- ==============================================================================
--- 2. ULTRA GÜÇLÜ BYPASS VE ANTI-DETECT
+-- 2. BYPASS & ANTI-KICK
 -- ==============================================================================
-local function InitializeUltimateBypass()
-    local success, err = pcall(function()
-        if getgenv then getgenv().protected_environments = true end
+local function InitializeBypass()
+    pcall(function()
         if not getrawmetatable then return end
-
         local gm = getrawmetatable(game)
         setreadonly(gm, false)
         local namecall_original = gm.__namecall
-        local index_original = gm.__index
 
         gm.__namecall = newcclosure(function(self, ...)
             local method = getnamecallmethod()
-            local args = {...}
             if not checkcaller() then
-                if method == "Kick" or method == "kick" or method == "SaveTouchInterest" then
+                if method == "Kick" or method == "kick" then
                     return nil
                 elseif method == "BreakJoints" and self == LocalPlayer.Character then
                     if State.ResetProtection then return nil end
@@ -75,24 +60,10 @@ local function InitializeUltimateBypass()
             end
             return namecall_original(self, ...)
         end)
-
-        gm.__index = newcclosure(function(self, key)
-            if not checkcaller() then
-                if self:IsA("Humanoid") then
-                    if key == "WalkSpeed" then return 16 end
-                    if key == "JumpPower" then return 50 end
-                elseif self:IsA("BasePart") and (key == "AssemblyLinearVelocity" or key == "Velocity") and State.Fly then
-                    return Vector3.new(0, 0, 0)
-                end
-            end
-            return index_original(self, key)
-        end)
-
         setreadonly(gm, true)
-        LogEvent("Bölüm 1: Metatable Hooking aktif.", "INFO")
     end)
 end
-pcall(InitializeUltimateBypass)
+pcall(InitializeBypass)
 
 -- ==============================================================================
 -- 3. KOMPAKT MOBİL ARAYÜZ (GUI)
@@ -118,8 +89,8 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GetGuiParent()
 
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 220, 0, 310) 
-MainContainer.Position = UDim2.new(0.5, -110, 0.5, -155)
+MainContainer.Size = UDim2.new(0, 210, 0, 315)
+MainContainer.Position = UDim2.new(0.5, -105, 0.5, -157)
 MainContainer.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
 MainContainer.BackgroundTransparency = 0.05
 MainContainer.BorderSizePixel = 0
@@ -146,7 +117,7 @@ local TitleLabel = Instance.new("TextLabel", HeaderFrame)
 TitleLabel.Size = UDim2.new(1, -30, 1, 0)
 TitleLabel.Position = UDim2.new(0, 8, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA MOD V35.0"
+TitleLabel.Text = "LEA MOD V35.1"
 TitleLabel.TextColor3 = State.ThemeColor
 TitleLabel.TextSize = 11
 TitleLabel.Font = Enum.Font.GothamBlack
@@ -170,7 +141,7 @@ ScrollContainer.Position = UDim2.new(0, 6, 0, 30)
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.ScrollBarThickness = 3
 ScrollContainer.ScrollBarImageColor3 = State.ThemeColor
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 280)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 310)
 
 local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
 ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -203,37 +174,8 @@ ToggleBtn.MouseButton1Click:Connect(function()
     ToggleBtn.Visible = false
 end)
 
-print("✅ [LEA V35.0 - BÖLÜM 1]: Tamamlandı.")
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V35.0 - BÖLÜM 2 / 3 (KORUMA & HAREKET)
--- ==============================================================================
-
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-
-print("⭐ [LEA V35.0 - BÖLÜM 2]: RESET KORUMASI VE BUTONLAR YÜKLENİYOR...")
-
-if not getgenv().LeaModGlobalState then
-    warn("❌ [LEA ERROR]: Global State bulunamadı! Önce Bölüm 1'i çalıştır.")
-    return
-end
-local State = getgenv().LeaModGlobalState
-
-local CoreGui = game:GetService("CoreGui")
-local function GetGuiParent()
-    local success, parent = pcall(function() return CoreGui end)
-    if success and parent then return parent end
-    return LocalPlayer:WaitForChild("PlayerGui", 5)
-end
-
-local parentObj = GetGuiParent()
-local ScreenGui = parentObj and parentObj:FindFirstChild("LeaModMegaGUI")
-local MainContainer = ScreenGui and ScreenGui:FindFirstChildOfClass("Frame")
-local ScrollContainer = MainContainer and MainContainer:FindFirstChildOfClass("ScrollingFrame")
-
--- ==============================================================================
--- KESİN ÇÖZÜM: RESET KORUMASI VE KARARLILIK
+-- 4. GÜVENLİ RESET KORUMASI (ÖLÜM DÖNGÜSÜ FIX)
 -- ==============================================================================
 local function SetupResetProtection(char)
     local humanoid = char:WaitForChild("Humanoid", 5)
@@ -245,7 +187,12 @@ local function SetupResetProtection(char)
         local healthConn = humanoid.HealthChanged:Connect(function(health)
             if health <= 0 and State.ResetProtection then
                 pcall(function()
-                    humanoid.Health = 100
+                    -- Sürekli reset atan çökme hatasını engellemek için doğrudan can basmak yerine karakterin güvenli konumda yenilenmesini sağlıyoruz
+                    if State.SpawnPos then
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        if hrp then hrp.CFrame = CFrame.new(State.SpawnPos) end
+                    end
+                    humanoid.Health = 50
                 end)
             end
         end)
@@ -259,10 +206,9 @@ end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
 
 -- ==============================================================================
--- BUTON FABRİKASI
+-- 5. BUTONLAR VE MOD YÖNETİMİ (ÇAKIŞMA ÖNLEYİCİ)
 -- ==============================================================================
 local function CreateMenuButton(order, text, defaultColor, activeColor, callback)
-    if not ScrollContainer then return end
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
     btn.Size = UDim2.new(1, -4, 0, 28)
@@ -286,7 +232,6 @@ local function CreateMenuButton(order, text, defaultColor, activeColor, callback
 end
 
 local function CreateActionItem(order, text, color, callback)
-    if not ScrollContainer then return end
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
     btn.Size = UDim2.new(1, -4, 0, 28)
@@ -325,12 +270,14 @@ end
 State.TweenStorage.CancelActiveTweens = CancelActiveTweens
 State.TweenStorage.SafeMoveTo = SafeMoveTo
 
--- MODÜL BUTONLARI (İstediğin Fly, Noclip, Base, Target ve Visuals geri döndü!)
+-- Mod Butonları
 CreateMenuButton(1, "🚀 FLY (UÇUŞ) OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Fly = on
     btn.Text = on and "🚀 FLY (UÇUŞ) ON" or "🚀 FLY (UÇUŞ) OFF"
-    if not on and LocalPlayer.Character then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if on then
+        State.Mode = "NONE" -- Çakışmayı önle
+    else
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if hum then hum.PlatformStand = false end
     end
 end)
@@ -341,59 +288,75 @@ CreateMenuButton(2, "🛡️ NOCLIP (HAYALET) OFF", Color3.fromRGB(65, 35, 35), 
 end)
 
 CreateMenuButton(3, "🏠 BASE (ÜS) OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(0, 180, 90), function(on, btn)
-    State.Mode = on and "BASE" or "NONE"
+    if on then
+        State.Mode = "BASE"
+        State.Fly = false
+    else
+        State.Mode = "NONE"
+        CancelActiveTweens()
+    end
     btn.Text = on and "🏠 BASE (ÜS) ON" or "🏠 BASE (ÜS) OFF"
-    if not on then CancelActiveTweens() end
 end)
 
 CreateMenuButton(4, "🎯 TARGET (AURA) OFF", Color3.fromRGB(60, 25, 45), Color3.fromRGB(0, 180, 90), function(on, btn)
-    State.Mode = on and "TARGET" or "NONE"
+    if on then
+        State.Mode = "TARGET"
+        State.Fly = false
+    else
+        State.Mode = "NONE"
+        CancelActiveTweens()
+    end
     btn.Text = on and "🎯 TARGET (AURA) ON" or "🎯 TARGET (AURA) OFF"
-    if not on then CancelActiveTweens() end
 end)
 
-CreateMenuButton(5, "👁️ VISUAL (ESP) OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
+-- YENİ EKLENEN ÖZELLİK: YERE İN (LAND) MODU
+CreateActionItem(5, "🛬 YERE İN (LAND)", Color3.fromRGB(30, 45, 55), function()
+    State.Mode = "NONE"
+    State.Fly = false
+    CancelActiveTweens()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {char}
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        
+        local result = Workspace:Raycast(hrp.Position, Vector3.new(0, -500, 0), raycastParams)
+        if result then
+            hrp.CFrame = CFrame.new(result.Position + Vector3.new(0, 3, 0))
+            print("✅ [LEA LAND]: Güvenli bir şekilde yere inildi.")
+        end
+    end
+end)
+
+CreateMenuButton(6, "👁️ VISUAL (ESP) OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Visuals = on
     btn.Text = on and "👁️ VISUAL (ESP) ON" or "👁️ VISUAL (ESP) OFF"
 end)
 
-CreateActionItem(6, "⚡ SPEED ARTIR (ŞU AN: 30)", Color3.fromRGB(30, 30, 45), function()
+CreateActionItem(7, "⚡ HIZI ARTIR (ŞU AN: 30)", Color3.fromRGB(30, 30, 45), function()
     State.Speed = State.Speed + 10
     if State.Speed > 90 then State.Speed = 30 end
-    if ScrollContainer and ScrollContainer:GetChildren()[6] then
-        ScrollContainer:GetChildren()[6].Text = "⚡ SPEED ARTIR (ŞU AN: " .. State.Speed .. ")"
+    local targetBtn = ScrollContainer:GetChildren()[7]
+    if targetBtn and targetBtn:IsA("TextButton") then
+        targetBtn.Text = "⚡ HIZI ARTIR (ŞU AN: " .. State.Speed .. ")"
     end
 end)
 
-CreateActionItem(7, "📍 MEVCUT KONUMU ÜS YAP", Color3.fromRGB(30, 45, 35), function()
+CreateActionItem(8, "📍 MEVCUT KONUMU ÜS YAP", Color3.fromRGB(30, 45, 35), function()
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
-        State.SpawnPos = hrp.Position + Vector3.new(0, 4, 0)
+        State.SpawnPos = hrp.Position + Vector3.new(0, 3, 0)
         print("✅ [LEA BASE]: Yeni üs noktası başarıyla kaydedildi.")
     end
 end)
 
-print("✅ [LEA V35.0 - BÖLÜM 2]: Tamamlandı.")
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V35.0 - BÖLÜM 3 / 3 (MERKEZİ MOTOR & DÖNGÜLER)
+-- 6. MERKEZİ FİZİK VE MOTOR DÖNGÜLERİ
 -- ==============================================================================
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-
-print("⭐ [LEA V35.0 - BÖLÜM 3]: MERKEZİ DÖNGÜLER BAŞLATILIYOR...")
-
-if not getgenv().LeaModGlobalState then
-    warn("❌ [LEA ERROR]: Global State bulunamadı! Önce 1 ve 2'yi çalıştır.")
-    return
-end
-local State = getgenv().LeaModGlobalState
-
--- Noclip (Hayalet Duvar) Döngüsü
+-- Noclip Döngüsü
 table.insert(State.Connections, RunService.Stepped:Connect(function()
     if State.Noclip and LocalPlayer.Character then
         pcall(function()
@@ -406,7 +369,7 @@ table.insert(State.Connections, RunService.Stepped:Connect(function()
     end
 end))
 
--- Ana Hareket, Fizik, Uçuş, Üs ve Target (Aura) Motoru
+-- Ana Hareket, Uçuş ve Mod Döngüsü (Çakışma Kilidi İle)
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -415,9 +378,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     if not hrp or not hum then return end
 
     if hum.Health <= 0 then
-        if State.TweenStorage.CancelActiveTweens then
-            State.TweenStorage.CancelActiveTweens()
-        end
+        CancelActiveTweens()
         State.Mode = "NONE"
         State.Fly = false
         return
@@ -428,7 +389,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         hum.WalkSpeed = State.Speed
     end
 
-    -- Uçuş (Fly) Mekaniği
+    -- Uçuş Mekaniği (Fly aktifken diğer modlar çalışmaz)
     if State.Fly then
         hum.PlatformStand = true
         local moveDir = hum.MoveDirection
@@ -438,22 +399,23 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
             local targetDir = (Camera.CFrame.RightVector * moveDir.X) + (Camera.CFrame.LookVector * -moveDir.Z)
             hrp.CFrame = hrp.CFrame + (targetDir.Unit * (State.FlySpeed * dt))
         end
+        return -- Fly aktifken alt motorları atla (Çakışma Fix)
     end
 
-    -- Base (Üs) Sistemi
+    -- Base Sistemi
     if State.Mode == "BASE" and State.SpawnPos then
         local dist = (State.SpawnPos - hrp.Position).Magnitude
         if dist > 4 then
-            if not State.TweenStorage.ActiveTween and State.TweenStorage.SafeMoveTo then
-                State.TweenStorage.SafeMoveTo(CFrame.new(State.SpawnPos), math.clamp(dist / 130, 0.3, 2.0))
+            if not State.TweenStorage.ActiveTween then
+                SafeMoveTo(CFrame.new(State.SpawnPos), math.clamp(dist / 130, 0.3, 2.0))
             end
         else
-            if State.TweenStorage.CancelActiveTweens then State.TweenStorage.CancelActiveTweens() end
+            CancelActiveTweens()
             State.Mode = "NONE"
         end
     end
 
-    -- Target / Aura Takip Sistemi
+    -- Target / Aura Sistemi
     if State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -475,20 +437,21 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
                 local dist = (target.Position - hrp.Position).Magnitude
                 if dist > 5 then
                     local backPos = target.CFrame * CFrame.new(0, 0, 4)
-                    if (not State.TweenStorage.ActiveTween or State.TweenStorage.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing) and State.TweenStorage.SafeMoveTo then
-                        State.TweenStorage.SafeMoveTo(backPos, math.clamp(dist / 140, 0.1, 1.0))
+                    if not State.TweenStorage.ActiveTween or State.TweenStorage.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing then
+                        SafeMoveTo(backPos, math.clamp(dist / 140, 0.1, 1.0))
                     end
                 end
             else
-                if State.TweenStorage.CancelActiveTweens then State.TweenStorage.CancelActiveTweens() end
+                CancelActiveTweens()
             end
         end)
     end
 end))
 
--- Performans Odaklı ESP Sistemi
+-- Performans Odaklı ESP (Visuals) Döngüsü
 table.insert(State.Connections, task.spawn(function()
-    while task.wait(1.5) do
+    while true do
+        task.wait(1.5)
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character then
@@ -512,4 +475,4 @@ table.insert(State.Connections, task.spawn(function()
     end
 end))
 
-print("✅ [LEA V35.0]: TÜM SİSTEMLER, FLY, NOCLIP, TARGET AURA VE KORUMALAR AKTİF!")
+print("✅ [LEA V35.1]: TÜM SİSTEMLER BAŞARIYLA YÜKLENDİ VE AKTİF!")
