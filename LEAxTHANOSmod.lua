@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V40.0 - STABLE MODULAR CORE EDITION
+-- LEA MOD ULTIMATE MEGA V41.0 - STABLE MOBILE CORE EDITION
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -10,14 +10,14 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V40.0]: MODULAR CORE STABLE BAŞLATILIYOR...")
+print("⭐ [LEA V41.0]: MOBİL STABLE KODU BAŞLATILIYOR...")
 
 -- ==============================================================================
 -- 1. SETTINGS & GLOBAL STATE (MERKEZİ DURUM YÖNETİMİ)
 -- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "40.0-MODULAR",
+        Version = "41.0-MOBILE",
         Mode = "NONE",          -- "NONE", "BASE", "TARGET"
         Speed = 16,             -- Güvenli taban hız
         MoveSpeedIndex = 1,     -- 1: 16, 2: 18, 3: 20
@@ -142,7 +142,7 @@ ActiveWatermark.Name = "LeaActiveWatermark"
 ActiveWatermark.Size = UDim2.new(0, 180, 0, 20)
 ActiveWatermark.Position = UDim2.new(0.5, -90, 0.16, -10)
 ActiveWatermark.BackgroundTransparency = 1
-ActiveWatermark.Text = "⚡ LEA V40 ACTIVE ⚡"
+ActiveWatermark.Text = "⚡ LEA V41 ACTIVE ⚡"
 ActiveWatermark.TextColor3 = State.ThemeColor
 ActiveWatermark.TextSize = 10
 ActiveWatermark.Font = Enum.Font.GothamBlack
@@ -180,7 +180,7 @@ local TitleLabel = Instance.new("TextLabel", HeaderFrame)
 TitleLabel.Size = UDim2.new(1, -16, 1, 0)
 TitleLabel.Position = UDim2.new(0, 3, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA V40"
+TitleLabel.Text = "LEA V41"
 TitleLabel.TextColor3 = State.ThemeColor
 TitleLabel.TextSize = 7
 TitleLabel.Font = Enum.Font.GothamBlack
@@ -518,4 +518,4 @@ table.insert(State.Connections, task.spawn(function()
     end
 end))
 
-print("✅ [LEA V40.0]: MODULAR CORE STABLE BAŞARIYLA YÜKLENDİ!")
+print("✅ [LEA V41.0]: MOBİL STABLE KOD BAŞARIYLA YÜKLENDİ!")
