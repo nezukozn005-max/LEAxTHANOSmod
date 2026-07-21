@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V50.1 - REFACTORED ENGINE (ANTI-RESET + FLY BASE)
+-- LEA MOD ULTIMATE V50.1 - FULL REFACTOR (PLATFORM CUBE & AUTO SYSTEMS INCLUDED)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -11,40 +11,38 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 if not LocalPlayer then return end
 
--- Safely purge previous connection threads
+-- Clear existing threads/connections safely
 if getgenv().LeaModGlobalState and getgenv().LeaModGlobalState.Connections then
     for _, conn in ipairs(getgenv().LeaModGlobalState.Connections) do
         pcall(function() conn:Disconnect() end)
     end
 end
 
--- Global State Setup
+-- Global State Registry
 getgenv().LeaModGlobalState = {
-    Version = "50.1-CONFIGURABLE-BASE",
+    Version = "50.1-PLATFORM",
     AutoAttack = false,
     AutoAttackLastTime = 0,
-    AutoAttackCooldown = 0.4,
+    AutoAttackCooldown = 0.35,
     AutoMedusa = false,
     AutoMedusaLastTime = 0,
-    MedusaCooldown = 0.8,
+    MedusaCooldown = 0.75,
     CubeActive = false,
-    CubeList = {},
-    LastCubeTime = 0,
-    CubeSpawnRate = 0.3,
-    CubeLimit = 20,
+    PlatformPart = nil,
     ThemeColor = Color3.fromRGB(0, 255, 200),
     Connections = {},
     EspActive = false,
+    Visuals = false,
     Noclip = false,
     IsReturning = false,
     CustomBasePosition = nil,
-    ReturnSpeed = 23 -- Fixed travel speed target
+    ReturnSpeed = 23
 }
 
 local State = getgenv().LeaModGlobalState
 
 -- ==============================================================================
--- 1. UTILITY & CONNECTION MANAGER
+-- 1. UTILITIES & CHARACTER MANAGEMENT
 -- ==============================================================================
 local function SafeConnect(signal, callback)
     local conn = signal:Connect(callback)
@@ -60,29 +58,24 @@ local function GetCharacter()
     return nil, nil, nil
 end
 
--- ==============================================================================
--- 2. ANTI-RESET & CHARACTER PROTECTION
--- ==============================================================================
 local function ProtectCharacter(char)
     if not char then return end
     local hum = char:WaitForChild("Humanoid", 5)
     if hum then
-        -- Anti-Reset: Intercept local health depletion calls
-        local healthConn = hum.HealthChanged:Connect(function(health)
+        local conn = hum.HealthChanged:Connect(function(health)
             if health <= 0 and hum:GetState() ~= Enum.HumanoidStateType.Dead then
                 pcall(function()
                     hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
                 end)
             end
         end)
-        table.insert(State.Connections, healthConn)
+        table.insert(State.Connections, conn)
     end
 end
 
 if LocalPlayer.Character then ProtectCharacter(LocalPlayer.Character) end
 SafeConnect(LocalPlayer.CharacterAdded, ProtectCharacter)
 
--- Auto-initialize base position on spawn
 local function InitDefaultBase()
     local _, hrp = GetCharacter()
     if hrp and not State.CustomBasePosition then
@@ -97,7 +90,91 @@ SafeConnect(LocalPlayer.CharacterAdded, function()
 end)
 
 -- ==============================================================================
--- 3. CONFIGURABLE SMOOTH FLY RETURN ENGINE (SPEED: 23)
+-- 2. DYNAMIC PLATFORM (CUBE) SUBSYSTEM
+-- ==============================================================================
+local function DestroyPlatform()
+    if State.PlatformPart and State.PlatformPart:IsA("BasePart") then
+        pcall(function() State.PlatformPart:Destroy() end)
+    end
+    State.PlatformPart = nil
+end
+
+local function UpdatePlatform()
+    if not State.CubeActive then
+        DestroyPlatform()
+        return
+    end
+
+    local char, hrp = GetCharacter()
+    if not char or not hrp then return end
+
+    if not State.PlatformPart or not State.PlatformPart.Parent then
+        local part = Instance.new("Part")
+        part.Name = "LeaMod_PlatformCube"
+        part.Size = Vector3.new(6, 1, 6)
+        part.Anchored = true
+        part.CanCollide = true
+        part.Material = Enum.Material.Neon
+        part.Color = State.ThemeColor
+        part.Transparency = 0.3
+        part.Parent = Workspace
+        State.PlatformPart = part
+    end
+
+    -- Position the platform right below the player's feet
+    State.PlatformPart.CFrame = CFrame.new(hrp.Position - Vector3.new(0, 3.5, 0))
+end
+
+-- ==============================================================================
+-- 3. TOOL & AUTOMATION SYSTEMS
+-- ==============================================================================
+local function FindAndEquipTool(keyword)
+    local char = LocalPlayer.Character
+    if not char then return false end
+    
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name:lower():find(keyword:lower()) then
+            return true
+        end
+    end
+    
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name:lower():find(keyword:lower()) then
+                pcall(function() tool.Parent = char end)
+                task.wait(0.02)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function GetNearestPlayer(maxDistance)
+    local nearest = nil
+    local shortestDistance = maxDistance or 60
+    local _, myHrp = GetCharacter()
+    if not myHrp then return nil end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hrp and hum and hum.Health > 0 then
+                local dist = (myHrp.Position - hrp.Position).Magnitude
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    nearest = player
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+-- ==============================================================================
+-- 4. BASE RETURN ENGINE
 -- ==============================================================================
 local function StartSmoothReturn()
     if State.IsReturning then return end
@@ -118,7 +195,6 @@ local function StartSmoothReturn()
 
     State.IsReturning = true
 
-    -- Setup flight mechanics
     local bodyVel = Instance.new("BodyVelocity")
     bodyVel.MaxForce = Vector3.new(1e6, 1e6, 1e6)
     bodyVel.Velocity = Vector3.zero
@@ -136,7 +212,6 @@ local function StartSmoothReturn()
     connection = SafeConnect(RunService.Heartbeat, function()
         local currentChar, currentHrp, currentHum = GetCharacter()
         
-        -- Cancel flight if character dies or return state toggles off
         if not currentChar or not currentHrp or not State.IsReturning or currentHum.Health <= 0 then
             if connection then connection:Disconnect() end
             bodyVel:Destroy()
@@ -145,48 +220,27 @@ local function StartSmoothReturn()
             return
         end
 
-        -- Noclip during flight to prevent getting stuck in walls
-        for _, part in ipairs(currentChar:GetChildren()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
-        end
-
         local currentPos = currentHrp.Position
         local vecToTarget = (destination - currentPos)
         local distance = vecToTarget.Magnitude
 
-        -- Raycast to detect path obstacles and add elevation
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {currentChar}
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-
-        local rayResult = Workspace:Raycast(currentPos, vecToTarget.Unit * 6, raycastParams)
-        local activeTarget = destination
-        if rayResult and distance > 10 then
-            activeTarget = destination + Vector3.new(0, 12, 0) -- Lift up over obstacles
-        end
-
         if distance <= 2.5 then
-            -- Safe arrival
             bodyVel:Destroy()
             bodyGyro:Destroy()
             currentHrp.AssemblyLinearVelocity = Vector3.zero
             State.IsReturning = false
             if connection then connection:Disconnect() end
         else
-            local flightDirection = (activeTarget - currentPos).Unit
-            bodyVel.Velocity = flightDirection * State.ReturnSpeed -- Fixed speed 23
+            local flightDirection = vecToTarget.Unit
+            bodyVel.Velocity = flightDirection * State.ReturnSpeed
             bodyGyro.CFrame = CFrame.lookAt(currentPos, currentPos + flightDirection)
         end
     end)
 end
 
-State.ReturnToSpawnFast = StartSmoothReturn
-
 -- ==============================================================================
--- 4. CORE ENGINE LOOPS (NOCLIP & CUBE PLATFORM)
+-- 5. MAIN EXECUTION LOOPS
 -- ==============================================================================
-
--- Low-overhead Noclip Loop
 SafeConnect(RunService.Stepped, function()
     if not State.Noclip or State.IsReturning then return end
     local char = LocalPlayer.Character
@@ -199,126 +253,264 @@ SafeConnect(RunService.Stepped, function()
     end
 end)
 
--- Automation & Cube Handler
 SafeConnect(RunService.Heartbeat, function()
+    -- Update platform position if enabled
+    UpdatePlatform()
+
     local char, hrp, hum = GetCharacter()
     if not char or not hrp or hum.Health <= 0 then return end
 
-    if State.CubeActive and not State.IsReturning then
-        local now = tick()
-        local vel = hrp.AssemblyLinearVelocity
-        if (vel.Y < -4 or vel.Magnitude > 3) and (now - State.LastCubeTime > State.CubeSpawnRate) then
-            if #State.CubeList >= State.CubeLimit then
-                local oldCube = table.remove(State.CubeList, 1)
-                if oldCube and oldCube.Parent then oldCube:Destroy() end
+    local nearestTarget = GetNearestPlayer(45)
+    if nearestTarget and nearestTarget.Character and nearestTarget.Character:FindFirstChild("HumanoidRootPart") then
+        local targetHrp = nearestTarget.Character.HumanoidRootPart
+        local dist = (hrp.Position - targetHrp.Position).Magnitude
+        
+        -- Auto Medusa
+        if State.AutoMedusa and dist <= 18 then
+            local now = tick()
+            if now - State.AutoMedusaLastTime >= State.MedusaCooldown then
+                if FindAndEquipTool("medusa") then
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") and tool.Name:lower():find("medusa") then
+                            pcall(function() tool:Activate() end)
+                            State.AutoMedusaLastTime = now
+                            break
+                        end
+                    end
+                end
             end
+        end
+        
+        -- Auto Attack
+        if State.AutoAttack then
+            local now = tick()
+            if now - State.AutoAttackLastTime >= State.AutoAttackCooldown then
+                State.AutoAttackLastTime = now
+                if FindAndEquipTool("pet") or FindAndEquipTool("bad") or FindAndEquipTool("weapon") then
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            pcall(function() tool:Activate() end)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
 
-            local cube = Instance.new("Part")
-            cube.Name = "LeaCube"
-            cube.Size = Vector3.new(4, 0.4, 4)
-            cube.Position = hrp.Position - Vector3.new(0, 3, 0)
-            cube.Anchored = true
-            cube.CanCollide = true
-            cube.Transparency = 0.6
-            cube.Material = Enum.Material.SmoothPlastic
-            cube.Color = State.ThemeColor
-            cube.Parent = Workspace
-
-            table.insert(State.CubeList, cube)
-            State.LastCubeTime = now
+-- ESP Loop
+local espTimer = 0
+SafeConnect(RunService.Heartbeat, function(dt)
+    espTimer = espTimer + dt
+    if espTimer >= 1.0 then
+        espTimer = 0
+        if State.Visuals and State.EspActive then
+            pcall(function()
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local c = player.Character
+                        local highlight = c:FindFirstChild("LeaMegaESP")
+                        if not highlight then
+                            highlight = Instance.new("Highlight")
+                            highlight.Name = "LeaMegaESP"
+                            highlight.FillColor = Color3.fromRGB(255, 0, 80)
+                            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            highlight.FillTransparency = 0.5
+                            highlight.OutlineTransparency = 0
+                            highlight.Parent = c
+                        end
+                    end
+                end
+            end)
         end
     end
 end)
 
 -- ==============================================================================
--- 5. INTERFACE INITIALIZATION
+-- 6. MOBILE-FRIENDLY GUI MOUNTING ENGINE
 -- ==============================================================================
 local function GetGuiParent()
-    local success, parent = pcall(function() return CoreGui end)
-    if success and parent then return parent end
+    if gethui then
+        local success, res = pcall(gethui)
+        if success and res then return res end
+    end
+    local success, res = pcall(function() return CoreGui end)
+    if success and res then return res end
     return LocalPlayer:WaitForChild("PlayerGui", 5)
 end
 
-local GuiParent = GetGuiParent()
-if GuiParent:FindFirstChild("LeaModMegaGUI") then
-    GuiParent.LeaModMegaGUI:Destroy()
+local TargetParent = GetGuiParent()
+if TargetParent:FindFirstChild("LeaModMegaGUI") then
+    TargetParent.LeaModMegaGUI:Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LeaModMegaGUI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = GuiParent
+ScreenGui.DisplayOrder = 999
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = TargetParent
 
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 160, 0, 210)
-MainContainer.Position = UDim2.new(0.5, -80, 0.35, 0)
+MainContainer.Name = "MainContainer"
+MainContainer.Size = UDim2.new(0, 165, 0, 240)
+MainContainer.Position = UDim2.new(0.5, -82, 0.25, 0)
 MainContainer.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
+MainContainer.BorderSizePixel = 0
 MainContainer.Active = true
 MainContainer.Draggable = true
 
 Instance.new("UICorner", MainContainer).CornerRadius = UDim.new(0, 6)
-local UIStroke = Instance.new("UIStroke", MainContainer)
-UIStroke.Color = State.ThemeColor
-UIStroke.Thickness = 1
+local MainStroke = Instance.new("UIStroke", MainContainer)
+MainStroke.Color = State.ThemeColor
+MainStroke.Thickness = 1
+
+local HeaderFrame = Instance.new("Frame", MainContainer)
+HeaderFrame.Size = UDim2.new(1, 0, 0, 22)
+HeaderFrame.BackgroundColor3 = Color3.fromRGB(4, 4, 8)
+HeaderFrame.BorderSizePixel = 0
+
+local TitleLabel = Instance.new("TextLabel", HeaderFrame)
+TitleLabel.Size = UDim2.new(1, -22, 1, 0)
+TitleLabel.Position = UDim2.new(0, 6, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "LEA V50.1 ULTIMATE"
+TitleLabel.TextColor3 = State.ThemeColor
+TitleLabel.TextSize = 9
+TitleLabel.Font = Enum.Font.GothamBlack
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local CloseBtn = Instance.new("TextButton", HeaderFrame)
+CloseBtn.Size = UDim2.new(0, 18, 0, 18)
+CloseBtn.Position = UDim2.new(1, -20, 0, 2)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 8
+CloseBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
 
 local ScrollContainer = Instance.new("ScrollingFrame", MainContainer)
-ScrollContainer.Size = UDim2.new(1, -6, 1, -10)
-ScrollContainer.Position = UDim2.new(0, 3, 0, 5)
+ScrollContainer.Size = UDim2.new(1, -6, 1, -26)
+ScrollContainer.Position = UDim2.new(0, 3, 0, 24)
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.ScrollBarThickness = 2
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 230)
+ScrollContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 local ListLayout = Instance.new("UIListLayout", ScrollContainer)
 ListLayout.Padding = UDim.new(0, 4)
 ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local function CreateButton(text, callback)
+local ToggleBtn = Instance.new("TextButton", ScreenGui)
+ToggleBtn.Size = UDim2.new(0, 36, 0, 36)
+ToggleBtn.Position = UDim2.new(1, -42, 0.4, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
+ToggleBtn.Text = "LEA"
+ToggleBtn.TextColor3 = State.ThemeColor
+ToggleBtn.TextSize = 9
+ToggleBtn.Font = Enum.Font.GothamBlack
+ToggleBtn.Visible = false
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
+local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
+ToggleStroke.Color = State.ThemeColor
+ToggleStroke.Thickness = 1
+
+CloseBtn.MouseButton1Click:Connect(function()
+    MainContainer.Visible = false
+    ToggleBtn.Visible = true
+end)
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    MainContainer.Visible = true
+    ToggleBtn.Visible = false
+end)
+
+local function CreateToggleButton(order, text, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
+    btn.LayoutOrder = order
     btn.Size = UDim2.new(1, -2, 0, 22)
     btn.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+    btn.Text = text .. ": OFF"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 8
+    btn.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    local active = false
+    btn.MouseButton1Click:Connect(function()
+        active = not active
+        btn.Text = text .. (active and ": ON" or ": OFF")
+        btn.TextColor3 = active and State.ThemeColor or Color3.fromRGB(255, 255, 255)
+        pcall(callback, active)
+    end)
+    return btn
+end
+
+local function CreateActionButton(order, text, callback)
+    local btn = Instance.new("TextButton", ScrollContainer)
+    btn.LayoutOrder = order
+    btn.Size = UDim2.new(1, -2, 0, 22)
+    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 8
     btn.Font = Enum.Font.GothamBold
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
-    btn.MouseButton1Click:Connect(function() pcall(callback, btn) end)
+    btn.MouseButton1Click:Connect(function()
+        pcall(callback, btn)
+    end)
     return btn
 end
 
--- Interface Buttons
-CreateButton("📍 SET CURRENT POS AS BASE", function(btn)
+-- ==============================================================================
+-- 7. MENU CONTROLS BINDING
+-- ==============================================================================
+CreateToggleButton(1, "⚔️ AUTO ATTACK", function(on)
+    State.AutoAttack = on
+end)
+
+CreateToggleButton(2, "🐍 AUTO MEDUSA", function(on)
+    State.AutoMedusa = on
+end)
+
+CreateToggleButton(3, "🧊 CUBE PLATFORM", function(on)
+    State.CubeActive = on
+    if not on then DestroyPlatform() end
+end)
+
+CreateActionButton(4, "📍 SET POS AS BASE", function(btn)
     local _, hrp = GetCharacter()
     if hrp then
         State.CustomBasePosition = hrp.Position
-        btn.Text = "✅ BASE POSITION SAVED!"
-        task.delay(1.5, function()
-            btn.Text = "📍 SET CURRENT POS AS BASE"
+        btn.Text = "✅ BASE SAVED!"
+        task.delay(1.2, function()
+            btn.Text = "📍 SET POS AS BASE"
         end)
     end
 end)
 
-CreateButton("✈️ RETURN TO BASE (SPD 23)", function()
+CreateActionButton(5, "✈️ RETURN TO BASE", function()
     StartSmoothReturn()
 end)
 
-CreateButton("🧊 CUBE PLATFORM: OFF", function(btn)
-    State.CubeActive = not State.CubeActive
-    btn.Text = State.CubeActive and "🧊 CUBE PLATFORM: ON" or "🧊 CUBE PLATFORM: OFF"
-    btn.TextColor3 = State.CubeActive and State.ThemeColor or Color3.fromRGB(255, 255, 255)
+CreateToggleButton(6, "👻 NOCLIP", function(on)
+    State.Noclip = on
+end)
 
-    if not State.CubeActive then
-        for _, cube in ipairs(State.CubeList) do
-            if cube and cube.Parent then cube:Destroy() end
+CreateToggleButton(7, "👁️ ESP VISUALS", function(on)
+    State.Visuals = on
+    State.EspActive = on
+    if not on then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("LeaMegaESP") then
+                p.Character.LeaMegaESP:Destroy()
+            end
         end
-        State.CubeList = {}
     end
 end)
 
-CreateButton("👻 NOCLIP: OFF", function(btn)
-    State.Noclip = not State.Noclip
-    btn.Text = State.Noclip and "👻 NOCLIP: ON" or "👻 NOCLIP: OFF"
-    btn.TextColor3 = State.Noclip and State.ThemeColor or Color3.fromRGB(255, 255, 255)
-end)
-
-print("✅ [LEA MOD]: ANTI-RESET & SMOOTH BASE ENGINE LOADED SUCCESSFULLY.")
+print("✅ [LEA MOD V50.1]: FULL REFACTOR WITH CUBE PLATFORM LOADED.")
