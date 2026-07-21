@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE MEGA V35.1 - FULL FIX (TEK PARÇA STABİL SÜRÜM)
+-- LEA MOD ULTIMATE MEGA V36.0 - CUBE EDITION (FINAL & COOL)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -10,21 +10,23 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⭐ [LEA V35.1]: STABİL MEGA KOD BAŞLATILIYOR...")
+print("⭐ [LEA V36.0]: CUBE EDITION & ULTRA STABILIZER BAŞLATILIYOR...")
 
 -- ==============================================================================
 -- 1. GLOBAL STATE VE GÜVENLİK
 -- ==============================================================================
 if not getgenv().LeaModGlobalState then
     getgenv().LeaModGlobalState = {
-        Version = "35.1-MEGA",
-        Mode = "NONE", -- "NONE", "BASE", "TARGET", "LAND"
-        Speed = 30,
+        Version = "36.0-CUBE",
+        Mode = "NONE",
+        Speed = 16, -- Anticheat güvenli başlangıç hızı
         SpawnPos = nil,
         Fly = false,
-        FlySpeed = 60,
+        FlySpeed = 50,
         Noclip = false,
         Visuals = false,
+        CubeActive = false,
+        CubePart = nil,
         ResetProtection = true,
         ThemeColor = Color3.fromRGB(0, 255, 200),
         Connections = {},
@@ -66,7 +68,7 @@ end
 pcall(InitializeBypass)
 
 -- ==============================================================================
--- 3. KOMPAKT MOBİL ARAYÜZ (GUI)
+-- 3. SÜPER KÜÇÜK VE COOL MOBİL ARAYÜZ (GUI)
 -- ==============================================================================
 local function GetGuiParent()
     local success, parent = pcall(function() return CoreGui end)
@@ -88,73 +90,88 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GetGuiParent()
 
+-- Ekranın ortasının bayağı bir üstüne şık aktif yazısı (Cool Watermark)
+local ActiveWatermark = Instance.new("TextLabel", ScreenGui)
+ActiveWatermark.Name = "LeaActiveWatermark"
+ActiveWatermark.Size = UDim2.new(0, 260, 0, 30)
+ActiveWatermark.Position = UDim2.new(0.5, -130, 0.25, -15) -- Ortadan yukarıda
+ActiveWatermark.BackgroundTransparency = 1
+ActiveWatermark.Text = "⚡ LEA MOD ACTIVE ⚡"
+ActiveWatermark.TextColor3 = State.ThemeColor
+ActiveWatermark.TextSize = 14
+ActiveWatermark.Font = Enum.Font.GothamBlack
+ActiveWatermark.Visible = false
+ActiveWatermark.TextStrokeTransparency = 0.5
+ActiveWatermark.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+-- Daha da küçültülmüş, minimalist ve şık ana panel
 local MainContainer = Instance.new("Frame", ScreenGui)
-MainContainer.Size = UDim2.new(0, 210, 0, 315)
-MainContainer.Position = UDim2.new(0.5, -105, 0.5, -157)
-MainContainer.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
-MainContainer.BackgroundTransparency = 0.05
+MainContainer.Size = UDim2.new(0, 180, 0, 240)
+MainContainer.Position = UDim2.new(0.5, -90, 0.5, -120)
+MainContainer.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+MainContainer.BackgroundTransparency = 0.08
 MainContainer.BorderSizePixel = 0
 MainContainer.Active = true
 MainContainer.Draggable = true
 
 local MainCorner = Instance.new("UICorner", MainContainer)
-MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.CornerRadius = UDim.new(0, 6)
 
 local MainStroke = Instance.new("UIStroke", MainContainer)
 MainStroke.Color = State.ThemeColor
-MainStroke.Thickness = 1.5
+MainStroke.Thickness = 1.2
 MainStroke.Transparency = 0.2
 
 local HeaderFrame = Instance.new("Frame", MainContainer)
-HeaderFrame.Size = UDim2.new(1, 0, 0, 28)
-HeaderFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
+HeaderFrame.Size = UDim2.new(1, 0, 0, 24)
+HeaderFrame.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
 HeaderFrame.BorderSizePixel = 0
 
 local HeaderCorner = Instance.new("UICorner", HeaderFrame)
-HeaderCorner.CornerRadius = UDim.new(0, 8)
+HeaderCorner.CornerRadius = UDim.new(0, 6)
 
 local TitleLabel = Instance.new("TextLabel", HeaderFrame)
-TitleLabel.Size = UDim2.new(1, -30, 1, 0)
-TitleLabel.Position = UDim2.new(0, 8, 0, 0)
+TitleLabel.Size = UDim2.new(1, -25, 1, 0)
+TitleLabel.Position = UDim2.new(0, 6, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "LEA MOD V35.1"
+TitleLabel.Text = "LEA V36.0"
 TitleLabel.TextColor3 = State.ThemeColor
-TitleLabel.TextSize = 11
+TitleLabel.TextSize = 10
 TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseButton = Instance.new("TextButton", HeaderFrame)
-CloseButton.Size = UDim2.new(0, 20, 0, 20)
-CloseButton.Position = UDim2.new(1, -24, 0, 4)
-CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseButton.Size = UDim2.new(0, 18, 0, 18)
+CloseButton.Position = UDim2.new(1, -21, 0, 3)
+CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.Font = Enum.Font.GothamBold
-CloseButton.TextSize = 9
+CloseButton.TextSize = 8
 
 local CloseCorner = Instance.new("UICorner", CloseButton)
-CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.CornerRadius = UDim.new(0, 3)
 
 local ScrollContainer = Instance.new("ScrollingFrame", MainContainer)
-ScrollContainer.Size = UDim2.new(1, -12, 1, -34)
-ScrollContainer.Position = UDim2.new(0, 6, 0, 30)
+ScrollContainer.Size = UDim2.new(1, -8, 1, -28)
+ScrollContainer.Position = UDim2.new(0, 4, 0, 26)
 ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.ScrollBarThickness = 3
+ScrollContainer.ScrollBarThickness = 2
 ScrollContainer.ScrollBarImageColor3 = State.ThemeColor
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 310)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 260)
 
 local ButtonListLayout = Instance.new("UIListLayout", ScrollContainer)
 ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ButtonListLayout.Padding = UDim.new(0, 5)
+ButtonListLayout.Padding = UDim.new(0, 4)
 ButtonListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 40, 0, 40)
-ToggleBtn.Position = UDim2.new(1, -55, 0.5, -20)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+ToggleBtn.Size = UDim2.new(0, 36, 0, 36)
+ToggleBtn.Position = UDim2.new(1, -45, 0.5, -18)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
 ToggleBtn.Text = "LEA"
 ToggleBtn.TextColor3 = State.ThemeColor
-ToggleBtn.TextSize = 11
+ToggleBtn.TextSize = 10
 ToggleBtn.Font = Enum.Font.GothamBlack
 ToggleBtn.Visible = false
 
@@ -162,20 +179,22 @@ local ToggleCorner = Instance.new("UICorner", ToggleBtn)
 ToggleCorner.CornerRadius = UDim.new(1, 0)
 local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
 ToggleStroke.Color = State.ThemeColor
-ToggleStroke.Thickness = 1.5
+ToggleStroke.Thickness = 1.2
 
 CloseButton.MouseButton1Click:Connect(function()
     MainContainer.Visible = false
     ToggleBtn.Visible = true
+    ActiveWatermark.Visible = true -- Menü kapanınca ekranda LEA MOD ACTIVE göster
 end)
 
 ToggleBtn.MouseButton1Click:Connect(function()
     MainContainer.Visible = true
     ToggleBtn.Visible = false
+    ActiveWatermark.Visible = false -- Menü açılınca yazıyı gizle
 end)
 
 -- ==============================================================================
--- 4. GÜVENLİ RESET KORUMASI (ÖLÜM DÖNGÜSÜ FIX)
+-- 4. GÜVENLİ RESET KORUMASI
 -- ==============================================================================
 local function SetupResetProtection(char)
     local humanoid = char:WaitForChild("Humanoid", 5)
@@ -187,7 +206,6 @@ local function SetupResetProtection(char)
         local healthConn = humanoid.HealthChanged:Connect(function(health)
             if health <= 0 and State.ResetProtection then
                 pcall(function()
-                    -- Sürekli reset atan çökme hatasını engellemek için doğrudan can basmak yerine karakterin güvenli konumda yenilenmesini sağlıyoruz
                     if State.SpawnPos then
                         local hrp = char:FindFirstChild("HumanoidRootPart")
                         if hrp then hrp.CFrame = CFrame.new(State.SpawnPos) end
@@ -206,21 +224,54 @@ end
 table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(SetupResetProtection))
 
 -- ==============================================================================
--- 5. BUTONLAR VE MOD YÖNETİMİ (ÇAKIŞMA ÖNLEYİCİ)
+-- 5. KÜP (CUBE) SİSTEMİ MİMARİSİ
+-- ==============================================================================
+local function ToggleCube(on)
+    State.CubeActive = on
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if on and hrp then
+        if not State.CubePart or not State.CubePart.Parent then
+            local cube = Instance.new("Part")
+            cube.Name = "LeaPlatformCube"
+            cube.Size = Vector3.new(4, 0.8, 4)
+            cube.Position = hrp.Position - Vector3.new(0, 3.5, 0)
+            cube.Anchored = true
+            cube.CanCollide = true
+            cube.Material = Enum.Material.Neon
+            cube.Color = State.ThemeColor
+            cube.Transparency = 0.2
+            
+            local cCorner = Instance.new("SpecialMesh", cube)
+            cCorner.MeshType = Enum.MeshType.Brick
+            cube.Parent = Workspace
+            State.CubePart = cube
+        end
+    else
+        if State.CubePart then
+            State.CubePart:Destroy()
+            State.CubePart = nil
+        end
+    end
+end
+
+-- ==============================================================================
+-- 6. BUTONLAR VE İNCeltilmiş HIZ DÖNGÜSÜ (16 -> 24 -> 28)
 -- ==============================================================================
 local function CreateMenuButton(order, text, defaultColor, activeColor, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -4, 0, 28)
+    btn.Size = UDim2.new(1, -2, 0, 24)
     btn.BackgroundColor3 = defaultColor
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 10
+    btn.TextSize = 9
     btn.Font = Enum.Font.GothamBold
     btn.AutoButtonColor = false
     
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 5)
+    corner.CornerRadius = UDim.new(0, 4)
     
     local active = false
     btn.MouseButton1Click:Connect(function()
@@ -234,15 +285,15 @@ end
 local function CreateActionItem(order, text, color, callback)
     local btn = Instance.new("TextButton", ScrollContainer)
     btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, -4, 0, 28)
+    btn.Size = UDim2.new(1, -2, 0, 24)
     btn.BackgroundColor3 = color
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 10
+    btn.TextSize = 9
     btn.Font = Enum.Font.GothamBold
     
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 5)
+    corner.CornerRadius = UDim.new(0, 4)
     
     btn.MouseButton1Click:Connect(function() pcall(callback) end)
     return btn
@@ -271,23 +322,28 @@ State.TweenStorage.CancelActiveTweens = CancelActiveTweens
 State.TweenStorage.SafeMoveTo = SafeMoveTo
 
 -- Mod Butonları
-CreateMenuButton(1, "🚀 FLY (UÇUŞ) OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(1, "🚀 FLY OFF", Color3.fromRGB(45, 35, 65), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Fly = on
-    btn.Text = on and "🚀 FLY (UÇUŞ) ON" or "🚀 FLY (UÇUŞ) OFF"
+    btn.Text = on and "🚀 FLY ON" or "🚀 FLY OFF"
     if on then
-        State.Mode = "NONE" -- Çakışmayı önle
+        State.Mode = "NONE"
     else
         local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if hum then hum.PlatformStand = false end
     end
 end)
 
-CreateMenuButton(2, "🛡️ NOCLIP (HAYALET) OFF", Color3.fromRGB(65, 35, 35), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(2, "🛡️ NOCLIP OFF", Color3.fromRGB(65, 35, 35), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Noclip = on
     btn.Text = on and "🛡️ NOCLIP ON" or "🛡️ NOCLIP OFF"
 end)
 
-CreateMenuButton(3, "🏠 BASE (ÜS) OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(3, "🧊 CUBE (PLATFORM) OFF", Color3.fromRGB(35, 55, 55), Color3.fromRGB(0, 180, 90), function(on, btn)
+    ToggleCube(on)
+    btn.Text = on and "🧊 CUBE ON" or "🧊 CUBE OFF"
+end)
+
+CreateMenuButton(4, "🏠 BASE OFF", Color3.fromRGB(55, 45, 25), Color3.fromRGB(0, 180, 90), function(on, btn)
     if on then
         State.Mode = "BASE"
         State.Fly = false
@@ -295,10 +351,10 @@ CreateMenuButton(3, "🏠 BASE (ÜS) OFF", Color3.fromRGB(55, 45, 25), Color3.fr
         State.Mode = "NONE"
         CancelActiveTweens()
     end
-    btn.Text = on and "🏠 BASE (ÜS) ON" or "🏠 BASE (ÜS) OFF"
+    btn.Text = on and "🏠 BASE ON" or "🏠 BASE OFF"
 end)
 
-CreateMenuButton(4, "🎯 TARGET (AURA) OFF", Color3.fromRGB(60, 25, 45), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(5, "🎯 TARGET OFF", Color3.fromRGB(60, 25, 45), Color3.fromRGB(0, 180, 90), function(on, btn)
     if on then
         State.Mode = "TARGET"
         State.Fly = false
@@ -306,11 +362,10 @@ CreateMenuButton(4, "🎯 TARGET (AURA) OFF", Color3.fromRGB(60, 25, 45), Color3
         State.Mode = "NONE"
         CancelActiveTweens()
     end
-    btn.Text = on and "🎯 TARGET (AURA) ON" or "🎯 TARGET (AURA) OFF"
+    btn.Text = on and "🎯 TARGET ON" or "🎯 TARGET OFF"
 end)
 
--- YENİ EKLENEN ÖZELLİK: YERE İN (LAND) MODU
-CreateActionItem(5, "🛬 YERE İN (LAND)", Color3.fromRGB(30, 45, 55), function()
+CreateActionItem(6, "🛬 YERE İN (LAND)", Color3.fromRGB(30, 45, 55), function()
     State.Mode = "NONE"
     State.Fly = false
     CancelActiveTweens()
@@ -324,36 +379,40 @@ CreateActionItem(5, "🛬 YERE İN (LAND)", Color3.fromRGB(30, 45, 55), function
         local result = Workspace:Raycast(hrp.Position, Vector3.new(0, -500, 0), raycastParams)
         if result then
             hrp.CFrame = CFrame.new(result.Position + Vector3.new(0, 3, 0))
-            print("✅ [LEA LAND]: Güvenli bir şekilde yere inildi.")
         end
     end
 end)
 
-CreateMenuButton(6, "👁️ VISUAL (ESP) OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
+CreateMenuButton(7, "👁️ ESP OFF", Color3.fromRGB(35, 35, 48), Color3.fromRGB(0, 180, 90), function(on, btn)
     State.Visuals = on
-    btn.Text = on and "👁️ VISUAL (ESP) ON" or "👁️ VISUAL (ESP) OFF"
+    btn.Text = on and "👁️ ESP ON" or "👁️ ESP OFF"
 end)
 
-CreateActionItem(7, "⚡ HIZI ARTIR (ŞU AN: 30)", Color3.fromRGB(30, 30, 45), function()
-    State.Speed = State.Speed + 10
-    if State.Speed > 90 then State.Speed = 30 end
-    local targetBtn = ScrollContainer:GetChildren()[7]
+-- Anticheat korumalı güvenli hız adımları: 16 -> 24 -> 28 -> 16
+CreateActionItem(8, "⚡ HIZ: 16 (GÜVENLİ)", Color3.fromRGB(30, 30, 45), function()
+    if State.Speed == 16 then
+        State.Speed = 24
+    elseif State.Speed == 24 then
+        State.Speed = 28
+    else
+        State.Speed = 16
+    end
+    local targetBtn = ScrollContainer:GetChildren()[8]
     if targetBtn and targetBtn:IsA("TextButton") then
-        targetBtn.Text = "⚡ HIZI ARTIR (ŞU AN: " .. State.Speed .. ")"
+        targetBtn.Text = "⚡ HIZ: " .. State.Speed .. " (GÜVENLİ)"
     end
 end)
 
-CreateActionItem(8, "📍 MEVCUT KONUMU ÜS YAP", Color3.fromRGB(30, 45, 35), function()
+CreateActionItem(9, "📍 MEVCUT YERİ ÜS YAP", Color3.fromRGB(30, 45, 35), function()
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
         State.SpawnPos = hrp.Position + Vector3.new(0, 3, 0)
-        print("✅ [LEA BASE]: Yeni üs noktası başarıyla kaydedildi.")
     end
 end)
 
 -- ==============================================================================
--- 6. MERKEZİ FİZİK VE MOTOR DÖNGÜLERİ
+-- 7. MERKEZİ FİZİK VE MOTOR DÖNGÜLERİ
 -- ==============================================================================
 
 -- Noclip Döngüsü
@@ -369,7 +428,7 @@ table.insert(State.Connections, RunService.Stepped:Connect(function()
     end
 end))
 
--- Ana Hareket, Uçuş ve Mod Döngüsü (Çakışma Kilidi İle)
+-- Ana Hareket, Küp Takibi ve Fizik Motoru
 table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -381,7 +440,13 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         CancelActiveTweens()
         State.Mode = "NONE"
         State.Fly = false
+        ToggleCube(false)
         return
+    end
+
+    -- Küp (Platform) Güncellemesi
+    if State.CubeActive and State.CubePart then
+        State.CubePart.CFrame = hrp.CFrame * CFrame.new(0, -3.6, 0)
     end
 
     -- Hız Sabitleme
@@ -389,7 +454,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
         hum.WalkSpeed = State.Speed
     end
 
-    -- Uçuş Mekaniği (Fly aktifken diğer modlar çalışmaz)
+    -- Uçuş Mekaniği
     if State.Fly then
         hum.PlatformStand = true
         local moveDir = hum.MoveDirection
@@ -399,7 +464,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
             local targetDir = (Camera.CFrame.RightVector * moveDir.X) + (Camera.CFrame.LookVector * -moveDir.Z)
             hrp.CFrame = hrp.CFrame + (targetDir.Unit * (State.FlySpeed * dt))
         end
-        return -- Fly aktifken alt motorları atla (Çakışma Fix)
+        return
     end
 
     -- Base Sistemi
@@ -448,7 +513,7 @@ table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
--- Performans Odaklı ESP (Visuals) Döngüsü
+-- Performans Odaklı ESP Döngüsü
 table.insert(State.Connections, task.spawn(function()
     while true do
         task.wait(1.5)
@@ -461,7 +526,7 @@ table.insert(State.Connections, task.spawn(function()
                         if not hl then
                             hl = Instance.new("Highlight")
                             hl.Name = "LeaMegaESP"
-                            hl.FillColor = Color3.fromRGB(0, 255, 200)
+                            hl.FillColor = State.ThemeColor
                             hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                             hl.FillTransparency = 0.55
                             hl.Parent = char
@@ -475,4 +540,4 @@ table.insert(State.Connections, task.spawn(function()
     end
 end))
 
-print("✅ [LEA V35.1]: TÜM SİSTEMLER BAŞARIYLA YÜKLENDİ VE AKTİF!")
+print("✅ [LEA V36.0]: CUBE EDITION BAŞARIYLA YÜKLENDİ VE AKTİF!")
