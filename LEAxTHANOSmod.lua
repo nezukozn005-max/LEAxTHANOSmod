@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD ULTIMATE V21.5 (FULL FIXED + ANTI-GERIATMA + INVIS ESP + PET ENGINE)
+-- LEA MOD ULTIMATE V22.5 (FULL MONOLITHIC - ALL FEATURES COMBINED & UNLIMITED)
 -- ==============================================================================
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -19,7 +19,6 @@ if not getgenv().LeaModGlobalState then
         Cubes = {},
         LastCube = 0,
         Noclip = false,
-        PotatoGraphics = false,
         AutoAvoid = false,
         Visuals = false,
         Invisible = false,
@@ -68,7 +67,7 @@ local HeaderTitle = Instance.new("TextLabel", MainFrame)
 HeaderTitle.Size = UDim2.new(1, 0, 0, 26)
 HeaderTitle.Position = UDim2.new(0, 0, 0, 2)
 HeaderTitle.BackgroundTransparency = 1
-HeaderTitle.Text = "LEA MOD ULTIMATE V21.5"
+HeaderTitle.Text = "LEA MOD ULTIMATE V22.5"
 HeaderTitle.TextColor3 = Color3.fromRGB(0, 255, 200)
 HeaderTitle.TextSize = 11
 HeaderTitle.Font = Enum.Font.GothamBold
@@ -163,12 +162,10 @@ local function SyncRealLevel()
 end
 
 local function SetupCharacterLifecycle(char)
-    State.Mode = "NONE"
     pcall(function()
         local hum = char:WaitForChild("Humanoid", 5)
         if hum then
-            if not State.BypassReset then hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-            else State.BypassReset = false end
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
         end
     end)
     task.spawn(function()
@@ -247,12 +244,12 @@ SpeedLbl.TextSize = 10
 SpeedLbl.Font = Enum.Font.GothamSemibold
 
 CreateGridButton(8, 166, 47, 22, "-5 Hız", function()
-    State.Speed = math.clamp(State.Speed - 5, 16, 50)
+    State.Speed = math.clamp(State.Speed - 5, 16, 90)
     SpeedLbl.Text = "Hız Değeri: " .. State.Speed
 end)
 CreateGridButton(59, 166, 47, 22, "+5 Hız", function()
-    State.Speed = math.clamp(State.Speed + 5, 16, 50)
-    SpeedLbl.Text = "Hız Değeri: " / State.Speed
+    State.Speed = math.clamp(State.Speed + 5, 16, 90)
+    SpeedLbl.Text = "Hız Değeri: " .. State.Speed
 end)
 CreateGridButton(8, 196, 202, 26, "🌐 SUNUCU DEĞİŞ & HIZLI HOP", function()
     pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
@@ -261,21 +258,24 @@ CreateGridButton(8, 230, 202, 26, "🔄 GÜVENLİ RESET", function()
     State.BypassReset = true
     pcall(function() 
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true) hum.Health = 0 end
+        if hum then hum.Health = 0 end
     end)
 end)
 
--- BASE ŞEFFAFLAŞTIRICI MOTOR
+-- DUVARLAR VE BİNALAR ŞEFFAFLAŞTIRICI MOTOR (Lazerler Hariç)
 task.spawn(function()
     while task.wait(2) do
         pcall(function()
             for _, part in ipairs(Workspace:GetDescendants()) do
-                if part:IsA("BasePart") and part.Name ~= "Baseplate" and not part.Name:lower():find("terrain") then
-                    local isLarge = (part.Size.X > 25 or part.Size.Z > 25 or part.Size.Y > 25)
-                    local isBaseNode = part.Name:lower():find("base") or part.Name:lower():find("zone") or part.Name:lower():find("safe")
+                if part:IsA("BasePart") and part.Name ~= "Baseplate" then
+                    local nameL = part.Name:lower()
+                    local isLaser = nameL:find("laser") or nameL:find("lazer") or nameL:find("kill") or nameL:find("hazard")
                     
-                    if (isLarge or isBaseNode) and part.Transparency > 0 and part.Transparency < 0.85 then
-                        part.Transparency = 0.85
+                    if not isLaser then
+                        local isWallOrBuilding = (part.Size.Y > 4 or part.Size.X > 8 or part.Size.Z > 8) or nameL:find("wall") or nameL:find("duvar") or nameL:find("building") or nameL:find("part")
+                        if isWallOrBuilding and part.Transparency < 0.75 and part.Transparency > 0 then
+                            part.Transparency = 0.75
+                        end
                     end
                 end
             end
@@ -283,7 +283,7 @@ task.spawn(function()
     end
 end)
 
--- GÖRÜNMEZLERİ TESPİT EDEN GELİŞMİŞ ESP DÖNGÜSÜ
+-- GÖRÜNMEZLERİ TESPİT EDEN ESP DÖNGÜSÜ
 task.spawn(function()
     while task.wait(0.4) do
         SyncRealLevel()
@@ -293,12 +293,11 @@ task.spawn(function()
                     local char = p.Character
                     local hl = char:FindFirstChild("LeaESP")
                     
-                    -- Görünmez (Invis) olanların parçalarını zorla görünür kıl veya ESP vurgusu ver
                     if State.Visuals then
                         if not hl then
                             hl = Instance.new("Highlight")
                             hl.Name = "LeaESP"
-                            hl.FillColor = Color3.fromRGB(255, 50, 50) -- Görünmezler için dikkat çekici kırmızı/özel renk
+                            hl.FillColor = Color3.fromRGB(255, 50, 50) 
                             hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                             hl.FillTransparency = 0.3
                             hl.OutlineTransparency = 0.0
@@ -326,7 +325,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ANA FİZİK, ANTI-GERIATMA, PET DÖNDÜRME VE KÜP DÖNGÜSÜ
+-- ANA FİZİK, ANTI-GERIATMA, HIZ KORUMA, PET/OBJE SENKRONİZASYONU VE CUBE KÜP DÖNGÜSÜ
 RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     if not char then return end
@@ -334,21 +333,24 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    -- ANTI-GERIATMA / ANTI-KICK BYPASS (Konum sönümleme ve güvenlik kilidi)
+    -- 1. ANTI-GERIATMA / ANTI-KICK HIZ SÖNÜMLEME FİLTRESİ
     pcall(function()
-        if hrp.AssemblyLinearVelocity.Magnitude > 120 then
+        if hrp.AssemblyLinearVelocity.Magnitude > 130 then
             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         end
     end)
 
-    -- PET / ÇALINAN OBJE 180 DERECE TERS ÇEVİRİCİ
+    -- 2. HIZ SABİTLEME (ASLA YAVAŞLAMA OLMAMASI İÇİN)
+    hum.WalkSpeed = State.Speed
+
+    -- 3. PET / ÇALINAN OBJE YER İÇİNE GİRME VE GÖRÜNMEZLİK FIX
     pcall(function()
         for _, joint in ipairs(char:GetDescendants()) do
             if joint:IsA("Weld") or joint:IsA("Motor6D") then
                 if joint.Part1 and joint.Part1.Parent ~= char and joint.Part1.Parent ~= Workspace then
-                    if not joint:GetAttribute("Flipped180") then
-                        joint.C0 = joint.C0 * CFrame.Angles(math.rad(180), 0, 0)
-                        joint:SetAttribute("Flipped180", true)
+                    if not joint:GetAttribute("SyncedPet") then
+                        joint.C0 = joint.C0 * CFrame.new(0, 0, 0)
+                        joint:SetAttribute("SyncedPet", true)
                     end
                 end
             end
@@ -357,16 +359,13 @@ RunService.Heartbeat:Connect(function(dt)
 
     if State.Invisible then HandlePelerinInvisible(true) end
 
-    if hum.MoveDirection.Magnitude > 0 then
-        hum.WalkSpeed = math.clamp(State.Speed, 16, 50)
-    end
-
+    -- 4. BASE DÖNÜŞ MOTORU
     if State.Mode == "BASE" and State.SpawnPos then
         pcall(function()
             local dist = (State.SpawnPos - hrp.Position).Magnitude
             if dist > 2 then
                 local dir = (State.SpawnPos - hrp.Position).Unit
-                local moveStep = math.min(dist, State.Speed * dt * 2.5)
+                local moveStep = math.min(dist, State.Speed * dt * 3)
                 char:PivotTo(hrp.CFrame + (dir * moveStep))
                 hrp.Velocity = Vector3.zero
             else
@@ -375,6 +374,7 @@ RunService.Heartbeat:Connect(function(dt)
             end
         end)
     
+    -- 5. HEDEF (TARGET) TAKİP MOTORU
     elseif State.Mode == "TARGET" then
         pcall(function()
             local target, minDist = nil, math.huge
@@ -397,7 +397,7 @@ RunService.Heartbeat:Connect(function(dt)
                 if dist > 3.5 then
                     local targetPos = Vector3.new(target.Position.X, hrp.Position.Y, target.Position.Z)
                     local dir = (targetPos - hrp.Position).Unit
-                    local moveStep = math.min(dist, State.Speed * dt * 2.5)
+                    local moveStep = math.min(dist, State.Speed * dt * 3)
                     local newCFrame = CFrame.lookAt(hrp.Position + (dir * moveStep), targetPos)
                     char:PivotTo(newCFrame)
                     hrp.Velocity = Vector3.zero
@@ -406,6 +406,7 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
+    -- 6. SOPA / HITBOX AURA MOTORU
     if State.HitboxAura then
         pcall(function()
             local tool = char:FindFirstChildOfClass("Tool")
@@ -442,6 +443,7 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
+    -- 7. OTOMATİK KORUMA (AUTO AVOID)
     if State.AutoAvoid and State.Mode == "NONE" then
         pcall(function()
             for _, p in ipairs(Players:GetPlayers()) do
@@ -458,6 +460,7 @@ RunService.Heartbeat:Connect(function(dt)
         end)
     end
 
+    -- 8. CUBE (KÜP OLUŞTURMA & ANTI-DETECT)
     if State.Cube then
         pcall(function()
             if hrp.Velocity.Y < -1.5 and (os.clock() - State.LastCube > 0.15) then
@@ -480,4 +483,4 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-print("✅ LEA MOD ULTIMATE V21.5 - ANTI-GERIATMA & INVIS ESP AKTİF!")
+print("✅ LEA MOD ULTIMATE V22.5 - TÜM ÖZELLİKLER BİRLEŞTİRİLDİ VE AKTİF!")
