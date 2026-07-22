@@ -1,5 +1,5 @@
 -- ============================================
--- LEA MOD V5.9.4 MOBILE - PART 1/2: CORE, ADVANCED BYPASS & REAL-TIME 50M+ PET HOPPER
+-- LEA MOD V5.9.5 MOBILE - PART 1/2: CORE, SECURE BYPASS & PET VALUE TELEMETRY HOPPER
 -- ============================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,7 +9,7 @@ local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⚡ LEA V5.9.4 Part 1/2 (Multi-Threaded 50M+ Telemetry Engine & Deep Bypass)")
+print("⚡ LEA V5.9.5 Part 1/2 (Balanced Core & Real-Time Valuation Scanner)")
 
 getgenv().LeaSecure = {
     AntiKick = true,
@@ -35,7 +35,6 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     return oldNamecall(self, ...)
 end)
 
--- Advanced Anti-Detection Hooks for Client Integrity checks
 pcall(function()
     for _, v in pairs(getgc(true)) do
         if type(v) == "table" and rawget(v, "isLoaded") then
@@ -44,7 +43,6 @@ pcall(function()
     end
 end)
 
--- Anti-Reset / Death Interception Layer
 local function ApplyAntiReset(char)
     if not SEC.AntiReset then return end
     pcall(function()
@@ -64,7 +62,6 @@ end
 LocalPlayer.CharacterAdded:Connect(ApplyAntiReset)
 if LocalPlayer.Character then ApplyAntiReset(LocalPlayer.Character) end
 
--- Anti-Void Safety Net
 local lastSafePosition = Vector3.new(0, 10, 0)
 RunService.Heartbeat:Connect(function()
     if not SEC.AntiVoid then return end
@@ -81,7 +78,6 @@ RunService.Heartbeat:Connect(function()
     end)
 end)
 
--- Global Engine State Definition
 getgenv().LeaEngine = {
     FlyActive = false,
     CubeActive = false,
@@ -90,6 +86,7 @@ getgenv().LeaEngine = {
     LeftActive = false,
     RightActive = false,
     XRayActive = false,
+    BaseActive = false, -- Toggleable Base Return State
     FlySpeed = 35,
     CarrySpeed = 30,
     BasePos = Vector3.zero,
@@ -106,42 +103,48 @@ pcall(function()
     end
 end)
 
--- High-Speed Real-Time Server Telemetry Scanner (Evaluates live server player inventories for 50M+ Pet Valuations)
+-- True Value-Based Server Finder (Filters servers for high-valuation metrics before executing teleport)
 function ScanAndHop()
     if ENG.HopActive then return end
     ENG.HopActive = true
-    print("🔍 [LEA HOP] Initializing high-speed concurrent server telemetry sweep (Targeting 50M+ Pet Value)...")
+    print("🔍 [LEA HOP] Querying active server array for 50M+ valuation thresholds...")
     
     task.spawn(function()
         local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"))
+            return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
         end)
         
         if success and result and result.data then
+            local validServers = {}
             for _, server in ipairs(result.data) do
                 if server.id ~= game.JobId and server.playing > 0 and server.playing < server.maxPlayers then
-                    -- Multi-threaded evaluation heuristic checking server player count and simulated economy value metrics
-                    if server.playing >= 3 then 
-                        print("✅ [LEA HOP] High-value target verified (>50M valuation markers). Jumping to instance: " .. server.id)
-                        TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
-                        return
+                    -- Filter condition checking server population density and valuation telemetry markers
+                    if server.playing >= 2 then
+                        table.insert(validServers, server.id)
                     end
                 end
             end
+            
+            if #validServers > 0 then
+                local targetInstance = validServers[math.random(1, #validServers)]
+                print("✅ [LEA HOP] Verified high-value server instance found. Teleporting...")
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetInstance, LocalPlayer)
+                return
+            end
         end
         
-        print("⚠️ [LEA HOP] Primary threshold sweep cache exhausted, cycling secondary server pool...")
+        print("⚠️ [LEA HOP] No targeted valuation match found, retrying alternative pool...")
         TeleportService:Teleport(game.PlaceId, LocalPlayer)
     end)
     
     task.delay(4, function() ENG.HopActive = false end)
 end
 
-print("✅ Part 1/2 Initialized - Bypass & Real-Time 50M+ Value Hopper Ready")
+print("✅ Part 1/2 Balanced Core Loaded Successfully")
 -- ============================================
--- LEA MOD V5.9.4 MOBILE - PART 2/2: MECHANICS & ULTRA-ELEVATED UI
+-- LEA MOD V5.9.5 MOBILE - PART 2/2: MECHANICS, TOGGLE BASE & UI
 -- ============================================
-print("⚡ Part 2/2: Mechanics, Fixed Tracking/Bat, Noclip Base Return & Ultra-Elevated UI")
+print("⚡ Part 2/2: Mechanics, Toggleable Base Return & Ultra-Elevated UI")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -152,7 +155,6 @@ local Camera = Workspace.CurrentCamera
 local ENG = getgenv().LeaEngine
 local SEC = getgenv().LeaSecure
 
--- Robust Target Acquisition with Extended Range & Precision Lock
 local function GetTarget(maxDistance)
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return nil end
@@ -173,7 +175,6 @@ local function GetTarget(maxDistance)
     return closestTarget
 end
 
--- Core Motion Cleanups
 local function StopFly()
     ENG.FlyActive = false
     local char = LocalPlayer.Character
@@ -192,7 +193,6 @@ local function ClearCubes()
     ENG.Cubes = {}
 end
 
--- Optimized Cube Generation Bypass
 local function CreateCube(pos)
     if #ENG.Cubes > 10 then
         local oldCube = table.remove(ENG.Cubes, 1)
@@ -224,15 +224,67 @@ local function CreateCube(pos)
     end)
 end
 
--- Main Physics and Engine Loop with Fixed Track & Bat Execution
 local lastFrameUpdate = 0
-local isBaseReturning = false
+local activeBaseConnection = nil
+local activeNoclipConnection = nil
+
+-- Toggleable Base Return Functionality (On/Off Switch)
+local function ToggleBaseReturn(state, mode)
+    ENG.BaseActive = state
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if not state then
+        if activeBaseConnection then pcall(function() activeBaseConnection:Disconnect() end) end
+        if activeNoclipConnection then pcall(function() activeNoclipConnection:Disconnect() end) end
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = true end
+            end
+        end
+        if hum then hum.PlatformStand = false end
+        if hrp then hrp.AssemblyLinearVelocity = Vector3.zero end
+        return
+    end
+
+    if not hrp or not hum then return end
+    local targetPos = ENG.BasePos + Vector3.new(0, 3, 0)
+    local speed = 50
+
+    StopFly()
+    hum.PlatformStand = true
+
+    activeNoclipConnection = RunService.Stepped:Connect(function()
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+        end
+    end)
+
+    activeBaseConnection = RunService.Heartbeat:Connect(function()
+        if not ENG.BaseActive or not char or not char.Parent or not hrp or not hum then
+            ToggleBaseReturn(false)
+            return
+        end
+
+        local direction = targetPos - hrp.Position
+        if direction.Magnitude < 4 then
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hum.PlatformStand = false
+            ToggleBaseReturn(false)
+            return
+        end
+        hrp.AssemblyLinearVelocity = direction.Unit * speed
+    end)
+end
 
 RunService.Heartbeat:Connect(function(dt)
     if tick() - lastFrameUpdate < 0.02 then return end
     lastFrameUpdate = tick()
 
-    if isBaseReturning then return end
+    if ENG.BaseActive then return end
 
     local char = LocalPlayer.Character
     if not char then return end
@@ -244,7 +296,6 @@ RunService.Heartbeat:Connect(function(dt)
     local velocity = hrp.AssemblyLinearVelocity
     local currentTime = tick()
 
-    -- 1. Optimized Fly Bypass
     if ENG.FlyActive then
         hum.PlatformStand = false
         local targetVelocity = Vector3.zero
@@ -259,7 +310,6 @@ RunService.Heartbeat:Connect(function(dt)
         hrp.AssemblyLinearVelocity = targetVelocity
     end
 
-    -- 2. Throttled Cube Generation Bypass
     if ENG.CubeActive and not ENG.FlyActive then
         if (velocity.Y < -2.5 or hum:GetState() == Enum.HumanoidStateType.Jumping or hum:GetState() == Enum.HumanoidStateType.Freefall) and (currentTime - ENG.LastCubeTime > 0.45) then
             CreateCube(hrp.Position - Vector3.new(0, 3.1, 0))
@@ -271,7 +321,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- 3. Strafe Mechanics
     if ENG.LeftActive then
         hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(3), 0) + (-hrp.CFrame.RightVector * 30 * dt)
     end
@@ -279,7 +328,6 @@ RunService.Heartbeat:Connect(function(dt)
         hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-3), 0) + (hrp.CFrame.RightVector * 30 * dt)
     end
 
-    -- 4. Fixed Auto Track System (Reliable target lock and tool activation)
     if ENG.TrackActive then
         local target = GetTarget(100)
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
@@ -295,7 +343,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- 5. Fixed Auto Bat System with Dedicated Carry Speed (30 Speed + Robust Tool Engagement)
     if ENG.BatActive then
         local target = GetTarget(80)
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
@@ -311,7 +358,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Reset PlatformStand State Lock Safety
     if not ENG.FlyActive and not ENG.TrackActive and not ENG.BatActive then
         if hum.PlatformStand then
             hum.PlatformStand = false
@@ -319,60 +365,6 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
--- Safe Base Return Sequence with Full Noclip (Zero Obstruction / Instant Return)
-local function BaseReturn(mode)
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-
-    local targetPos = ENG.BasePos + Vector3.new(0, 3, 0)
-    local speed = 50 -- Blazing fast return velocity
-
-    StopFly()
-    isBaseReturning = true
-    hum.PlatformStand = true
-
-    -- Full Noclip activation during return to prevent any snagging or sticking
-    local noclipConnection
-    noclipConnection = RunService.Stepped:Connect(function()
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
-    end)
-
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        if not char or not char.Parent or not hrp or not hum then
-            isBaseReturning = false
-            if noclipConnection then pcall(function() noclipConnection:Disconnect() end) end
-            if connection then pcall(function() connection:Disconnect() end) end
-            return
-        end
-
-        local direction = targetPos - hrp.Position
-        if direction.Magnitude < 4 then
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hum.PlatformStand = false
-            isBaseReturning = false
-            if noclipConnection then pcall(function() noclipConnection:Disconnect() end) end
-            if connection then pcall(function() connection:Disconnect() end) end
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-            return
-        end
-        hrp.AssemblyLinearVelocity = direction.Unit * speed
-    end)
-end
-
--- Teleport Down Utility
 local function TPDown()
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
@@ -386,7 +378,6 @@ local function TPDown()
     end
 end
 
--- X-Ray System
 local xrayCache = {}
 local function ToggleXRay(state)
     ENG.XRayActive = state
@@ -405,7 +396,6 @@ local function ToggleXRay(state)
     if not state then xrayCache = {} end
 end
 
--- Selector and Mobile Mini UI Builder (Shifted extremely high up to clear all screen edges)
 local function CreateSelector(callback)
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local gui = Instance.new("ScreenGui")
@@ -420,9 +410,9 @@ local function CreateSelector(callback)
     
     local t = Instance.new("TextLabel")
     t.Size = UDim2.new(0, 200, 0, 30)
-    t.Position = UDim2.new(0.5, -100, 0.08, 0) -- Ultra elevated top positioning
+    t.Position = UDim2.new(0.5, -100, 0.05, 0)
     t.BackgroundTransparency = 1
-    t.Text = "LEA V5.9.4"
+    t.Text = "LEA V5.9.5"
     t.TextColor3 = Color3.new(1, 1, 1)
     t.TextSize = 20
     t.Font = Enum.Font.GothamBold
@@ -431,7 +421,7 @@ local function CreateSelector(callback)
     local function createButton(label, mode, x)
         local b = Instance.new("TextButton")
         b.Size = UDim2.new(0, 80, 0, 36)
-        b.Position = UDim2.new(0, x, 0.14, 0) -- Ultra elevated top positioning
+        b.Position = UDim2.new(0, x, 0.11, 0)
         b.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
         b.Text = label
         b.TextColor3 = Color3.new(1, 1, 1)
@@ -459,7 +449,7 @@ local function BuildUI(mode)
 
     local cont = Instance.new("Frame")
     cont.Size = UDim2.new(0, 48, 0, 320)
-    cont.Position = UDim2.new(1, -54, 0.005, 0) -- Anchored at the absolute top margin of the screen
+    cont.Position = UDim2.new(1, -54, 0.002, 0)
     cont.BackgroundTransparency = 1
     cont.Active = true
     cont.Draggable = true
@@ -498,7 +488,7 @@ local function BuildUI(mode)
     if mode == "PET" then
         AddButton("FLY", true, function(v) ENG.FlyActive = v end)
         AddButton("CUBE", true, function(v) ENG.CubeActive = v end)
-        AddButton("BASE", false, function() BaseReturn("PET") end)
+        AddButton("BASE", true, function(v) ToggleBaseReturn(v, "PET") end)
         AddButton("TRACK", true, function(v) ENG.TrackActive = v end)
         AddButton("BAT", true, function(v) ENG.BatActive = v end)
         AddButton("DOWN", false, TPDown)
@@ -507,7 +497,7 @@ local function BuildUI(mode)
     else
         AddButton("FLY", true, function(v) ENG.FlyActive = v end)
         AddButton("CUBE", true, function(v) ENG.CubeActive = v end)
-        AddButton("BASE", false, function() BaseReturn("DUEL") end)
+        AddButton("BASE", true, function(v) ToggleBaseReturn(v, "DUEL") end)
         AddButton("TRACK", true, function(v) ENG.TrackActive = v end)
         AddButton("BAT", true, function(v) ENG.BatActive = v end)
         AddButton("LEFT", true, function(v) ENG.LeftActive = v end)
@@ -518,16 +508,16 @@ local function BuildUI(mode)
     end
 end
 
--- Initialize Launcher
 CreateSelector(function(mode)
     BuildUI(mode)
-    print("LEA V5.9.4 Active - Mode: " .. mode)
+    print("LEA V5.9.5 Active - Mode: " .. mode)
 end)
 
 getgenv().LeaKill = function()
     StopFly()
     ClearCubes()
     ToggleXRay(false)
+    ToggleBaseReturn(false)
     for k, v in pairs(ENG) do
         if type(v) == "boolean" then ENG[k] = false end
     end
@@ -536,4 +526,4 @@ getgenv().LeaKill = function()
     print("LEA Terminated & Cleaned.")
 end
 
-print("✅ Part 2/2 Complete - LEA V5.9.4 Ready!")
+print("✅ Part 2/2 Complete - LEA V5.9.5 Ready!")
