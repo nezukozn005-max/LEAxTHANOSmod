@@ -1,27 +1,30 @@
 -- ============================================
--- LEA MOD V7.0 ENTERPRISE - HYBRID TELEMETRY & ROUTING CORE
+-- LEA MOD V8.0 ENTERPRISE - ULTIMATE BYPASS & STABILIZED CORE
 -- ============================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
-print("⚡ LEA V7.0 Hybrid Telemetry & Routing Core Initialized")
+print("⚡ LEA V8.0 Ultimate Enterprise Core Initialized")
 
 getgenv().LeaSecure = {
     AntiKick = true,
     AntiReset = true,
-    AntiVoid = true
+    AntiVoid = true,
+    AntiRecoil = true,
+    AntiDetect = true
 }
 
 getgenv().LeaEngine = {
     CubeActive = false,
+    MenuVisible = true,
     Cubes = {},
     LastCubeTime = 0,
     ScanningActive = false,
-    AutoRouteActive = false,
     VerifiedServers = {},
     ActiveConnections = {}
 }
@@ -34,6 +37,9 @@ local function TrackConnection(conn)
     return conn
 end
 
+-- ============================================
+-- ROBUST BYPASS & SECURITY HOOKS (FIXED & STABILIZED)
+-- ============================================
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
@@ -50,8 +56,9 @@ end)
 
 pcall(function()
     for _, v in pairs(getgc(true)) do
-        if type(v) == "table" and rawget(v, "isLoaded") then
-            rawset(v, "isLoaded", true)
+        if type(v) == "table" then
+            if rawget(v, "isLoaded") then rawset(v, "isLoaded", true) end
+            if rawget(v, "CheckSpoof") then rawset(v, "CheckSpoof", false) end
         end
     end
 end)
@@ -65,6 +72,7 @@ local function ApplyAntiReset(char)
         hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
         hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
         hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+        
         TrackConnection(hum.HealthChanged:Connect(function(hp)
             if hp <= 0 and SEC.AntiReset then
                 hum.Health = hum.MaxHealth
@@ -72,20 +80,32 @@ local function ApplyAntiReset(char)
         end))
     end)
 end
+
 TrackConnection(LocalPlayer.CharacterAdded:Connect(ApplyAntiReset))
 if LocalPlayer.Character then ApplyAntiReset(LocalPlayer.Character) end
 
+-- Anti-Void & Anti-Recoil Engine Loop
 local lastSafePosition = Vector3.new(0, 10, 0)
 TrackConnection(RunService.Heartbeat:Connect(function()
-    if not SEC.AntiVoid then return end
     pcall(function()
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hrp then
-            if hrp.Position.Y < -500 then
-                hrp.CFrame = CFrame.new(lastSafePosition + Vector3.new(0, 10, 0))
-                hrp.AssemblyLinearVelocity = Vector3.zero
-            else
-                lastSafePosition = hrp.Position
+            if SEC.AntiVoid then
+                if hrp.Position.Y < -500 then
+                    hrp.CFrame = CFrame.new(lastSafePosition + Vector3.new(0, 10, 0))
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                else
+                    lastSafePosition = hrp.Position
+                end
+            end
+            
+            if SEC.AntiRecoil then
+                local cam = Workspace.CurrentCamera
+                if cam then
+                    -- Stabilizing camera shake / recoil vectors
+                    cam.CFrame = cam.CFrame - cam.CFrame.Position + cam.Focus.Position
+                end
             end
         end
     end)
@@ -112,7 +132,7 @@ end
 local function StartServerDiagnostics(uiUpdateCallback)
     if ENG.ScanningActive then return end
     ENG.ScanningActive = true
-    print("🔍 [LEA DIAGNOSTICS] Initializing hybrid instance scanner & heuristic parser...")
+    print("🔍 [LEA DIAGNOSTICS] Background server poller active...")
 
     task.spawn(function()
         local cursor = ""
@@ -137,34 +157,21 @@ local function StartServerDiagnostics(uiUpdateCallback)
                         end
 
                         if not exists then
-                            local loadFactor = math.clamp(math.floor((server.playing / server.maxPlayers) * 100), 1, 100)
-                            local heuristicRating = (server.playing >= 5 and server.playing <= (server.maxPlayers - 2)) and "Optimal Density" else "Standard Density"
-                            
                             local serverData = {
                                 id = server.id,
                                 name = "Instance [" .. server.playing .. "/" .. server.maxPlayers .. "]",
-                                status = heuristicRating,
-                                load = loadFactor,
+                                status = "Verified Active",
                                 time = os.date("%H:%M:%S")
                             }
                             table.insert(ENG.VerifiedServers, serverData)
                             if uiUpdateCallback then
                                 pcall(function() uiUpdateCallback(serverData) end)
                             end
-
-                            if ENG.AutoRouteActive and server.playing >= 6 and server.playing <= (server.maxPlayers - 1) then
-                                print("⚡ [AUTO-ROUTE] Heuristic threshold matched. Routing to instance: " .. server.id)
-                                ENG.AutoRouteActive = false
-                                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
-                                break
-                            end
                         end
                     end
                 end
                 cursor = result.nextPageCursor or ""
-                if cursor == "" then
-                    task.wait(10.0)
-                end
+                if cursor == "" then task.wait(10.0) end
             else
                 task.wait(5.0)
             end
@@ -175,10 +182,12 @@ end
 
 function StopServerDiagnostics()
     ENG.ScanningActive = false
-    ENG.AutoRouteActive = false
-    print("🛑 [LEA DIAGNOSTICS] Hybrid scanning halted.")
+    print("🛑 [LEA DIAGNOSTICS] Polling halted.")
 end
 
+-- ============================================
+-- CUBE ENGINE (FIXED & HIGH PERFORMANCE)
+-- ============================================
 local function ClearCubes()
     for _, cube in ipairs(ENG.Cubes) do
         if cube and cube.Parent then
@@ -189,7 +198,7 @@ local function ClearCubes()
 end
 
 local function CreateCube(pos)
-    if #ENG.Cubes > 10 then
+    if #ENG.Cubes > 12 then
         local oldCube = table.remove(ENG.Cubes, 1)
         if oldCube and oldCube.Parent then
             pcall(function() oldCube:Destroy() end)
@@ -200,13 +209,13 @@ local function CreateCube(pos)
     cube.Position = pos
     cube.Anchored = true
     cube.CanCollide = true
-    cube.Transparency = 0.75
+    cube.Transparency = 0.65
     cube.Material = Enum.Material.SmoothPlastic
-    cube.Color = Color3.fromRGB(0, 160, 255)
+    cube.Color = Color3.fromRGB(0, 180, 255)
     cube.Parent = Workspace
     table.insert(ENG.Cubes, cube)
     
-    task.delay(4.5, function()
+    task.delay(4.0, function()
         if cube and cube.Parent then
             pcall(function() cube:Destroy() end)
             for i, v in ipairs(ENG.Cubes) do
@@ -220,10 +229,11 @@ local function CreateCube(pos)
 end
 
 local lastFrameUpdate = 0
-TrackConnection(RunService.Heartbeat:Connect(function(dt)
+TrackConnection(RunService.Heartbeat:Connect(function()
     if tick() - lastFrameUpdate < 0.02 then return end
     lastFrameUpdate = tick()
 
+    if not ENG.CubeActive then return end
     local char = LocalPlayer.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -233,26 +243,28 @@ TrackConnection(RunService.Heartbeat:Connect(function(dt)
     local velocity = hrp.AssemblyLinearVelocity
     local currentTime = tick()
 
-    if ENG.CubeActive then
-        if (velocity.Y < -2.5 or hum:GetState() == Enum.HumanoidStateType.Jumping or hum:GetState() == Enum.HumanoidStateType.Freefall) and (currentTime - ENG.LastCubeTime > 0.45) then
-            CreateCube(hrp.Position - Vector3.new(0, 3.1, 0))
-            ENG.LastCubeTime = currentTime
-        elseif hum.MoveDirection.Magnitude > 0.1 and velocity.Magnitude > 6 and (currentTime - ENG.LastCubeTime > 0.5) then
-            local lookVector = hrp.CFrame.LookVector
-            CreateCube(hrp.Position + Vector3.new(lookVector.X * 3, -2.7, lookVector.Z * 3))
-            ENG.LastCubeTime = currentTime
-        end
+    if (velocity.Y < -2.0 or hum:GetState() == Enum.HumanoidStateType.Jumping or hum:GetState() == Enum.HumanoidStateType.Freefall) and (currentTime - ENG.LastCubeTime > 0.4) then
+        CreateCube(hrp.Position - Vector3.new(0, 3.1, 0))
+        ENG.LastCubeTime = currentTime
+    elseif hum.MoveDirection.Magnitude > 0.1 and velocity.Magnitude > 5 and (currentTime - ENG.LastCubeTime > 0.45) then
+        local lookVector = hrp.CFrame.LookVector
+        CreateCube(hrp.Position + Vector3.new(lookVector.X * 3, -2.7, lookVector.Z * 3))
+        ENG.LastCubeTime = currentTime
     end
 end))
 
+-- ============================================
+-- UI SYSTEM WITH TOGGLE (MENU AÇ/KAPA)
+-- ============================================
 local function BuildServerWindow()
-    local pg = LocalPlayer:WaitForChild("PlayerGui")
+    local pg = CoreGui:FindFirstChild("LeaServerWindow") or LocalPlayer:WaitForChild("PlayerGui")
     local old = pg:FindFirstChild("LeaServerWindow")
     if old then old:Destroy() end
 
     local gui = Instance.new("ScreenGui")
     gui.Name = "LeaServerWindow"
     gui.Parent = pg
+    gui.Enabled = ENG.MenuVisible
 
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 230, 0, 280)
@@ -266,14 +278,14 @@ local function BuildServerWindow()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 30)
     title.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    title.Text = "🌐 HYBRID INSTANCE ROUTER"
+    title.Text = "🌐 LEA MOD V8.0 - INSTANCES"
     title.TextColor3 = Color3.fromRGB(0, 220, 255)
     title.TextSize = 10
     title.Font = Enum.Font.GothamBold
     title.Parent = frame
 
     local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -10, 1, -80)
+    scroll.Size = UDim2.new(1, -10, 1, -45)
     scroll.Position = UDim2.new(0, 5, 0, 35)
     scroll.BackgroundTransparency = 1
     scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -284,28 +296,11 @@ local function BuildServerWindow()
     layout.Padding = UDim.new(0, 4)
     layout.Parent = scroll
 
-    local autoBtn = Instance.new("TextButton")
-    autoBtn.Size = UDim2.new(1, -10, 0, 32)
-    autoBtn.Position = UDim2.new(0, 5, 1, -40)
-    autoBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    autoBtn.Text = "AUTO-ROUTE: OFF"
-    autoBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-    autoBtn.TextSize = 10
-    autoBtn.Font = Enum.Font.GothamBold
-    autoBtn.Parent = frame
-
-    autoBtn.MouseButton1Click:Connect(function()
-        ENG.AutoRouteActive = not ENG.AutoRouteActive
-        autoBtn.Text = ENG.AutoRouteActive and "AUTO-ROUTE: ACTIVE" or "AUTO-ROUTE: OFF"
-        autoBtn.TextColor3 = ENG.AutoRouteActive and Color3.fromRGB(0, 255, 120) or Color3.fromRGB(255, 100, 100)
-        print("⚡ [AUTO-ROUTE] Status toggled: " .. tostring(ENG.AutoRouteActive))
-    end)
-
     local function AddEntry(data)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -4, 0, 38)
+        btn.Size = UDim2.new(1, -4, 0, 36)
         btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-        btn.Text = data.name .. " | " .. data.status .. "\nLoad: " + data.load + "% [" .. data.time .. "]"
+        btn.Text = data.name .. " | " .. data.status .. "\n[" .. data.time .. "]"
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
         btn.TextSize = 9
         btn.Font = Enum.Font.Gotham
@@ -327,7 +322,7 @@ local function BuildServerWindow()
 end
 
 local function BuildUI()
-    local pg = LocalPlayer:WaitForChild("PlayerGui")
+    local pg = CoreGui:FindFirstChild("LeaUI") or LocalPlayer:WaitForChild("PlayerGui")
     local old = pg:FindFirstChild("LeaUI")
     if old then old:Destroy() end
 
@@ -336,21 +331,21 @@ local function BuildUI()
     gui.Parent = pg
 
     local cont = Instance.new("Frame")
-    cont.Size = UDim2.new(0, 48, 0, 80)
-    cont.Position = UDim2.new(1, -54, 0.002, 0)
+    cont.Size = UDim2.new(0, 52, 0, 180)
+    cont.Position = UDim2.new(1, -58, 0.002, 0)
     cont.BackgroundTransparency = 1
     cont.Active = true
     cont.Draggable = true
     cont.Parent = gui
 
     local list = Instance.new("UIListLayout")
-    list.Padding = UDim.new(0, 3)
+    list.Padding = UDim.new(0, 4)
     list.Parent = cont
 
-    local function AddButton(text, toggle, callback)
+    local function AddButton(text, toggle, initialVal, callback)
         local b = Instance.new("TextButton")
-        b.Size = UDim2.new(0, 44, 0, 24)
-        b.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+        b.Size = UDim2.new(0, 48, 0, 26)
+        b.BackgroundColor3 = initialVal and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(20, 20, 25)
         b.TextColor3 = Color3.new(1, 1, 1)
         b.Text = text
         b.TextSize = 6
@@ -358,7 +353,7 @@ local function BuildUI()
         b.Parent = cont
 
         if toggle then
-            local state = false
+            local state = initialVal
             b.MouseButton1Click:Connect(function()
                 state = not state
                 b.BackgroundColor3 = state and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(20, 20, 25)
@@ -373,13 +368,21 @@ local function BuildUI()
         end
     end
 
-    AddButton("CUBE", true, function(v) ENG.CubeActive = v end)
-    AddButton("SERVERS", false, function() BuildServerWindow() end)
+    AddButton("HIDE", true, false, function(v)
+        ENG.MenuVisible = not v
+        local sWin = pg:FindFirstChild("LeaServerWindow")
+        if sWin then sWin.Enabled = ENG.MenuVisible end
+    end)
+    AddButton("CUBE", true, false, function(v) ENG.CubeActive = v end)
+    AddButton("SERVERS", false, false, function() BuildServerWindow() end)
+    AddButton("ANTIRESET", true, SEC.AntiReset, function(v) SEC.AntiReset = v end)
+    AddButton("ANTIVOID", true, SEC.AntiVoid, function(v) SEC.AntiVoid = v end)
+    AddButton("ANTIRECOIL", true, SEC.AntiRecoil, function(v) SEC.AntiRecoil = v end)
 end
 
 BuildUI()
 BuildServerWindow()
-print("✅ LEA V7.0 Hybrid Telemetry & Routing Core Ready.")
+print("✅ LEA V8.0 Ultimate Enterprise Core Ready.")
 
 getgenv().LeaKill = function()
     StopServerDiagnostics()
@@ -388,12 +391,10 @@ getgenv().LeaKill = function()
         pcall(function() conn:Disconnect() end)
     end
     ENG.ActiveConnections = {}
-    for k, v in pairs(ENG) do
-        if type(v) == "boolean" then ENG[k] = false end
-    end
-    local ui = LocalPlayer.PlayerGui:FindFirstChild("LeaUI")
+    local pg = CoreGui:FindFirstChild("LeaUI") or LocalPlayer.PlayerGui
+    local ui = pg:FindFirstChild("LeaUI")
     if ui then ui:Destroy() end
-    local sWin = LocalPlayer.PlayerGui:FindFirstChild("LeaServerWindow")
+    local sWin = pg:FindFirstChild("LeaServerWindow")
     if sWin then sWin:Destroy() end
-    print("LEA V7.0 Terminated & Cleaned.")
+    print("LEA V8.0 Terminated & Cleaned.")
 end
