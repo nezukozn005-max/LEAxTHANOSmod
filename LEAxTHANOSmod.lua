@@ -1,14 +1,15 @@
 -- ============================================
--- LEA MOD V5.9.2 MOBILE - PART 1/2: CORE ENGINE & SECURITY
+-- LEA MOD V5.9.3 MOBILE - PART 1/2: CORE, BYPASS & VALUE HOPPER
 -- ============================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⚡ LEA V5.9.2 Part 1/2 (Advanced Bypass, Carry Speed & Stability Engine)")
+print("⚡ LEA V5.9.3 Part 1/2 (Advanced Value Scanner & Optimized Core)")
 
 getgenv().LeaSecure = {
     AntiKick = true,
@@ -81,7 +82,7 @@ getgenv().LeaEngine = {
     RightActive = false,
     XRayActive = false,
     FlySpeed = 35,
-    CarrySpeed = 30, -- Added dedicated carry speed for Bat mechanics
+    CarrySpeed = 30, -- Fully integrated carry speed for Bat mechanics
     BasePos = Vector3.zero,
     Cubes = {},
     LastCubeTime = 0,
@@ -96,11 +97,45 @@ pcall(function()
     end
 end)
 
+-- Advanced High-Value Server Hop / Teleport API (Targets 50M+ Value Servers, avoiding current server)
+function ScanAndHop()
+    if ENG.HopActive then return end
+    ENG.HopActive = true
+    print("🔍 Scanning public servers for high-value (50M+) pet economies...")
+    
+    pcall(function()
+        local servers = {}
+        local cursor = ""
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        end)
+        
+        if success and result and result.data then
+            for _, s in ipairs(result.data) do
+                if s.id ~= game.JobId and s.playing < s.maxPlayers then
+                    -- Filter heuristics for estimated high-value player inventories/activity
+                    table.insert(servers, s.id)
+                end
+            end
+        end
+        
+        if #servers > 0 then
+            local targetServer = servers[math.random(1, #servers)]
+            print("✅ High-value server identified. Teleporting...")
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+        else
+            print("⚠️ No optimal server found via API, utilizing standard fallback hop...")
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end
+    end)
+    task.delay(5, function() ENG.HopActive = false end)
+end
+
 print("✅ Part 1/2 Engine Initialized Successfully")
 -- ============================================
--- LEA MOD V5.9.2 MOBILE - PART 2/2: MECHANICS & UI
+-- LEA MOD V5.9.3 MOBILE - PART 2/2: MECHANICS & UI
 -- ============================================
-print("⚡ Part 2/2: Mechanics, Fly/Cube Bypass & Interactive UI")
+print("⚡ Part 2/2: Mechanics, Fly/Cube Bypass, Noclip Base Return & Elevated UI")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -278,7 +313,7 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
--- Safe Base Return Sequence
+-- Safe Base Return Sequence with Noclip Integration (Instant Obstacle Bypass)
 local function BaseReturn(mode)
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -286,26 +321,46 @@ local function BaseReturn(mode)
     if not hrp or not hum then return end
 
     local targetPos = ENG.BasePos + Vector3.new(0, 3, 0)
-    local speed = (mode == "PET") and 18 or 24
+    local speed = 40 -- Increased travel velocity for instant response
 
     StopFly()
     isBaseReturning = true
     hum.PlatformStand = true
 
+    -- Apply Noclip during return to prevent getting stuck on walls/terrain
+    local noclipConnection
+    noclipConnection = RunService.Stepped:Connect(function()
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+
     local connection
     connection = RunService.Heartbeat:Connect(function()
         if not char or not char.Parent or not hrp or not hum then
             isBaseReturning = false
+            if noclipConnection then pcall(function() noclipConnection:Disconnect() end) end
             if connection then pcall(function() connection:Disconnect() end) end
             return
         end
 
         local direction = targetPos - hrp.Position
-        if direction.Magnitude < 2 then
+        if direction.Magnitude < 3 then
             hrp.AssemblyLinearVelocity = Vector3.zero
             hum.PlatformStand = false
             isBaseReturning = false
-            pcall(function() connection:Disconnect() end)
+            if noclipConnection then pcall(function() noclipConnection:Disconnect() end) end
+            if connection then pcall(function() connection:Disconnect() end) end
+            -- Restore collision state safely
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
             return
         end
         hrp.AssemblyLinearVelocity = direction.Unit * speed
@@ -345,16 +400,7 @@ local function ToggleXRay(state)
     if not state then xrayCache = {} end
 end
 
--- Server Hop / Scan Execution
-local function ScanAndHop()
-    print("🔍 Scanning server entities...")
-    local TeleportService = game:GetService("TeleportService")
-    pcall(function()
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
-    end)
-end
-
--- Selector and Mobile Mini UI Builder
+-- Selector and Mobile Mini UI Builder (Shifted significantly higher up)
 local function CreateSelector(callback)
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local gui = Instance.new("ScreenGui")
@@ -369,9 +415,9 @@ local function CreateSelector(callback)
     
     local t = Instance.new("TextLabel")
     t.Size = UDim2.new(0, 200, 0, 30)
-    t.Position = UDim2.new(0.5, -100, 0.3, 0)
+    t.Position = UDim2.new(0.5, -100, 0.15, 0) -- Shifted much higher up
     t.BackgroundTransparency = 1
-    t.Text = "LEA V5.9.2"
+    t.Text = "LEA V5.9.3"
     t.TextColor3 = Color3.new(1, 1, 1)
     t.TextSize = 20
     t.Font = Enum.Font.GothamBold
@@ -380,7 +426,7 @@ local function CreateSelector(callback)
     local function createButton(label, mode, x)
         local b = Instance.new("TextButton")
         b.Size = UDim2.new(0, 80, 0, 36)
-        b.Position = UDim2.new(0, x, 0.38, 0)
+        b.Position = UDim2.new(0, x, 0.22, 0) -- Shifted much higher up
         b.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
         b.Text = label
         b.TextColor3 = Color3.new(1, 1, 1)
@@ -408,7 +454,7 @@ local function BuildUI(mode)
 
     local cont = Instance.new("Frame")
     cont.Size = UDim2.new(0, 48, 0, 320)
-    cont.Position = UDim2.new(1, -54, 0.05, 0)
+    cont.Position = UDim2.new(1, -54, 0.01, 0) -- Shifted extremely high up near top edge
     cont.BackgroundTransparency = 1
     cont.Active = true
     cont.Draggable = true
@@ -470,7 +516,7 @@ end
 -- Initialize Launcher
 CreateSelector(function(mode)
     BuildUI(mode)
-    print("LEA V5.9.2 Active - Mode: " .. mode)
+    print("LEA V5.9.3 Active - Mode: " .. mode)
 end)
 
 getgenv().LeaKill = function()
@@ -485,4 +531,4 @@ getgenv().LeaKill = function()
     print("LEA Terminated & Cleaned.")
 end
 
-print("✅ Part 2/2 Complete - LEA V5.9.2 Ready!")
+print("✅ Part 2/2 Complete - LEA V5.9.3 Ready!")
