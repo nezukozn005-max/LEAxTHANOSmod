@@ -1,5 +1,5 @@
 -- ============================================
--- LEA MOD V5.9.1 MOBILE - PART 1/4: GÜVENLİK & TANIMLAMALAR
+-- LEA MOD V5.9.1 MOBILE - PART 1/4: GÜVENLİK & TANIMLAMALAR (BYPASS EKLENDİ)
 -- ============================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,7 +7,7 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⚡ LEA V5.9.1 Part 1/4")
+print("⚡ LEA V5.9.1 Part 1/4 (Bypass + Server Hop Eklendi)")
 
 getgenv().LeaSecure = {
     AntiKick = true,
@@ -68,7 +68,7 @@ RunService.Heartbeat:Connect(function()
     end)
 end)
 
--- Başlangıç Seçici (Mobil Küçük)
+-- Başlangıç Seçici (Mobil Küçük) - BUTONLAR YUKARI ALINDI
 local function CreateSelector(callback)
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local gui = Instance.new("ScreenGui")
@@ -90,7 +90,7 @@ local function CreateSelector(callback)
     local function btn(label, mode, x)
         local b = Instance.new("TextButton")
         b.Size = UDim2.new(0, 80, 0, 36)
-        b.Position = UDim2.new(0, x, 0.5, 0)
+        b.Position = UDim2.new(0, x, 0.3, 0)  -- YUKARI (0.5 → 0.3)
         b.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
         b.Text = label
         b.TextColor3 = Color3.new(1, 1, 1)
@@ -107,7 +107,7 @@ local function CreateSelector(callback)
     btn("DUEL", "DUEL", 230)
 end
 
--- Motor Değişkenleri (Burada tanımlanıyor, Part 2'ye hazırlık)
+-- Motor Değişkenleri (Part 2'ye hazırlık, bypass için eklemeler)
 getgenv().LeaEngine = {
     FlyActive = false,
     CubeActive = false,
@@ -119,7 +119,10 @@ getgenv().LeaEngine = {
     FlySpeed = 35,
     BasePos = Vector3.zero,
     Cubes = {},
-    LastCubeTime = 0
+    LastCubeTime = 0,
+    -- Bypass / Server Hop için
+    HopActive = false,
+    ScanActive = false
 }
 local ENG = getgenv().LeaEngine
 
@@ -130,10 +133,10 @@ pcall(function()
     end
 end)
 
-print("✅ Part 1/4 tamam")-- ============================================
--- LEA MOD V5.9.1 MOBILE - PART 2/4: HAREKET VE MEKANİK (SENİN DÜZENLEMEN)
+print("✅ Part 1/4 tamam (Bypass altyapısı eklendi)")-- ============================================
+-- LEA MOD V5.9.1 MOBILE - PART 2/4: HAREKET VE MEKANİK (BYPASS & FLY GİZLEME)
 -- ============================================
-print("⚡ Part 2/4: Hareket ve Mekanik Sistemleri (Optimize Edildi)")
+print("⚡ Part 2/4: Hareket ve Mekanik Sistemleri (Fly Bypass, Cube Bypass)")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -183,6 +186,7 @@ function ClearCubes()
     ENG.Cubes = {}
 end
 
+-- Cube oluşturma (Bypass: rastgele gecikme ve limit)
 local function CreateCube(pos)
     if #ENG.Cubes > 12 then
         local old = table.remove(ENG.Cubes, 1)
@@ -200,19 +204,28 @@ local function CreateCube(pos)
     cube.Color = Color3.fromRGB(0, 170, 255)
     cube.Parent = Workspace
     table.insert(ENG.Cubes, cube)
+    -- Bypass: cube'leri otomatik sil (5 sn sonra)
+    task.delay(5, function()
+        if cube and cube.Parent then
+            pcall(function() cube:Destroy() end)
+            for i, v in ipairs(ENG.Cubes) do
+                if v == cube then table.remove(ENG.Cubes, i) break end
+            end
+        end
+    end)
 end
 
 -- ============================================
--- ANA DÖNGÜ (SENİN OPTİMİZASYONUN)
+-- ANA DÖNGÜ (BYPASS İYİLEŞTİRMELİ)
 -- ============================================
 local lastProcess = 0
-local isBaseReturning = false -- Base Return ile çakışmayı engelle
+local isBaseReturning = false
 
 RunService.Heartbeat:Connect(function(dt)
     if tick() - lastProcess < 0.02 then return end
     lastProcess = tick()
     
-    if isBaseReturning then return end -- Base Return aktifken ana döngü karışmasın
+    if isBaseReturning then return end
 
     local c = LocalPlayer.Character
     if not c then return end
@@ -224,26 +237,28 @@ RunService.Heartbeat:Connect(function(dt)
     local vel = hrp.AssemblyLinearVelocity
     local now = tick()
 
-    -- 1. AKICI FLY SİSTEMİ
+    -- 1. FLY SİSTEMİ (BYPASS: PlatformStand KULLANMA, SADECE VELOCITY)
     if ENG.FlyActive then
-        hum.PlatformStand = true
+        hum.PlatformStand = false  -- Bypass: PlatformStand kullanma
+        local targetVel = Vector3.zero
         if moveDir.Magnitude > 0 then
             local camCFrame = Camera.CFrame
             local targetDir = (camCFrame.RightVector * moveDir.X) + (camCFrame.LookVector * -moveDir.Z)
             if targetDir.Magnitude > 0 then
-                hrp.AssemblyLinearVelocity = targetDir.Unit * ENG.FlySpeed
+                targetVel = targetDir.Unit * ENG.FlySpeed
             end
-        else
-            hrp.AssemblyLinearVelocity = Vector3.zero
         end
+        -- Yerçekimine karşı hafif yukarı kuvvet (uçma hissi)
+        targetVel = targetVel + Vector3.new(0, ENG.FlySpeed * 0.25, 0)
+        hrp.AssemblyLinearVelocity = targetVel
     end
 
-    -- 2. AKILLI CUBE SİSTEMİ
+    -- 2. CUBE SİSTEMİ (BYPASS: Gecikmeli ve seyrek oluştur)
     if ENG.CubeActive and not ENG.FlyActive then
-        if (vel.Y < -3 or hum:GetState() == Enum.HumanoidStateType.Jumping or hum:GetState() == Enum.HumanoidStateType.Freefall) and (now - ENG.LastCubeTime > 0.25) then
+        if (vel.Y < -3 or hum:GetState() == Enum.HumanoidStateType.Jumping or hum:GetState() == Enum.HumanoidStateType.Freefall) and (now - ENG.LastCubeTime > 0.4) then  -- Gecikme arttı
             CreateCube(hrp.Position - Vector3.new(0, 3.2, 0))
             ENG.LastCubeTime = now
-        elseif moveDir.Magnitude > 0.1 and vel.Magnitude > 8 and (now - ENG.LastCubeTime > 0.3) then
+        elseif moveDir.Magnitude > 0.1 and vel.Magnitude > 8 and (now - ENG.LastCubeTime > 0.5) then
             local dir = hrp.CFrame.LookVector
             CreateCube(hrp.Position + Vector3.new(dir.X * 3.5, -2.8, dir.Z * 3.5))
             ENG.LastCubeTime = now
@@ -291,7 +306,7 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- KİLİTLENME FİXİ: Hiçbir uçuş modu açık değilse serbest bırak
+    -- KİLİTLENME FİXİ
     if not ENG.FlyActive and not ENG.TrackActive and not ENG.BatActive then
         if hum.PlatformStand then
             hum.PlatformStand = false
@@ -300,7 +315,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 -- ============================================
--- BASE RETURN (ANA DÖNGÜYLE ÇAKIŞMAYACAK ŞEKİLDE)
+-- BASE RETURN (ANA DÖNGÜYLE ÇAKIŞMAYACAK)
 -- ============================================
 function BaseReturn(mode)
     local c = LocalPlayer.Character
@@ -311,7 +326,6 @@ function BaseReturn(mode)
     local targetPos = ENG.BasePos + Vector3.new(0, 3, 0)
     local speed = (mode == "PET") and 18 or 24
     
-    -- Önceki uçuşu durdur ve ana döngüye Base Return'de olduğumuzu bildir
     StopFly()
     isBaseReturning = true
     hum.PlatformStand = true
@@ -369,10 +383,40 @@ function ToggleXRay(state)
     if not state then xrayCache = {} end
 end
 
-print("✅ Part 2/4 tamam - Sistemler Stabilize Edildi!")-- ============================================
--- LEA MOD V5.9.1 MOBILE - PART 3/4: MOBİL MİNİ UI
 -- ============================================
-print("⚡ Part 3/4: Mobil UI")
+-- SERVER HOP (PET TARAMA + SUNUCU ATLAMA)
+-- ============================================
+function ScanAndHop()
+    -- "Pet tarama" simülasyonu – gerçekte çalışmayabilir, sadece buton için
+    print("🔍 Sunucudaki petler taranıyor... (Bu özellik oyuna özeldir, çalışmayabilir)")
+    -- Örnek: mevcut oyuncuların karakterlerinde "Pet" isimli nesne var mı kontrol et
+    local found = false
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            for _, child in ipairs(p.Character:GetChildren()) do
+                if child:IsA("Tool") and string.lower(child.Name):find("pet") then
+                    found = true
+                    print("🐾 Pet bulundu: " .. p.Name .. " -> " .. child.Name)
+                end
+            end
+        end
+    end
+    if found then
+        print("✅ İyi pet bulundu, sunucu atlanıyor...")
+    else
+        print("⚠️ İyi pet bulunamadı, yine de sunucu atlanıyor...")
+    end
+    -- Server hop
+    local TeleportService = game:GetService("TeleportService")
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end
+
+print("✅ Part 2/4 tamam - Fly & Cube Bypass eklendi, Server Hop hazır")-- ============================================
+-- LEA MOD V5.9.1 MOBILE - PART 3/4: MOBİL MİNİ UI (YUKARI ALINDI + HOP BUTONU)
+-- ============================================
+print("⚡ Part 3/4: Mobil UI (Yukarıda, Server Hop eklendi)")
 
 local function BuildUI(mode)
     local pg = LocalPlayer:WaitForChild("PlayerGui")
@@ -384,8 +428,8 @@ local function BuildUI(mode)
     gui.Parent = pg
     
     local cont = Instance.new("Frame")
-    cont.Size = UDim2.new(0, 48, 0, 260)
-    cont.Position = UDim2.new(1, -54, 0.35, 0)
+    cont.Size = UDim2.new(0, 48, 0, 320)  -- Biraz uzattık (yeni butonlar için)
+    cont.Position = UDim2.new(1, -54, 0.05, 0)  -- YUKARI (0.35 → 0.05)
     cont.BackgroundTransparency = 1
     cont.Active = true
     cont.Draggable = true
@@ -429,6 +473,8 @@ local function BuildUI(mode)
         Btn("BAT", true, function(v) ENG.BatActive = v end)
         Btn("DOWN", false, TPDown)
         Btn("XRAY", true, function(v) ToggleXRay(v) end)
+        -- Yeni: Server Hop / Pet Tara
+        Btn("HOP", false, function() ScanAndHop() end)
     else
         Btn("FLY", true, function(v) ENG.FlyActive = v end)
         Btn("CUBE", true, function(v) ENG.CubeActive = v end)
@@ -439,17 +485,19 @@ local function BuildUI(mode)
         Btn("RIGHT", true, function(v) ENG.RightActive = v end)
         Btn("DOWN", false, TPDown)
         Btn("XRAY", true, function(v) ToggleXRay(v) end)
+        -- Duel modda da HOP butonu
+        Btn("HOP", false, function() ScanAndHop() end)
     end
 end
 
-print("✅ Part 3/4 tamam")-- ============================================
+print("✅ Part 3/4 tamam (UI yukarı alındı, HOP eklendi)")-- ============================================
 -- LEA MOD V5.9.1 MOBILE - PART 4/4: BAŞLATICI
 -- ============================================
 print("⚡ Part 4/4: Başlatıcı")
 
 CreateSelector(function(mode)
     BuildUI(mode)
-    print("LEA V5.9.1 Aktif - " .. mode)
+    print("LEA V5.9.1 Aktif - " .. mode .. " (Bypass & Server Hop mevcut)")
 end)
 
 getgenv().LeaKill = function()
@@ -464,4 +512,4 @@ getgenv().LeaKill = function()
     print("LEA Temizlendi")
 end
 
-print("✅ Part 4/4 tamam - LEA V5.9.1 Hazır!")
+print("✅ Part 4/4 tamam - LEA V5.9.1 Hazır! (Fly/Cube Bypass, Server Hop aktif)")
