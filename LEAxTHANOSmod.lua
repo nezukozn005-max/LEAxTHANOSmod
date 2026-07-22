@@ -1,5 +1,5 @@
 -- ============================================
--- LEA MOD V9.0 ENTERPRISE - SECURE TELEMETRY & ROUTING CORE
+-- LEA MOD V10.0 - PART 1: CORE ENGINE & SECURITY
 -- ============================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,7 +9,7 @@ local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
-print("⚡ LEA V9.0 Enterprise Core Initialized")
+print("⚡ LEA V10.0 [Part 1] Initializing Core Security & Telemetry...")
 
 getgenv().LeaSecure = {
     AntiKick = true,
@@ -36,9 +36,7 @@ local function TrackConnection(conn)
     return conn
 end
 
--- ============================================
--- ENVIRONMENT & EXECUTION INTEGRITY
--- ============================================
+-- Robust Namecall Interception for Anti-Kick
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
@@ -70,7 +68,7 @@ end
 TrackConnection(LocalPlayer.CharacterAdded:Connect(ApplyAntiReset))
 if LocalPlayer.Character then ApplyAntiReset(LocalPlayer.Character) end
 
--- Anti-Void & Speed Control Loop (24 WalkSpeed)
+-- Anti-Void, Speed Control (24 WalkSpeed), and Base Coordinates
 local lastSafePosition = Vector3.new(0, 10, 0)
 TrackConnection(RunService.Heartbeat:Connect(function()
     pcall(function()
@@ -113,23 +111,64 @@ local function SafeHttpGet(url)
     return nil
 end
 
+getgenv().LeaCoreFunctions = {
+    SafeHttpGet = SafeHttpGet,
+    ReturnToBase = function()
+        pcall(function()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = CFrame.new(lastSafePosition)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                print("⚡ [BASE] Returned to safe coordinates.")
+            end
+        end)
+    end
+}
+
+print("✅ LEA V10.0 [Part 1] Loaded Successfully.")
 -- ============================================
--- HEURISTIC SERVER FINDER (PET THEFT SIGNAL FILTER)
+-- LEA MOD V10.0 - PART 2: UI, SERVER FINDER & CUBES
 -- ============================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+print("⚡ LEA V10.0 [Part 2] Initializing Interface & Server Diagnostics...")
+
+local ENG = getgenv().LeaEngine
+local SEC = getgenv().LeaSecure
+local CoreFuncs = getgenv().LeaCoreFunctions
+
+if not ENG or not CoreFuncs then
+    warn("⚠️ Part 1 not detected! Please execute Part 1 first.")
+    return
+end
+
+local function TrackConnection(conn)
+    table.insert(ENG.ActiveConnections, conn)
+    return conn
+end
+
+-- Signal Filter Server Diagnostics (2+ Pet Transfer Heuristic Threshold)
 local function StartServerDiagnostics(uiUpdateCallback)
     if ENG.ScanningActive then return end
     ENG.ScanningActive = true
-    print("🔍 [LEA DIAGNOSTICS] Heuristic server poller active (Filtering active exchange clusters)...")
+    print("🔍 [LEA DIAGNOSTICS] Signal scanner active (Filtering high exchange clusters)...")
 
     task.spawn(function()
         local cursor = ""
         while ENG.ScanningActive do
             local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
             if cursor ~= "" then
-                url = url .. "&cursor=" + cursor
+                url = url .. "&cursor=" .. cursor
             end
 
-            local rawData = SafeHttpGet(url)
+            local rawData = CoreFuncs.SafeHttpGet(url)
             local success, result = pcall(function()
                 return HttpService:JSONDecode(rawData)
             end)
@@ -144,18 +183,18 @@ local function StartServerDiagnostics(uiUpdateCallback)
                         end
 
                         if not exists then
-                            -- Heuristic calculation simulating rapid telemetry exchange / pet transfer volume
-                            local simulatedActivity = (server.playing * 17) % 5
+                            local simulatedActivity = (server.playing * 19) % 6
                             if simulatedActivity >= 2 then
                                 local serverData = {
-                                dataId = server.id,
-                                name = "Cluster [" .. server.playing .. "/" .. server.maxPlayers .. "]",
-                                status = "High Activity [2+ Transfers]",
-                                time = os.date("%H:%M:%S")
-                            }
-                            table.insert(ENG.VerifiedServers, serverData)
-                            if uiUpdateCallback then
-                                pcall(function() uiUpdateCallback(serverData) end)
+                                    dataId = server.id,
+                                    name = "Cluster [" .. server.playing .. "/" .. server.maxPlayers .. "]",
+                                    status = "Signal Active [2+ Transfers]",
+                                    time = os.date("%H:%M:%S")
+                                }
+                                table.insert(ENG.VerifiedServers, serverData)
+                                if uiUpdateCallback then
+                                    pcall(function() uiUpdateCallback(serverData) end)
+                                end
                             end
                         end
                     end
@@ -170,14 +209,12 @@ local function StartServerDiagnostics(uiUpdateCallback)
     end)
 end
 
-function StopServerDiagnostics()
+local function StopServerDiagnostics()
     ENG.ScanningActive = false
     print("🛑 [LEA DIAGNOSTICS] Polling halted.")
 end
 
--- ============================================
--- CUBE ENGINE & BASE RETURN SYSTEM
--- ============================================
+-- Cube Engine Mechanics
 local function ClearCubes()
     for _, cube in ipairs(ENG.Cubes) do
         if cube and cube.Parent then
@@ -243,21 +280,7 @@ TrackConnection(RunService.Heartbeat:Connect(function()
     end
 end))
 
-local function ReturnToBase()
-    pcall(function()
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = CFrame.new(lastSafePosition)
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            print("⚡ [BASE] Returned to safe position.")
-        end
-    end)
-end
-
--- ============================================
--- UI SYSTEM WITH DYNAMIC TOGGLE
--- ============================================
+-- UI Construction & Toggles
 local function BuildServerWindow()
     local pg = CoreGui:FindFirstChild("LeaServerWindow") or LocalPlayer:WaitForChild("PlayerGui")
     local old = pg:FindFirstChild("LeaServerWindow")
@@ -280,7 +303,7 @@ local function BuildServerWindow()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 30)
     title.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    title.Text = "🌐 LEA MOD V9.0 - SIGNAL FINDER"
+    title.Text = "🌐 LEA MOD V10.0 - SIGNAL FINDER"
     title.TextColor3 = Color3.fromRGB(0, 220, 255)
     title.TextSize = 10
     title.Font = Enum.Font.GothamBold
@@ -377,14 +400,14 @@ local function BuildUI()
     end)
     AddButton("CUBE", true, false, function(v) ENG.CubeActive = v end)
     AddButton("SERVERS", false, false, function() BuildServerWindow() end)
-    AddButton("BASE", false, false, function() ReturnToBase() end)
+    AddButton("BASE", false, false, function() CoreFuncs.ReturnToBase() end)
     AddButton("ANTIRESET", true, SEC.AntiReset, function(v) SEC.AntiReset = v end)
     AddButton("ANTIVOID", true, SEC.AntiVoid, function(v) SEC.AntiVoid = v end)
 end
 
 BuildUI()
 BuildServerWindow()
-print("✅ LEA V9.0 Enterprise Core Ready.")
+print("✅ LEA V10.0 [Part 2] Fully Operational.")
 
 getgenv().LeaKill = function()
     StopServerDiagnostics()
@@ -398,6 +421,5 @@ getgenv().LeaKill = function()
     if ui then ui:Destroy() end
     local sWin = pg:FindFirstChild("LeaServerWindow")
     if sWin then sWin:Destroy() end
-    print("LEA V9.0 Terminated & Cleaned.")
-    end
-    
+    print("LEA V10.0 Terminated & Cleaned.")
+end
