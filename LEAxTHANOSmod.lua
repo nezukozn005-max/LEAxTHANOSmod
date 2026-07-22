@@ -1,530 +1,250 @@
--- ============================================
--- LEA MOD V5.9.5 MOBILE - PART 1/2: CORE, SECURE BYPASS & PET VALUE TELEMETRY HOPPER
--- ============================================
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
+-- ============================================================
+-- LEA PET FINDER – AGGRESSIVE SERVER HOPPER (EN HIZLI)
+-- ============================================================
+-- Amaç: Her sunucuya gir, anlık tarama yap, iyi pet varsa kal,
+-- yoksa 2 saniye içinde atla. Telefonu yormaz, bypass ve anti-kick mevcut.
+-- ============================================================
 
-print("⚡ LEA V5.9.5 Part 1/2 (Balanced Core & Real-Time Valuation Scanner)")
-
-getgenv().LeaSecure = {
-    AntiKick = true,
-    AntiReset = true,
-    AntiVoid = true,
-    Mode = nil
+-- KONFIGÜRASYON
+local CONFIG = {
+    PetValueThreshold = 50000000,      -- 50M eşik
+    HopInterval = 2,                   -- her 2 saniyede bir atla (mümkün olan en hızlı)
+    MaxPlayers = 12,                   -- kalabalık sunuculardan kaçın
+    MinPlayers = 2,                    -- en az bu kadar oyuncu olsun
+    Debug = true,
 }
 
-local SEC = getgenv().LeaSecure
+-- ============================================================
+-- SERVİSLER
+-- ============================================================
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
--- Deep Core Metamethod Hook & Environment Sanitization
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+print("⚡ LEA Pet Finder – Aggressive Mode started.")
+
+-- ============================================================
+-- GÜVENLİK (Bypass + Anti-Kick)
+-- ============================================================
+local oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
-    if SEC.AntiKick then
-        if (method == "Kick" or method == "kick") and (self == LocalPlayer or self:IsA("Player")) then
-            return nil
-        end
-        if self == LocalPlayer and (method == "Destroy" or method == "Remove") then
-            return nil
-        end
+    if method == "Kick" or method == "kick" then
+        if self == LocalPlayer or self:IsA("Player") then return nil end
+    end
+    if self == LocalPlayer and (method == "Destroy" or method == "Remove") then
+        return nil
     end
     return oldNamecall(self, ...)
 end)
 
-pcall(function()
-    for _, v in pairs(getgc(true)) do
-        if type(v) == "table" and rawget(v, "isLoaded") then
-            rawset(v, "isLoaded", true)
-        end
-    end
-end)
-
-local function ApplyAntiReset(char)
-    if not SEC.AntiReset then return end
+-- Anti-Reset (ölümü engelle)
+local function AntiReset(char)
     pcall(function()
-        local hum = char:WaitForChild("Humanoid", 5)
-        if not hum then return end
-        hum.BreakJointsOnDeath = false
-        hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        hum.HealthChanged:Connect(function(hp)
-            if hp <= 0 and SEC.AntiReset then
-                hum.Health = hum.MaxHealth
-            end
-        end)
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            hum.BreakJointsOnDeath = false
+            hum.HealthChanged:Connect(function(hp)
+                if hp <= 0 then hum.Health = hum.MaxHealth end
+            end)
+        end
     end)
 end
-LocalPlayer.CharacterAdded:Connect(ApplyAntiReset)
-if LocalPlayer.Character then ApplyAntiReset(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(AntiReset)
+if LocalPlayer.Character then AntiReset(LocalPlayer.Character) end
 
-local lastSafePosition = Vector3.new(0, 10, 0)
-RunService.Heartbeat:Connect(function()
-    if not SEC.AntiVoid then return end
-    pcall(function()
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            if hrp.Position.Y < -500 then
-                hrp.CFrame = CFrame.new(lastSafePosition + Vector3.new(0, 10, 0))
-                hrp.AssemblyLinearVelocity = Vector3.zero
-            else
-                lastSafePosition = hrp.Position
-            end
-        end
-    end)
-end)
-
-getgenv().LeaEngine = {
-    FlyActive = false,
-    CubeActive = false,
-    TrackActive = false,
-    BatActive = false,
-    LeftActive = false,
-    RightActive = false,
-    XRayActive = false,
-    BaseActive = false, -- Toggleable Base Return State
-    FlySpeed = 35,
-    CarrySpeed = 30,
-    BasePos = Vector3.zero,
-    Cubes = {},
-    LastCubeTime = 0,
-    HopActive = false,
-    ScanActive = false
-}
-local ENG = getgenv().LeaEngine
-
-pcall(function()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        ENG.BasePos = LocalPlayer.Character.HumanoidRootPart.Position
-    end
-end)
-
--- True Value-Based Server Finder (Filters servers for high-valuation metrics before executing teleport)
-function ScanAndHop()
-    if ENG.HopActive then return end
-    ENG.HopActive = true
-    print("🔍 [LEA HOP] Querying active server array for 50M+ valuation thresholds...")
+-- ============================================================
+-- PET TESPİTİ (HIZLI TARAMA)
+-- ============================================================
+local function ScanCurrentServer()
+    local found = false
+    local bestValue = 0
+    local bestPet = nil
+    local playerCount = 0
     
-    task.spawn(function()
-        local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
-        end)
-        
-        if success and result and result.data then
-            local validServers = {}
-            for _, server in ipairs(result.data) do
-                if server.id ~= game.JobId and server.playing > 0 and server.playing < server.maxPlayers then
-                    -- Filter condition checking server population density and valuation telemetry markers
-                    if server.playing >= 2 then
-                        table.insert(validServers, server.id)
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            playerCount = playerCount + 1
+            local char = plr.Character
+            if char then
+                for _, child in ipairs(char:GetChildren()) do
+                    -- Pet olabilecek nesneleri tara (Tool, Model, Part)
+                    if child:IsA("Tool") or child:IsA("Model") or child:IsA("Part") then
+                        -- İsimde "pet", "egg", "dragon" vb. ara
+                        local name = child.Name:lower()
+                        if name:find("pet") or name:find("egg") or name:find("dragon") or name:find("mythic") or name:find("legend") then
+                            -- Değer tahmini (isimden veya içindeki NumberValue'dan)
+                            local val = 0
+                            -- Önce isimden tahmin
+                            if name:find("mythic") or name:find("legend") then val = 80000000 end
+                            if name:find("ultra") then val = 60000000 end
+                            if name:find("cosmic") then val = 70000000 end
+                            -- Sonra içindeki NumberValue'leri kontrol et
+                            if val == 0 then
+                                for _, sub in ipairs(child:GetDescendants()) do
+                                    if sub:IsA("NumberValue") or sub:IsA("IntValue") then
+                                        local v = tonumber(sub.Value)
+                                        if v and v > 1000000 then
+                                            val = v
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if val > bestValue then
+                                bestValue = val
+                                bestPet = child.Name
+                                found = true
+                            end
+                        end
                     end
                 end
             end
+        end
+    end
+    
+    return {
+        found = found,
+        bestValue = bestValue,
+        bestPet = bestPet,
+        playerCount = playerCount,
+    }
+end
+
+-- ============================================================
+-- ANA DÖNGÜ (HIZLI ATLAMA)
+-- ============================================================
+local hopCount = 0
+local lastHopTime = 0
+local isRunning = false
+local badServers = {}
+
+function StartFinder()
+    if isRunning then return end
+    isRunning = true
+    print("🔄 Pet Finder aktif – sunucular taranıyor...")
+    
+    task.spawn(function()
+        while isRunning do
+            -- 1. Mevcut sunucuyu tara
+            local result = ScanCurrentServer()
+            if CONFIG.Debug then
+                print(string.format("[Scan] Oyuncu: %d, En iyi pet: %s (Değer: %d)",
+                    result.playerCount,
+                    result.bestPet or "Yok",
+                    result.bestValue))
+            end
             
-            if #validServers > 0 then
-                local targetInstance = validServers[math.random(1, #validServers)]
-                print("✅ [LEA HOP] Verified high-value server instance found. Teleporting...")
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetInstance, LocalPlayer)
-                return
+            -- 2. Karar ver: iyi pet var mı? ve sunucu kalabalık değil mi?
+            local isGood = false
+            if result.bestValue >= CONFIG.PetValueThreshold then
+                isGood = true
+                print(string.format("✅ İYİ PET BULUNDU! %s (%d) – Sunucuda kalınıyor.", 
+                    result.bestPet, result.bestValue))
+                -- UI bildirimi yapabilirsin
+                break
             end
-        end
-        
-        print("⚠️ [LEA HOP] No targeted valuation match found, retrying alternative pool...")
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
-    end)
-    
-    task.delay(4, function() ENG.HopActive = false end)
-end
-
-print("✅ Part 1/2 Balanced Core Loaded Successfully")
--- ============================================
--- LEA MOD V5.9.5 MOBILE - PART 2/2: MECHANICS, TOGGLE BASE & UI
--- ============================================
-print("⚡ Part 2/2: Mechanics, Toggleable Base Return & Ultra-Elevated UI")
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local TeleportService = game:GetService("TeleportService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-local ENG = getgenv().LeaEngine
-local SEC = getgenv().LeaSecure
-
-local function GetTarget(maxDistance)
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
-    local closestTarget, shortestDistance = nil, maxDistance or 100
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
-            local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
-            if targetHrp and targetHum and targetHum.Health > 0 then
-                local dist = (hrp.Position - targetHrp.Position).Magnitude
-                if dist < shortestDistance then
-                    shortestDistance = dist
-                    closestTarget = player
-                end
+            
+            -- Eğer oyuncu sayısı çok az veya çok fazlaysa da atla
+            if result.playerCount < CONFIG.MinPlayers or result.playerCount > CONFIG.MaxPlayers then
+                if CONFIG.Debug then print("⏭ Oyuncu sayısı uygun değil, atlanıyor...") end
+                -- atla
             end
-        end
-    end
-    return closestTarget
-end
-
-local function StopFly()
-    ENG.FlyActive = false
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then hum.PlatformStand = false end
-    if hrp then hrp.AssemblyLinearVelocity = Vector3.zero end
-end
-
-local function ClearCubes()
-    for _, cube in ipairs(ENG.Cubes) do
-        if cube and cube.Parent then
-            pcall(function() cube:Destroy() end)
-        end
-    end
-    ENG.Cubes = {}
-end
-
-local function CreateCube(pos)
-    if #ENG.Cubes > 10 then
-        local oldCube = table.remove(ENG.Cubes, 1)
-        if oldCube and oldCube.Parent then
-            pcall(function() oldCube:Destroy() end)
-        end
-    end
-    local cube = Instance.new("Part")
-    cube.Size = Vector3.new(4, 0.4, 4)
-    cube.Position = pos
-    cube.Anchored = true
-    cube.CanCollide = true
-    cube.Transparency = 0.75
-    cube.Material = Enum.Material.SmoothPlastic
-    cube.Color = Color3.fromRGB(0, 160, 255)
-    cube.Parent = Workspace
-    table.insert(ENG.Cubes, cube)
-    
-    task.delay(4.5, function()
-        if cube and cube.Parent then
-            pcall(function() cube:Destroy() end)
-            for i, v in ipairs(ENG.Cubes) do
-                if v == cube then
-                    table.remove(ENG.Cubes, i)
-                    break
-                end
+            
+            -- 3. İyi değilse, yeni sunucuya atla
+            local currentJobId = game.JobId
+            if not badServers[currentJobId] then
+                badServers[currentJobId] = os.time()
             end
-        end
-    end)
-end
-
-local lastFrameUpdate = 0
-local activeBaseConnection = nil
-local activeNoclipConnection = nil
-
--- Toggleable Base Return Functionality (On/Off Switch)
-local function ToggleBaseReturn(state, mode)
-    ENG.BaseActive = state
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if not state then
-        if activeBaseConnection then pcall(function() activeBaseConnection:Disconnect() end) end
-        if activeNoclipConnection then pcall(function() activeNoclipConnection:Disconnect() end) end
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = true end
-            end
-        end
-        if hum then hum.PlatformStand = false end
-        if hrp then hrp.AssemblyLinearVelocity = Vector3.zero end
-        return
-    end
-
-    if not hrp or not hum then return end
-    local targetPos = ENG.BasePos + Vector3.new(0, 3, 0)
-    local speed = 50
-
-    StopFly()
-    hum.PlatformStand = true
-
-    activeNoclipConnection = RunService.Stepped:Connect(function()
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = false end
-            end
-        end
-    end)
-
-    activeBaseConnection = RunService.Heartbeat:Connect(function()
-        if not ENG.BaseActive or not char or not char.Parent or not hrp or not hum then
-            ToggleBaseReturn(false)
-            return
-        end
-
-        local direction = targetPos - hrp.Position
-        if direction.Magnitude < 4 then
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hum.PlatformStand = false
-            ToggleBaseReturn(false)
-            return
-        end
-        hrp.AssemblyLinearVelocity = direction.Unit * speed
-    end)
-end
-
-RunService.Heartbeat:Connect(function(dt)
-    if tick() - lastFrameUpdate < 0.02 then return end
-    lastFrameUpdate = tick()
-
-    if ENG.BaseActive then return end
-
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum or hum.Health <= 0 then return end
-
-    local moveDir = hum.MoveDirection
-    local velocity = hrp.AssemblyLinearVelocity
-    local currentTime = tick()
-
-    if ENG.FlyActive then
-        hum.PlatformStand = false
-        local targetVelocity = Vector3.zero
-        if moveDir.Magnitude > 0 then
-            local camCF = Camera.CFrame
-            local computedDir = (camCF.RightVector * moveDir.X) + (camCF.LookVector * -moveDir.Z)
-            if computedDir.Magnitude > 0 then
-                targetVelocity = computedDir.Unit * ENG.FlySpeed
-            end
-        end
-        targetVelocity = targetVelocity + Vector3.new(0, ENG.FlySpeed * 0.2, 0)
-        hrp.AssemblyLinearVelocity = targetVelocity
-    end
-
-    if ENG.CubeActive and not ENG.FlyActive then
-        if (velocity.Y < -2.5 or hum:GetState() == Enum.HumanoidStateType.Jumping or hum:GetState() == Enum.HumanoidStateType.Freefall) and (currentTime - ENG.LastCubeTime > 0.45) then
-            CreateCube(hrp.Position - Vector3.new(0, 3.1, 0))
-            ENG.LastCubeTime = currentTime
-        elseif moveDir.Magnitude > 0.1 and velocity.Magnitude > 6 and (currentTime - ENG.LastCubeTime > 0.5) then
-            local lookVector = hrp.CFrame.LookVector
-            CreateCube(hrp.Position + Vector3.new(lookVector.X * 3, -2.7, lookVector.Z * 3))
-            ENG.LastCubeTime = currentTime
-        end
-    end
-
-    if ENG.LeftActive then
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(3), 0) + (-hrp.CFrame.RightVector * 30 * dt)
-    end
-    if ENG.RightActive then
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(-3), 0) + (hrp.CFrame.RightVector * 30 * dt)
-    end
-
-    if ENG.TrackActive then
-        local target = GetTarget(100)
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local targetHrp = target.Character.HumanoidRootPart
-            local targetPos = targetHrp.Position + Vector3.new(0, 1.5, 0)
-            hrp.AssemblyLinearVelocity = (targetPos - hrp.Position).Unit * ENG.FlySpeed
-            hum.PlatformStand = true
-            local tool = char:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-            if tool then
-                if tool.Parent ~= char then hum:EquipTool(tool) end
-                pcall(function() tool:Activate() end)
-            end
-        end
-    end
-
-    if ENG.BatActive then
-        local target = GetTarget(80)
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local targetHrp = target.Character.HumanoidRootPart
-            local targetPos = targetHrp.Position + Vector3.new(0, 1.2, 0)
-            hrp.AssemblyLinearVelocity = (targetPos - hrp.Position).Unit * ENG.CarrySpeed
-            hum.PlatformStand = true
-            local tool = char:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-            if tool then
-                if tool.Parent ~= char then hum:EquipTool(tool) end
-                pcall(function() tool:Activate() end)
-            end
-        end
-    end
-
-    if not ENG.FlyActive and not ENG.TrackActive and not ENG.BatActive then
-        if hum.PlatformStand then
-            hum.PlatformStand = false
-        end
-    end
-end)
-
-local function TPDown()
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {LocalPlayer.Character}
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -700, 0), params)
-    if ray then
-        hrp.CFrame = CFrame.new(ray.Position + Vector3.new(0, 3, 0))
-        hrp.AssemblyLinearVelocity = Vector3.zero
-    end
-end
-
-local xrayCache = {}
-local function ToggleXRay(state)
-    ENG.XRayActive = state
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and not obj:IsDescendantOf(LocalPlayer.Character) then
-            if state then
-                if obj.Transparency < 0.3 then
-                    xrayCache[obj] = obj.Transparency
-                    obj.Transparency = 0.5
+            
+            -- Hop yap (cooldown kontrolü)
+            local now = tick()
+            if now - lastHopTime >= CONFIG.HopInterval then
+                hopCount = hopCount + 1
+                print("🔄 Sunucu atlanıyor #" .. hopCount .. "...")
+                lastHopTime = now
+                
+                -- Teleport et
+                local success = pcall(function()
+                    TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                end)
+                if success then
+                    -- Yeni sunucu yüklenene kadar bekle (minimum)
+                    task.wait(1.5)
+                else
+                    warn("Teleport başarısız, tekrar deneniyor...")
+                    task.wait(2)
                 end
             else
-                if xrayCache[obj] then obj.Transparency = xrayCache[obj] end
+                -- Bekleme süresi dolmadıysa kısa bekle
+                task.wait(0.5)
             end
         end
-    end
-    if not state then xrayCache = {} end
+    end)
 end
 
-local function CreateSelector(callback)
-    local pg = LocalPlayer:WaitForChild("PlayerGui")
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "LeaStart"
-    gui.Parent = pg
-    
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.BackgroundColor3 = Color3.new(0, 0, 0)
-    bg.BackgroundTransparency = 0.4
-    bg.Parent = gui
-    
-    local t = Instance.new("TextLabel")
-    t.Size = UDim2.new(0, 200, 0, 30)
-    t.Position = UDim2.new(0.5, -100, 0.05, 0)
-    t.BackgroundTransparency = 1
-    t.Text = "LEA V5.9.5"
-    t.TextColor3 = Color3.new(1, 1, 1)
-    t.TextSize = 20
-    t.Font = Enum.Font.GothamBold
-    t.Parent = bg
-    
-    local function createButton(label, mode, x)
-        local b = Instance.new("TextButton")
-        b.Size = UDim2.new(0, 80, 0, 36)
-        b.Position = UDim2.new(0, x, 0.11, 0)
-        b.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-        b.Text = label
-        b.TextColor3 = Color3.new(1, 1, 1)
-        b.TextSize = 14
-        b.Font = Enum.Font.GothamBold
-        b.Parent = bg
-        b.MouseButton1Click:Connect(function()
-            SEC.Mode = mode
-            gui:Destroy()
-            callback(mode)
-        end)
-    end
-    createButton("PET", "PET", 90)
-    createButton("DUEL", "DUEL", 230)
+function StopFinder()
+    isRunning = false
+    print("⏹ Pet Finder durduruldu.")
 end
 
-local function BuildUI(mode)
+-- ============================================================
+-- KONTROL PANELİ (BUTONLAR – SAĞ ÜST)
+-- ============================================================
+local function CreateUI()
     local pg = LocalPlayer:WaitForChild("PlayerGui")
-    local old = pg:FindFirstChild("LeaUI")
+    local old = pg:FindFirstChild("PetFinderUI")
     if old then old:Destroy() end
-
+    
     local gui = Instance.new("ScreenGui")
-    gui.Name = "LeaUI"
+    gui.Name = "PetFinderUI"
     gui.Parent = pg
-
+    
     local cont = Instance.new("Frame")
-    cont.Size = UDim2.new(0, 48, 0, 320)
-    cont.Position = UDim2.new(1, -54, 0.002, 0)
+    cont.Size = UDim2.new(0, 70, 0, 200)
+    cont.Position = UDim2.new(1, -75, 0.01, 0)
     cont.BackgroundTransparency = 1
-    cont.Active = true
-    cont.Draggable = true
     cont.Parent = gui
-
+    
     local list = Instance.new("UIListLayout")
     list.Padding = UDim.new(0, 3)
     list.Parent = cont
-
-    local function AddButton(text, toggle, callback)
+    
+    local function Button(text, toggle, callback)
         local b = Instance.new("TextButton")
-        b.Size = UDim2.new(0, 44, 0, 24)
-        b.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-        b.TextColor3 = Color3.new(1, 1, 1)
+        b.Size = UDim2.new(0, 66, 0, 28)
+        b.BackgroundColor3 = Color3.fromRGB(30,30,40)
         b.Text = text
-        b.TextSize = 6
+        b.TextColor3 = Color3.new(1,1,1)
+        b.TextSize = 10
         b.Font = Enum.Font.GothamBold
         b.Parent = cont
-
         if toggle then
             local state = false
             b.MouseButton1Click:Connect(function()
                 state = not state
-                b.BackgroundColor3 = state and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(20, 20, 25)
+                b.BackgroundColor3 = state and Color3.fromRGB(0,150,80) or Color3.fromRGB(30,30,40)
                 callback(state)
             end)
         else
             b.MouseButton1Click:Connect(function()
-                b.BackgroundColor3 = Color3.fromRGB(0, 100, 180)
-                task.delay(0.12, function() b.BackgroundColor3 = Color3.fromRGB(20, 20, 25) end)
                 callback()
             end)
         end
     end
-
-    if mode == "PET" then
-        AddButton("FLY", true, function(v) ENG.FlyActive = v end)
-        AddButton("CUBE", true, function(v) ENG.CubeActive = v end)
-        AddButton("BASE", true, function(v) ToggleBaseReturn(v, "PET") end)
-        AddButton("TRACK", true, function(v) ENG.TrackActive = v end)
-        AddButton("BAT", true, function(v) ENG.BatActive = v end)
-        AddButton("DOWN", false, TPDown)
-        AddButton("XRAY", true, function(v) ToggleXRay(v) end)
-        AddButton("HOP", false, function() ScanAndHop() end)
-    else
-        AddButton("FLY", true, function(v) ENG.FlyActive = v end)
-        AddButton("CUBE", true, function(v) ENG.CubeActive = v end)
-        AddButton("BASE", true, function(v) ToggleBaseReturn(v, "DUEL") end)
-        AddButton("TRACK", true, function(v) ENG.TrackActive = v end)
-        AddButton("BAT", true, function(v) ENG.BatActive = v end)
-        AddButton("LEFT", true, function(v) ENG.LeftActive = v end)
-        AddButton("RIGHT", true, function(v) ENG.RightActive = v end)
-        AddButton("DOWN", false, TPDown)
-        AddButton("XRAY", true, function(v) ToggleXRay(v) end)
-        AddButton("HOP", false, function() ScanAndHop() end)
-    end
+    
+    Button("FIND", true, function(state)
+        if state then StartFinder() else StopFinder() end
+    end)
+    
+    Button("STOP", false, function()
+        StopFinder()
+        -- UI'da durum gösterimi yapabilirsin
+    end)
 end
 
-CreateSelector(function(mode)
-    BuildUI(mode)
-    print("LEA V5.9.5 Active - Mode: " .. mode)
-end)
+CreateUI()
 
-getgenv().LeaKill = function()
-    StopFly()
-    ClearCubes()
-    ToggleXRay(false)
-    ToggleBaseReturn(false)
-    for k, v in pairs(ENG) do
-        if type(v) == "boolean" then ENG[k] = false end
-    end
-    local gui = LocalPlayer.PlayerGui:FindFirstChild("LeaUI")
-    if gui then gui:Destroy() end
-    print("LEA Terminated & Cleaned.")
-end
-
-print("✅ Part 2/2 Complete - LEA V5.9.5 Ready!")
-
+print("✅ Pet Finder başlatıldı. 'FIND' butonuna basarak aktifleştirin.")
+print("⚠️ NOT: Saniyede 50 sunucu mümkün değil. En hızlı hali ~2 saniyede bir atlar.")
+print("💡 Oyunun veri yapısını biliyorsanız, ScanCurrentServer() içindeki pet tespitini özelleştirin.")
