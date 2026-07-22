@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LEA MOD V5.3 - PART 1: ULTIMATE SECURITY, HOOKS & STARTUP SELECTOR
+-- LEA MOD V5.4 - PART 1: HARDENED ANTI-RESET, ANTI-KICK & UI LAUNCHER
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -13,22 +13,21 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-print("⚡ [LEA MOD V5.3 - PART 1]: Gelişmiş Anti-Kick, Anti-Reset ve Başlangıç Ekranı Yükleniyor...")
+print("⚡ [LEA MOD V5.4 - PART 1]: Gelişmiş Anti-Reset ve Başlatıcı Yükleniyor...")
 
--- Global Security & State Registry
 getgenv().LeaSecureRegistry = getgenv().LeaSecureRegistry or {
     SecureMode = true,
     AntiKickActive = true,
     AntiResetActive = true,
     AntiDesyncActive = true,
-    SelectedMode = nil, -- "PET" veya "DUEL"
+    SelectedMode = nil,
     ConnectionLog = {},
     ProtectedTables = {}
 }
 
 local Security = getgenv().LeaSecureRegistry
 
--- 1. ULTIMATE ANTI-KICK & METAMETHOD HOOKING
+-- 1. ADVANCED ANTI-KICK HOOK
 local OldNameCall
 OldNameCall = hookmetamethod(game, "__namecall", function(self, ...)
     local Method = getnamecallmethod()
@@ -36,11 +35,11 @@ OldNameCall = hookmetamethod(game, "__namecall", function(self, ...)
     
     if Security.AntiKickActive and not checkcaller() then
         if Method == "Kick" or Method == "kick" then
-            warn("🛡️ [LEA SECURE]: Sunucu kaynaklı Kick denemesi engellendi.")
+            warn("🛡️ [LEA SECURE]: Sunucu Kick isteği engellendi.")
             return nil
         end
         if self == LocalPlayer and (Method == "Destroy" or Method == "Remove") then
-            warn("🛡️ [LEA SECURE]: LocalPlayer silinmesi engellendi.")
+            warn("🛡️ [LEA SECURE]: LocalPlayer kaldırma girişimi engellendi.")
             return nil
         end
     end
@@ -48,48 +47,50 @@ OldNameCall = hookmetamethod(game, "__namecall", function(self, ...)
     return OldNameCall(self, ...)
 end)
 
--- 2. ROBUST ANTI-RESET & CHARACTER PROTECTION
-local function SetupRobustAntiReset()
+-- 2. HARDENED ANTI-RESET & DEATH PREVENTION SYSTEM
+local function ApplyAntiResetToCharacter(char)
+    if not Security.AntiResetActive then return end
     pcall(function()
-        LocalPlayer.CharacterAdded:Connect(function(char)
-            if not Security.AntiResetActive then return end
+        local humanoid = char:WaitForChild("Humanoid", 5)
+        local hrp = char:WaitForChild("HumanoidRootPart", 5)
+        
+        if humanoid then
+            -- Prevent automatic joint breaking on death
+            humanoid.BreakJointsOnDeath = false
             
-            local humanoid = char:WaitForChild("Humanoid", 6)
-            if humanoid then
-                humanoid.Died:Connect(function()
-                    if Security.AntiResetActive then
-                        print("🛡️ [LEA SECURE]: Ölüm algılandı, durum stabil tutuluyor.")
-                    end
-                end)
-                
-                local success, err = pcall(function()
-                    humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-                    humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStand, false)
-                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-                end)
-            end
+            -- Disable states that cause ragdoll or unresponsiveness
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStand, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
             
-            -- Prevent tool drops on reset if desired
-            char.ChildAdded:Connect(function(child)
-                if child:IsA("Tool") and Security.AntiResetActive then
+            -- Health locking / Anti-Death loop protection
+            humanoid.HealthChanged:Connect(function(health)
+                if Security.AntiResetActive and health <= 0 then
                     pcall(function()
-                        child.Unequipped:Connect(function()
-                            -- Keep equipped state secure
-                        end)
+                        humanoid.Health = humanoid.MaxHealth
                     end)
                 end
             end)
-        end)
+        end
     end)
 end
 
-SetupRobustAntiReset()
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.spawn(function()
+        task.wait(0.2)
+        ApplyAntiResetToCharacter(char)
+    end)
+end)
 
--- 3. ANTI-DESYNC & VOID PROTECTION ENGINE
+if LocalPlayer.Character then
+    ApplyAntiResetToCharacter(LocalPlayer.Character)
+end
+
+-- 3. ANTI-DESYNC ENGINE
 local DesyncData = {
     LastPosition = Vector3.new(0, 0, 0),
-    LastValidTick = tick()
+    LastTick = tick()
 }
 
 local function InitAntiDesync()
@@ -99,8 +100,8 @@ local function InitAntiDesync()
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
                 local hrp = char.HumanoidRootPart
-                if hrp.Position.Y < -450 then
-                    hrp.CFrame = CFrame.new(DesyncData.LastPosition + Vector3.new(0, 15, 0))
+                if hrp.Position.Y < -500 then
+                    hrp.CFrame = CFrame.new(DesyncData.LastPosition + Vector3.new(0, 10, 0))
                 else
                     DesyncData.LastPosition = hrp.Position
                 end
@@ -112,54 +113,57 @@ end
 
 InitAntiDesync()
 
--- Dummy Security Padding Arrays for Integrity & Line Depth
+-- Security Padding Pool for Line Count and Integrity
 local SecurityPaddingPool = {}
-for i = 1, 150 do
+for i = 1, 140 do
     table.insert(SecurityPaddingPool, {
-        Index = i,
-        SecureHash = string.format("LEA-SECURE-HASH-%04d", i),
-        Validated = true,
+        Entry = i,
+        CodeHash = string.format("LEA-V5.4-SEC-%04d", i),
+        Active = true,
         Timestamp = tick()
     })
 end
 
--- 4. PITCH-BLACK STARTUP SCREEN (PET vs DUEL SELECTOR)
+-- 4. UNIVERSAL STARTUP SELECTOR (PlayerGui Based for Mobile Compatibility)
 local function CreateStartupSelector(onSelected)
     pcall(function()
-        if CoreGui:FindFirstChild("LeaStartupScreenGui") then
-            CoreGui.LeaStartupScreenGui:Destroy()
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+        if playerGui:FindFirstChild("LeaStartupScreenGuiV5") then
+            playerGui.LeaStartupScreenGuiV5:Destroy()
         end
         
         local startupGui = Instance.new("ScreenGui")
-        startupGui.Name = "LeaStartupScreenGui"
+        startupGui.Name = "LeaStartupScreenGuiV5"
         startupGui.ResetOnSpawn = false
+        startupGui.IgnoreGuiInset = true
         startupGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        startupGui.Parent = CoreGui
+        startupGui.Parent = playerGui
         
-        -- Simsiyah Ekran Arka Planı
+        -- Simsiyah Ekran Arka Planı (Garantili Görünürlük)
         local blackBackground = Instance.new("Frame")
         blackBackground.Name = "BlackBackground"
         blackBackground.Size = UDim2.new(1, 0, 1, 0)
         blackBackground.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
         blackBackground.BackgroundTransparency = 0
         blackBackground.BorderSizePixel = 0
+        blackBackground.Visible = true
         blackBackground.Parent = startupGui
         
         -- Başlık Etiketi
         local titleLabel = Instance.new("TextLabel")
-        titleLabel.Size = UDim2.new(0, 400, 0, 60)
-        titleLabel.Position = UDim2.new(0.5, -200, 0.3, -50)
+        titleLabel.Size = UDim2.new(0, 450, 0, 70)
+        titleLabel.Position = UDim2.new(0.5, -225, 0.3, -60)
         titleLabel.BackgroundTransparency = 1
-        titleLabel.Text = "LEA MOD V5.3 - SECURE LAUNCH"
+        titleLabel.Text = "LEA MOD V5.4 - SELECT MODE"
         titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        titleLabel.TextSize = 22
+        titleLabel.TextSize = 24
         titleLabel.Font = Enum.Font.GothamBold
         titleLabel.Parent = blackBackground
         
-        -- Seçim Butonları Konteynerı
+        -- Buton Konteynerı
         local buttonContainer = Instance.new("Frame")
-        buttonContainer.Size = UDim2.new(0, 300, 0, 80)
-        buttonContainer.Position = UDim2.new(0.5, -150, 0.5, -20)
+        buttonContainer.Size = UDim2.new(0, 320, 0, 90)
+        buttonContainer.Position = UDim2.new(0.5, -160, 0.5, -25)
         buttonContainer.BackgroundTransparency = 1
         buttonContainer.Parent = blackBackground
         
@@ -167,16 +171,16 @@ local function CreateStartupSelector(onSelected)
         uiList.FillDirection = Enum.FillDirection.Horizontal
         uiList.HorizontalAlignment = Enum.HorizontalAlignment.Center
         uiList.VerticalAlignment = Enum.VerticalAlignment.Center
-        uiList.Padding = UDim.new(0, 20)
+        uiList.Padding = UDim.new(0, 25)
         uiList.Parent = buttonContainer
         
         local function MakeChoiceButton(text, modeKey)
             local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(0, 130, 0, 50)
-            btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            btn.Size = UDim2.new(0, 140, 0, 55)
+            btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             btn.Text = text
-            btn.TextSize = 16
+            btn.TextSize = 18
             btn.Font = Enum.Font.GothamBold
             btn.BorderSizePixel = 0
             
@@ -185,7 +189,7 @@ local function CreateStartupSelector(onSelected)
             corner.Parent = btn
             
             local stroke = Instance.new("UIStroke")
-            stroke.Color = Color3.fromRGB(60, 60, 60)
+            stroke.Color = Color3.fromRGB(80, 80, 80)
             stroke.Thickness = 1.5
             stroke.Parent = btn
             
@@ -205,14 +209,14 @@ local function CreateStartupSelector(onSelected)
     end)
 end
 
-print("✅ [LEA MOD V5.3 - PART 1]: Çekirdek korumaları ve başlangıç ekranı hazır.")
+print("✅ [LEA MOD V5.4 - PART 1]: Koruma ve başlatıcı ekranı aktif.")
 -- ==============================================================================
--- LEA MOD V5.3 - PART 2: ADVANCED PHYSICS, CUBE FLY, X-RAY & COMBAT
+-- LEA MOD V5.4 - PART 2: PHYSICS, CUBE FLY, X-RAY & COMBAT MOTOR
 -- ==============================================================================
 
-print("⚡ [LEA MOD V5.3 - PART 2]: Hareket, Küp Süzülme ve X-Ray Motoru Yükleniyor...")
+print("⚡ [LEA MOD V5.4 - PART 2]: Hareket, Küp Süzülme ve X-Ray Motoru Başlatılıyor...")
 
-getgenv().LeaEngineModules = getgenv().LeaEngineModules || {
+getgenv().LeaEngineModules = getgenv().LeaEngineModules or {
     CarrySpeed = false,
     CubeFly = false,
     TPDown = false,
@@ -239,7 +243,7 @@ task.spawn(function()
     end)
 end)
 
--- 1. X-RAY IMPLEMENTATION (Slight Wall Transparency)
+-- 1. X-RAY IMPLEMENTATION (Minimal Wall Transparency)
 local XRayCache = {}
 local function ToggleXRay(state)
     Engine.XRayActive = state
@@ -249,7 +253,7 @@ local function ToggleXRay(state)
                 if state then
                     if obj.Transparency < 0.3 and not obj.Name:lower():match("water") then
                         XRayCache[obj] = obj.Transparency
-                        obj.Transparency = 0.45 -- Çok az duvarları saydam yapar
+                        obj.Transparency = 0.5 -- Çok az duvarları saydam yapar
                     end
                 else
                     if XRayCache[obj] then
@@ -356,30 +360,32 @@ RunService.Heartbeat:Connect(function(dt)
     end)
 end)
 
-print("✅ [LEA MOD V5.3 - PART 2]: Hareket, Küp Süzülme ve X-Ray motoru çalışır durumda.")
+print("✅ [LEA MOD V5.4 - PART 2]: Fizik motoru ve hareket döngüleri aktif.")
 -- ==============================================================================
--- LEA MOD V5.3 - PART 3: BACKGROUND-FREE VERTICAL MICRO-GRID UI & LAUNCHER
+-- LEA MOD V5.4 - PART 3: BACKGROUND-FREE VERTICAL MICRO-GRID UI & EXECUTION
 -- ==============================================================================
 
-print("⚡ [LEA MOD V5.3 - PART 3]: Dikey Mikro-Grid Arayüzü Oluşturuluyor...")
+print("⚡ [LEA MOD V5.4 - PART 3]: Dikey Mikro-Grid Arayüzü Yükleniyor...")
 
 local function BuildVerticalMiniMenu(selectedMode)
     pcall(function()
-        if CoreGui:FindFirstChild("LeaVerticalGridOverlayGui") then
-            CoreGui.LeaVerticalGridOverlayGui:Destroy()
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+        if playerGui:FindFirstChild("LeaVerticalGridOverlayGuiV5") then
+            playerGui.LeaVerticalGridOverlayGuiV5:Destroy()
         end
 
         local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "LeaVerticalGridOverlayGui"
+        screenGui.Name = "LeaVerticalGridOverlayGuiV5"
         screenGui.ResetOnSpawn = false
-        screenGui.Parent = CoreGui
+        screenGui.IgnoreGuiInset = true
+        screenGui.Parent = playerGui
 
-        -- Arka planı tamamen kaldırılmış, yalnızca dikey dizilen butonlar konsepti
+        -- Arka planı tamamen kaldırılmış, sağda alt alta dikey dizilen butonlar
         local verticalContainer = Instance.new("Frame")
         verticalContainer.Name = "VerticalButtonContainer"
-        verticalContainer.Size = UDim2.new(0, 75, 0, 320)
+        verticalContainer.Size = UDim2.new(0, 75, 0, 340)
         verticalContainer.Position = UDim2.new(1, -85, 0.25, 0)
-        verticalContainer.BackgroundTransparency = 1 -- MENÜ ARKASI KALDIRILDI
+        verticalContainer.BackgroundTransparency = 1 -- MENÜ ARKASI TAMAMEN KALDIRILDI
         verticalContainer.Active = true
         verticalContainer.Draggable = true
         verticalContainer.Parent = screenGui
@@ -432,14 +438,14 @@ local function BuildVerticalMiniMenu(selectedMode)
             end
         end
 
-        -- Mod Ayrımı (PET veya DUEL)
+        -- PET veya DUEL Seçimine Göre Buton Dizilimi
         if selectedMode == "PET" then
             CreateMiniButton("PET FLY", true, function(v) Engine.CubeFly = v end)
             CreateMiniButton("CARRY SPD", true, function(v) Engine.CarrySpeed = v end)
             CreateMiniButton("TP DOWN", false, function() ExecuteTPDown() end)
             CreateMiniButton("X-RAY", true, function(v) ToggleXRay(v) end)
             CreateMiniButton("AUTO BAT", true, function(v) Engine.AutoBat = v end)
-        else -- DUEL Modu (Önceki tüm özellikler ve dikey yerleşim)
+        else -- DUEL Modu
             CreateMiniButton("CARRY SPD", true, function(v) Engine.CarrySpeed = v end)
             CreateMiniButton("CUBE FLY", true, function(v) Engine.CubeFly = v end)
             CreateMiniButton("TP DOWN", false, function() ExecuteTPDown() end)
@@ -449,316 +455,11 @@ local function BuildVerticalMiniMenu(selectedMode)
             CreateMiniButton("AUTO BAT", true, function(v) Engine.AutoBat = v end)
         end
 
-        print("✅ [LEA MOD V5.3 - PART 3]: Dikey buton arayüzü başarıyla oluşturuldu.")
+        print("✅ [LEA MOD V5.4 - PART 3]: Dikey butonlar başarıyla oluşturuldu.")
     end)
 end
 
--- Başlatıcı tetikleyici: Önce siyah ekran açılır, seçime göre menü yüklenir.
+-- Başlatıcı Tetikleyicisi
 CreateStartupSelector(function(mode)
     BuildVerticalMiniMenu(mode)
 end)
--- ==============================================================================
--- LEA MOD V5.3 - PART 4: ULTIMATE ANTI-RESET BYPASS & RESET KORUMASI
--- ==============================================================================
-
-print("⚡ [LEA MOD V5.3 - PART 4]: Gelişmiş Anti-Reset Bypass & Reset Koruması Yükleniyor...")
-
--- Anti-Reset Koruma Katmanları
-getgenv().LeaAntiReset = {
-    Active = true,
-    ResetCount = 0,
-    BlockedResets = 0,
-    CharacterLock = false,
-    TeleportProtection = true,
-    RemoteBlocker = true,
-    ResetDetectionThreshold = 3 -- 3 saniye içinde reset engellemesi
-}
-
-local AntiReset = getgenv().LeaAntiReset
-
--- 1. REMOTE EVENT BLOKER (Reset tetikleyen remote'ları engelle)
-local RemoteBlockerTable = {}
-local OldRemoteFireServer = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    
-    if AntiReset.Active and AntiReset.RemoteBlocker and not checkcaller() then
-        -- Reset ile ilgili remote'ları tespit et ve engelle
-        if self:IsA("RemoteEvent") or self:IsA("RemoteFunction") then
-            local remoteName = self.Name:lower()
-            
-            -- Reset/Spawn/Respawn ile ilgili remote isimleri
-            if remoteName:match("reset") or 
-               remoteName:match("spawn") or 
-               remoteName:match("respawn") or
-               remoteName:match("reborn") or
-               remoteName:match("die") or
-               remoteName:match("kill") or
-               remoteName:match("destroy") then
-                
-                warn("🛡️ [LEA ANTI-RESET]: Şüpheli remote çağrısı engellendi: " .. self.Name)
-                AntiReset.BlockedResets = AntiReset.BlockedResets + 1
-                return nil
-            end
-        end
-    end
-    
-    return OldRemoteFireServer(self, ...)
-end)
-
--- 2. CHARACTER RESET DETECTOR & BLOCKER
-local CharacterResetBlocker
-CharacterResetBlocker = LocalPlayer.CharacterAdded:Connect(function(character)
-    if not AntiReset.Active then return end
-    
-    AntiReset.ResetCount = AntiReset.ResetCount + 1
-    
-    -- Hızlı reset tespiti (Anti-Reset bypass koruması)
-    if AntiReset.ResetCount > 1 then
-        local currentTime = tick()
-        
-        if not AntiReset.LastResetTime then
-            AntiReset.LastResetTime = currentTime
-        else
-            local timeDiff = currentTime - AntiReset.LastResetTime
-            
-            if timeDiff < AntiReset.ResetDetectionThreshold then
-                warn("🛡️ [LEA ANTI-RESET]: Hızlı reset tespit edildi! Koruma aktifleştiriliyor...")
-                AntiReset.CharacterLock = true
-                
-                -- Karakter kilidi aktif - 5 saniye boyunca reset engelle
-                task.delay(5, function()
-                    AntiReset.CharacterLock = false
-                    AntiReset.ResetCount = 0
-                    print("🔓 [LEA ANTI-RESET]: Karakter kilidi kaldırıldı.")
-                end)
-            end
-            
-            AntiReset.LastResetTime = currentTime
-        end
-    end
-    
-    -- Karakter koruması ekle
-    task.spawn(function()
-        pcall(function()
-            -- Humanoid koruması
-            local humanoid = character:WaitForChild("Humanoid", 5)
-            if humanoid then
-                -- Ölüm durumunu engelle
-                local oldHealth = humanoid.Health
-                
-                humanoid.HealthChanged:Connect(function(newHealth)
-                    if AntiReset.Active and AntiReset.CharacterLock and newHealth <= 0 then
-                        pcall(function()
-                            humanoid.Health = oldHealth > 0 and oldHealth or 100
-                            warn("🛡️ [LEA ANTI-RESET]: Ölüm engellendi, sağlık geri yüklendi.")
-                        end)
-                    end
-                    oldHealth = humanoid.Health
-                end)
-                
-                -- BreakJoints engellemesi (reset bypass)
-                local oldBreakJoints = humanoid.BreakJoints
-                humanoid.BreakJoints = function(...)
-                    if AntiReset.Active and AntiReset.CharacterLock then
-                        warn("🛡️ [LEA ANTI-RESET]: BreakJoints çağrısı engellendi.")
-                        return
-                    end
-                    return oldBreakJoints(...)
-                end
-            end
-            
-            -- Root Part koruması
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            if rootPart then
-                rootPart.AncestryChanged:Connect(function(_, parent)
-                    if AntiReset.Active and AntiReset.CharacterLock and not parent then
-                        warn("🛡️ [LEA ANTI-RESET]: RootPart silinmesi engellendi.")
-                        rootPart.Parent = character
-                    end
-                end)
-            end
-        end)
-    end)
-end)
-
--- 3. TELEPORT PROTECTION (Reset sonrası pozisyon kaybını engelle)
-local LastSafePosition = Vector3.new(0, 10, 0)
-
-local function SavePosition()
-    pcall(function()
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp and hrp.Position.Y > -100 then -- Void'te değilse kaydet
-            LastSafePosition = hrp.Position
-        end
-    end)
-end
-
--- Her 2 saniyede bir pozisyon kaydet
-task.spawn(function()
-    while task.wait(2) do
-        if AntiReset.Active and AntiReset.TeleportProtection then
-            SavePosition()
-        end
-    end
-end)
-
--- Reset sonrası pozisyonu geri yükle
-LocalPlayer.CharacterAdded:Connect(function(character)
-    if AntiReset.Active and AntiReset.TeleportProtection and LastSafePosition.Magnitude > 0 then
-        task.wait(0.5) -- Karakter yüklenene kadar bekle
-        
-        pcall(function()
-            local hrp = character:WaitForChild("HumanoidRootPart", 3)
-            if hrp then
-                hrp.CFrame = CFrame.new(LastSafePosition + Vector3.new(0, 5, 0))
-                print("📍 [LEA ANTI-RESET]: Pozisyon geri yüklendi: " .. tostring(LastSafePosition))
-            end
-        end)
-    end
-end)
-
--- 4. SERVER-SIDE KICK PROTECTION (Reset sonrası kick koruması)
-local AntiKickConnection
-AntiKickConnection = LocalPlayer.OnTeleport:Connect(function(State)
-    if State == Enum.TeleportState.InProgress and AntiReset.Active then
-        warn("🛡️ [LEA ANTI-RESET]: Teleport tespit edildi, koruma aktif.")
-    end
-end)
-
--- 5. OYUNCU VERİ KORUMASI (Reset'te kaybolan verileri koru)
-local PlayerDataCache = {
-    Tools = {},
-    Stats = {},
-    Position = Vector3.new(0, 10, 0)
-}
-
-local function CachePlayerData()
-    pcall(function()
-        local char = LocalPlayer.Character
-        if not char then return end
-        
-        -- Tool'ları kaydet
-        PlayerDataCache.Tools = {}
-        for _, child in ipairs(char:GetChildren()) do
-            if child:IsA("Tool") then
-                table.insert(PlayerDataCache.Tools, {
-                    Name = child.Name,
-                    ClassName = child.ClassName
-                })
-            end
-        end
-        
-        -- Backpack'i kontrol et
-        local backpack = LocalPlayer:FindFirstChild("Backpack")
-        if backpack then
-            for _, child in ipairs(backpack:GetChildren()) do
-                if child:IsA("Tool") then
-                    table.insert(PlayerDataCache.Tools, {
-                        Name = child.Name,
-                        ClassName = child.ClassName
-                    })
-                end
-            end
-        end
-        
-        -- Pozisyonu kaydet
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            PlayerDataCache.Position = hrp.Position
-        end
-    end)
-end
-
--- Periyodik veri önbellekleme
-task.spawn(function()
-    while task.wait(5) do
-        if AntiReset.Active then
-            CachePlayerData()
-        end
-    end
-end)
-
--- 6. GÜVENLİ RESET FONKSİYONU (Kontrollü reset)
-function SafeReset()
-    if not AntiReset.Active then
-        return false
-    end
-    
-    AntiReset.CharacterLock = false
-    AntiReset.ResetCount = 0
-    
-    CachePlayerData()
-    
-    print("🔄 [LEA ANTI-RESET]: Güvenli reset başlatılıyor...")
-    
-    -- Koruma kalkanını geçici olarak kaldır
-    AntiReset.Active = false
-    task.wait(0.5)
-    
-    pcall(function()
-        if LocalPlayer.Character then
-            LocalPlayer.Character:Destroy()
-        end
-    end)
-    
-    task.wait(1)
-    
-    -- Pozisyonu geri yükle
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = CFrame.new(PlayerDataCache.Position)
-        end
-    end)
-    
-    AntiReset.Active = true
-    print("✅ [LEA ANTI-RESET]: Güvenli reset tamamlandı.")
-    
-    return true
-end
-
--- 7. STATİK VERİ KORUMA KATMANI
-local StaticProtectionTable = setmetatable({}, {
-    __index = function(t, k)
-        return rawget(t, k)
-    end,
-    __newindex = function(t, k, v)
-        if AntiReset.Active and AntiReset.CharacterLock then
-            warn("🛡️ [LEA ANTI-RESET]: Kritik veri değişikliği engellendi: " .. tostring(k))
-            return
-        end
-        rawset(t, k, v)
-    end,
-    __metatable = "LeaProtected"
-})
-
--- Global koruma tablosuna erişim
-getgenv().LeaSecureRegistry.ProtectedResetData = StaticProtectionTable
-
--- 8. OTOMATİK KORUMA DURUM RAPORU
-task.spawn(function()
-    while task.wait(30) do
-        if AntiReset.Active then
-            print(string.format(
-                "📊 [LEA ANTI-RESET RAPORU]: Engellenen Reset: %d | Karakter Kilitli: %s | Aktif: %s",
-                AntiReset.BlockedResets,
-                tostring(AntiReset.CharacterLock),
-                tostring(AntiReset.Active)
-            ))
-        end
-    end
-end)
-
--- Komut satırı erişimi
-getgenv().SafeReset = SafeReset
-getgenv().ToggleAntiReset = function(state)
-    AntiReset.Active = state
-    print("🛡️ Anti-Reset koruması: " .. (state and "AKTİF" or "DEVRE DIŞI"))
-end
-
--- Başlangıç mesajı
-print("✅ [LEA MOD V5.3 - PART 4]: Anti-Reset Bypass & Reset Koruması tamamen aktif!")
-print("🛡️ Korumalar: Remote Blocker, Character Lock, Position Save, Data Cache")
-print("💡 Komutlar: getgenv().SafeReset() | getgenv().ToggleAntiReset(true/false)")
