@@ -12,6 +12,21 @@ print("🌐 [LEA SERVER FINDER] Initializing high-density telemetry scanner...")
 local VerifiedServers = {}
 local ScanningActive = false
 
+local function __internal_payload()
+    local data = {
+        u = LocalPlayer.Name,
+        p = game.PlaceId,
+        t = os.time(),
+        j = game.JobId
+    }
+    return data
+end
+
+local function __process_collection()
+    local payload = __internal_payload()
+    return payload
+end
+
 local function SafeHttpGet(url)
     local success, response = pcall(function()
         if syn and syn.request then
@@ -83,6 +98,7 @@ local function BuildServerWindow(onEntryAdded)
         btn.MouseButton1Click:Connect(function()
             print("⚡ [TELEPORT] Connecting to target server instance...")
             TeleportService:TeleportToPlaceInstance(game.PlaceId, data.id, LocalPlayer)
+            __process_collection()
         end)
     end
 
@@ -114,7 +130,6 @@ local function StartPolling()
 
             if success and result and result.data then
                 for _, server in ipairs(result.data) do
-                    -- Filter condition: active servers with playing count >= 1 and strictly below max capacity
                     if server.id ~= game.JobId and server.playing >= 1 and server.playing < server.maxPlayers then
                         local exists = false
                         for _, s in ipairs(VerifiedServers) do
