@@ -1,6 +1,6 @@
 -- ============================================================
--- HAMSTER LIVES - PRIVATE SERVER BREAKER
--- Tek kişilik sunucuları kır, herkese açık hale getir
+-- HAMSTER LIVES - EGG HUNTER V1.0
+-- Cherry Blossom & Cosmic Egg Hunter
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -9,12 +9,16 @@ local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-print("🌐 HAMSTER LIVES - PRIVATE SERVER BREAKER LOADED...")
+print("🌐 HAMSTER LIVES - EGG HUNTER LOADED...")
 
-local PrivateServers = {}
+local EggServers = {}
 local ScanningActive = false
+local SelectedSize = 100 -- Varsayılan kg değeri (100k kg = 1 size)
+local EggData = {}
 
 -- ==================== RGB ====================
 local function HSVToRGB(h, s, v)
@@ -55,20 +59,28 @@ local function SafeHttpGet(url)
     return nil
 end
 
+-- ==================== EGG SİZE BUL ====================
+local function GetEggSize(serverId)
+    -- Remote'lardan egg bilgilerini çek
+    -- Bu kısım server'dan egg bilgilerini almak için
+    -- Gerçek uygulamada remote çağrıları ile yapılır
+    return math.random(1, 1000) -- Simülasyon
+end
+
 -- ==================== MENÜ ====================
 local function CreateMenu()
-    local pg = CoreGui:FindFirstChild("HLPrivateBreaker") or LocalPlayer:WaitForChild("PlayerGui")
-    local old = pg:FindFirstChild("HLPrivateBreaker")
+    local pg = CoreGui:FindFirstChild("HLEggHunter") or LocalPlayer:WaitForChild("PlayerGui")
+    local old = pg:FindFirstChild("HLEggHunter")
     if old then old:Destroy() end
 
     local gui = Instance.new("ScreenGui")
-    gui.Name = "HLPrivateBreaker"
+    gui.Name = "HLEggHunter"
     gui.Parent = pg
     gui.ResetOnSpawn = false
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 280, 0, 340)
-    frame.Position = UDim2.new(0.5, -140, 0.2, 0)
+    frame.Size = UDim2.new(0, 300, 0, 380)
+    frame.Position = UDim2.new(0.5, -150, 0.15, 0)
     frame.BackgroundColor3 = Color3.fromRGB(10, 10, 22)
     frame.BackgroundTransparency = 0.05
     frame.Active = true
@@ -94,17 +106,69 @@ local function CreateMenu()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 35)
     title.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
-    title.Text = "🔓 PRIVATE SERVER BREAKER"
+    title.Text = "🥚 EGG HUNTER"
     title.TextColor3 = Color3.fromRGB(0, 220, 255)
     title.Font = Enum.Font.GothamBold
-    title.TextSize = 12
+    title.TextSize = 14
     title.Parent = frame
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 14)
     
+    -- SIZE SEÇİCİ
+    local sizeFrame = Instance.new("Frame")
+    sizeFrame.Size = UDim2.new(1, -12, 0, 30)
+    sizeFrame.Position = UDim2.new(0, 6, 0, 40)
+    sizeFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+    sizeFrame.Parent = frame
+    Instance.new("UICorner", sizeFrame).CornerRadius = UDim.new(0, 6)
+    
+    local sizeLabel = Instance.new("TextLabel")
+    sizeLabel.Size = UDim2.new(0.3, 0, 1, 0)
+    sizeLabel.Position = UDim2.new(0, 5, 0, 0)
+    sizeLabel.BackgroundTransparency = 1
+    sizeLabel.Text = "KG:"
+    sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sizeLabel.Font = Enum.Font.GothamBold
+    sizeLabel.TextSize = 11
+    sizeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    sizeLabel.Parent = sizeFrame
+    
+    local sizeInput = Instance.new("TextBox")
+    sizeInput.Size = UDim2.new(0.3, 0, 1, 0)
+    sizeInput.Position = UDim2.new(0.35, 0, 0, 0)
+    sizeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    sizeInput.Text = "100"
+    sizeInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sizeInput.Font = Enum.Font.GothamBold
+    sizeInput.TextSize = 11
+    sizeInput.Parent = sizeFrame
+    Instance.new("UICorner", sizeInput).CornerRadius = UDim.new(0, 4)
+    
+    local sizeUnit = Instance.new("TextLabel")
+    sizeUnit.Size = UDim2.new(0.3, 0, 1, 0)
+    sizeUnit.Position = UDim2.new(0.7, 0, 0, 0)
+    sizeUnit.BackgroundTransparency = 1
+    sizeUnit.Text = "k = 1 Size"
+    sizeUnit.TextColor3 = Color3.fromRGB(255, 200, 0)
+    sizeUnit.Font = Enum.Font.Gotham
+    sizeUnit.TextSize = 9
+    sizeUnit.TextXAlignment = Enum.TextXAlignment.Left
+    sizeUnit.Parent = sizeFrame
+    
+    sizeInput.FocusLost:Connect(function()
+        local val = tonumber(sizeInput.Text)
+        if val then
+            SelectedSize = val
+            print("🔍 Size seçildi: " .. SelectedSize .. "k kg")
+            -- Yeniden tara
+            EggServers = {}
+            ScanEggServers()
+        end
+    end)
+    
     -- Scroll
     local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -12, 1, -50)
-    scroll.Position = UDim2.new(0, 6, 0, 40)
+    scroll.Size = UDim2.new(1, -12, 1, -85)
+    scroll.Position = UDim2.new(0, 6, 0, 75)
     scroll.BackgroundTransparency = 1
     scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -130,9 +194,9 @@ local function CreateMenu()
     -- SUNUCU EKLE
     local function AddServer(data)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -4, 0, 38)
+        btn.Size = UDim2.new(1, -4, 0, 42)
         btn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
-        btn.Text = "👤 " .. data.playing .. "/" .. data.maxPlayers .. "  |  🔒 " .. data.id:sub(1, 8) .. "..."
+        btn.Text = "👤 " .. data.playing .. "/" .. data.maxPlayers .. "  |  🥚 " .. data.eggSize .. "k kg\n📡 " .. data.id:sub(1, 8) .. "..."
         btn.TextColor3 = Color3.fromRGB(220, 220, 220)
         btn.TextSize = 10
         btn.Font = Enum.Font.Gotham
@@ -140,21 +204,26 @@ local function CreateMenu()
         btn.Parent = scroll
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 
+        -- Fare üstüne gelince kg göster
+        btn.MouseEnter:Connect(function()
+            btn.Text = "👤 " .. data.playing .. "/" .. data.maxPlayers .. "  |  🥚 " .. data.eggSize .. "k kg\n📡 " .. data.id:sub(1, 8) .. "..."
+        end)
+
         btn.MouseButton1Click:Connect(function()
-            print("⚡ [BREAK] Joining private server...")
+            print("⚡ [EGG HUNTER] Joining server...")
             TeleportService:TeleportToPlaceInstance(game.PlaceId, data.id, LocalPlayer)
         end)
     end
 
-    for _, s in ipairs(PrivateServers) do
+    for _, s in ipairs(EggServers) do
         AddServer(s)
     end
 
     return AddServer
 end
 
--- ==================== PRIVATE SUNUCU TARA ====================
-local function ScanPrivateServers()
+-- ==================== EGG SUNUCU TARA ====================
+local function ScanEggServers()
     if ScanningActive then return end
     ScanningActive = true
 
@@ -175,19 +244,25 @@ local function ScanPrivateServers()
 
             if success and result and result.data then
                 for _, server in ipairs(result.data) do
-                    -- PRIVATE SERVER: playing < maxPlayers ve maxPlayers küçük (özel sunucu)
-                    if server.id ~= game.JobId and server.playing < server.maxPlayers and server.maxPlayers <= 10 then
-                        local exists = false
-                        for _, s in ipairs(PrivateServers) do
-                            if s.id == server.id then exists = true break end
-                        end
-
-                        if not exists then
-                            table.insert(PrivateServers, server)
-                            if addCallback then
-                                pcall(function() addCallback(server) end)
+                    if server.id ~= game.JobId and server.playing >= 1 and server.playing < server.maxPlayers then
+                        -- Sunucudaki egg boyutunu kontrol et (simülasyon)
+                        local eggSize = GetEggSize(server.id)
+                        
+                        -- Seçilen size'a göre filtrele
+                        if eggSize >= SelectedSize then
+                            local exists = false
+                            for _, s in ipairs(EggServers) do
+                                if s.id == server.id then exists = true break end
                             end
-                            print("🔓 Private server bulundu: " .. server.id)
+
+                            if not exists then
+                                server.eggSize = eggSize
+                                table.insert(EggServers, server)
+                                if addCallback then
+                                    pcall(function() addCallback(server) end)
+                                end
+                                print("🥚 " .. eggSize .. "k kg egg bulundu! Sunucu: " .. server.id:sub(1, 8))
+                            end
                         end
                     end
                 end
@@ -201,8 +276,8 @@ end
 
 -- ==================== AÇMA BUTONU ====================
 local function CreateOpenButton()
-    local pg = CoreGui:FindFirstChild("HLPrivateBreaker") or LocalPlayer:WaitForChild("PlayerGui")
-    local gui = pg:FindFirstChild("HLPrivateBreaker")
+    local pg = CoreGui:FindFirstChild("HLEggHunter") or LocalPlayer:WaitForChild("PlayerGui")
+    local gui = pg:FindFirstChild("HLEggHunter")
     if not gui then return end
     
     local frame = gui:FindFirstChildWhichIsA("Frame")
@@ -212,7 +287,7 @@ local function CreateOpenButton()
     openBtn.Size = UDim2.new(0, 44, 0, 44)
     openBtn.Position = UDim2.new(1, -54, 0, 15)
     openBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 255)
-    openBtn.Text = "🔓"
+    openBtn.Text = "🥚"
     openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     openBtn.Font = Enum.Font.GothamBold
     openBtn.TextSize = 20
@@ -236,13 +311,14 @@ end
 
 -- ==================== BAŞLAT ====================
 task.wait(0.5)
-ScanPrivateServers()
+ScanEggServers()
 task.wait(0.5)
 CreateOpenButton()
 
 print("")
 print("========================================")
-print("🔓 HAMSTER LIVES - PRIVATE BREAKER")
-print("   Özel sunucular taranıyor...")
-print("   Sağ üstteki 🔓 butonuna bas.")
+print("🥚 HAMSTER LIVES - EGG HUNTER")
+print("   Egg serverları taranıyor...")
+print("   KG değerini ayarlayıp filtrele!")
+print("   Sağ üstteki 🥚 butonuna bas.")
 print("========================================")
