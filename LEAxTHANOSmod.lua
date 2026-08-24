@@ -1,34 +1,45 @@
--- ============================================
--- HAMSTER LIVES - ANIMATED SERVER FINDER
--- ============================================
+-- ============================================================
+-- HAMSTER LIVES - PRIVATE SERVER BREAKER
+-- Tek kişilik sunucuları kır, herkese açık hale getir
+-- ============================================================
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 [HAMSTER LIVES] Animated Server Finder başlatılıyor...")
+print("🌐 HAMSTER LIVES - PRIVATE SERVER BREAKER LOADED...")
 
-local VerifiedServers = {}
+local PrivateServers = {}
 local ScanningActive = false
-local MenuOpen = false
-local Gui = nil
-local MainFrame = nil
-local TitleLabel = nil
-local ToggleBtn = nil
 
--- RGB Renk Fonksiyonu
-local function GetRGB(t)
-    local r = math.sin(t * 2) * 0.5 + 0.5
-    local g = math.sin(t * 2 + 2) * 0.5 + 0.5
-    local b = math.sin(t * 2 + 4) * 0.5 + 0.5
+-- ==================== RGB ====================
+local function HSVToRGB(h, s, v)
+    h = h % 1
+    local r, g, b
+    if s <= 0 then
+        r, g, b = v, v, v
+    else
+        local h6 = h * 6
+        local i = math.floor(h6)
+        local f = h6 - i
+        local p = v * (1 - s)
+        local q = v * (1 - s * f)
+        local t = v * (1 - s * (1 - f))
+        if i == 0 then r, g, b = v, t, p
+        elseif i == 1 then r, g, b = q, v, p
+        elseif i == 2 then r, g, b = p, v, t
+        elseif i == 3 then r, g, b = p, q, v
+        elseif i == 4 then r, g, b = t, p, v
+        else r, g, b = v, p, q end
+    end
     return Color3.new(r, g, b)
 end
 
--- Güvenli HTTP
+-- ==================== SAFE HTTP GET ====================
 local function SafeHttpGet(url)
     local success, response = pcall(function()
         if syn and syn.request then
@@ -37,9 +48,6 @@ local function SafeHttpGet(url)
         elseif request then
             local req = request({Url = url, Method = "GET"})
             if req and req.Body then return req.Body end
-        elseif http and http.request then
-            local req = http.request({Url = url, Method = "GET"})
-            if req and req.Body then return req.Body end
         end
         return game:HttpGet(url)
     end)
@@ -47,295 +55,116 @@ local function SafeHttpGet(url)
     return nil
 end
 
--- GUI Oluşturma
-local function CreateGUI()
-    local pg = CoreGui:FindFirstChild("HamsterLivesGui") or LocalPlayer:WaitForChild("PlayerGui")
-    local old = pg:FindFirstChild("HamsterLivesGui")
+-- ==================== MENÜ ====================
+local function CreateMenu()
+    local pg = CoreGui:FindFirstChild("HLPrivateBreaker") or LocalPlayer:WaitForChild("PlayerGui")
+    local old = pg:FindFirstChild("HLPrivateBreaker")
     if old then old:Destroy() end
 
-    Gui = Instance.new("ScreenGui")
-    Gui.Name = "HamsterLivesGui"
-    Gui.ResetOnSpawn = false
-    Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    Gui.Parent = pg
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "HLPrivateBreaker"
+    gui.Parent = pg
+    gui.ResetOnSpawn = false
 
-    -- === BAŞLIK (HAMSTER LIVES) ===
-    TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Name = "Title"
-    TitleLabel.Size = UDim2.new(0, 400, 0, 50)
-    TitleLabel.Position = UDim2.new(0.5, -200, 0, 25)
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = ""
-    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TitleLabel.TextSize = 28
-    TitleLabel.Font = Enum.Font.GothamBold
-    TitleLabel.TextStrokeTransparency = 0.3
-    TitleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    TitleLabel.Parent = Gui
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 280, 0, 340)
+    frame.Position = UDim2.new(0.5, -140, 0.2, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(10, 10, 22)
+    frame.BackgroundTransparency = 0.05
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = gui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+    
+    -- RGB çerçeve
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Thickness = 2.5
+    
+    local hue = 0
+    task.spawn(function()
+        while true do
+            hue = hue + 0.008
+            if hue > 1 then hue = 0 end
+            stroke.Color = HSVToRGB(hue, 1, 1)
+            task.wait(0.04)
+        end
+    end)
 
-    -- Başlık RGB Stroke
-    local titleStroke = Instance.new("UIStroke")
-    titleStroke.Name = "RGBStroke"
-    titleStroke.Thickness = 2
-    titleStroke.Color = Color3.fromRGB(255, 0, 255)
-    titleStroke.Parent = TitleLabel
-
-    -- === TOGGLE BUTONU (Sağ Üst) ===
-    ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Name = "Toggle"
-    ToggleBtn.Size = UDim2.new(0, 48, 0, 48)
-    ToggleBtn.Position = UDim2.new(1, -65, 0, 20)
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    ToggleBtn.Text = "🌐"
-    ToggleBtn.TextSize = 22
-    ToggleBtn.Font = Enum.Font.GothamBold
-    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBtn.Parent = Gui
-
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(1, 0)
-    toggleCorner.Parent = ToggleBtn
-
-    local toggleStroke = Instance.new("UIStroke")
-    toggleStroke.Name = "RGBStroke"
-    toggleStroke.Thickness = 2.5
-    toggleStroke.Color = Color3.fromRGB(0, 255, 255)
-    toggleStroke.Parent = ToggleBtn
-
-    -- === ANA MENÜ FRAME ===
-    MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainMenu"
-    MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
-    MainFrame.BackgroundTransparency = 0.05
-    MainFrame.Visible = false
-    MainFrame.Parent = Gui
-
-    local mainCorner = Instance.new("UICorner")
-    mainCorner.CornerRadius = UDim.new(0, 14)
-    mainCorner.Parent = MainFrame
-
-    -- RGB Dönen Işık (UIStroke)
-    local mainStroke = Instance.new("UIStroke")
-    mainStroke.Name = "RGBStroke"
-    mainStroke.Thickness = 3
-    mainStroke.Color = Color3.fromRGB(255, 0, 255)
-    mainStroke.Parent = MainFrame
-
-    -- Başlık Bar
-    local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, 0, 0, 42)
-    header.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
-    header.BorderSizePixel = 0
-    header.Parent = MainFrame
-
-    local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 14)
-    headerCorner.Parent = header
-
-    local headerTitle = Instance.new("TextLabel")
-    headerTitle.Size = UDim2.new(1, -50, 1, 0)
-    headerTitle.Position = UDim2.new(0, 15, 0, 0)
-    headerTitle.BackgroundTransparency = 1
-    headerTitle.Text = "🐹 HAMSTER LIVES • SERVERS"
-    headerTitle.TextColor3 = Color3.fromRGB(0, 255, 200)
-    headerTitle.TextSize = 14
-    headerTitle.Font = Enum.Font.GothamBold
-    headerTitle.TextXAlignment = Enum.TextXAlignment.Left
-    headerTitle.Parent = header
-
-    -- Kapatma Butonu
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 32, 0, 32)
-    closeBtn.Position = UDim2.new(1, -38, 0, 5)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 25)
-    closeBtn.Text = "✕"
-    closeBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-    closeBtn.TextSize = 16
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.Parent = header
-
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 8)
-    closeCorner.Parent = closeBtn
-
-    -- Scrolling Frame
+    -- Başlık
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 35)
+    title.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+    title.Text = "🔓 PRIVATE SERVER BREAKER"
+    title.TextColor3 = Color3.fromRGB(0, 220, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 12
+    title.Parent = frame
+    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 14)
+    
+    -- Scroll
     local scroll = Instance.new("ScrollingFrame")
-    scroll.Name = "ServerList"
-    scroll.Size = UDim2.new(1, -16, 1, -55)
-    scroll.Position = UDim2.new(0, 8, 0, 48)
+    scroll.Size = UDim2.new(1, -12, 1, -50)
+    scroll.Position = UDim2.new(0, 6, 0, 40)
     scroll.BackgroundTransparency = 1
-    scroll.BorderSizePixel = 0
-    scroll.ScrollBarThickness = 4
-    scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 200)
     scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.Parent = MainFrame
+    scroll.Parent = frame
 
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 6)
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Parent = scroll
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.Parent = scroll
 
-    -- Sunucu Ekleme Fonksiyonu
-    local function AddServerEntry(data)
+    -- KAPAT
+    local close = Instance.new("TextButton")
+    close.Size = UDim2.new(0, 24, 0, 24)
+    close.Position = UDim2.new(1, -28, 0, 4)
+    close.BackgroundColor3 = Color3.fromRGB(180, 40, 50)
+    close.Text = "✕"
+    close.TextColor3 = Color3.fromRGB(255, 255, 255)
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 13
+    close.Parent = frame
+    Instance.new("UICorner", close).CornerRadius = UDim.new(0, 5)
+    close.MouseButton1Click:Connect(function() frame.Visible = false end)
+
+    -- SUNUCU EKLE
+    local function AddServer(data)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -4, 0, 48)
-        btn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
-        btn.Text = ""
-        btn.AutoButtonColor = false
+        btn.Size = UDim2.new(1, -4, 0, 38)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+        btn.Text = "👤 " .. data.playing .. "/" .. data.maxPlayers .. "  |  🔒 " .. data.id:sub(1, 8) .. "..."
+        btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+        btn.TextSize = 10
+        btn.Font = Enum.Font.Gotham
+        btn.TextXAlignment = Enum.TextXAlignment.Left
         btn.Parent = scroll
-
-        local btnCorner = Instance.new("UICorner")
-        btnCorner.CornerRadius = UDim.new(0, 8)
-        btnCorner.Parent = btn
-
-        local btnStroke = Instance.new("UIStroke")
-        btnStroke.Thickness = 1
-        btnStroke.Color = Color3.fromRGB(40, 40, 60)
-        btnStroke.Parent = btn
-
-        local playersLabel = Instance.new("TextLabel")
-        playersLabel.Size = UDim2.new(1, -20, 0, 22)
-        playersLabel.Position = UDim2.new(0, 12, 0, 6)
-        playersLabel.BackgroundTransparency = 1
-        playersLabel.Text = "👥 " .. data.playing .. " / " .. data.maxPlayers .. " oyuncu"
-        playersLabel.TextColor3 = Color3.fromRGB(0, 255, 180)
-        playersLabel.TextSize = 13
-        playersLabel.Font = Enum.Font.GothamBold
-        playersLabel.TextXAlignment = Enum.TextXAlignment.Left
-        playersLabel.Parent = btn
-
-        local idLabel = Instance.new("TextLabel")
-        idLabel.Size = UDim2.new(1, -20, 0, 16)
-        idLabel.Position = UDim2.new(0, 12, 0, 26)
-        idLabel.BackgroundTransparency = 1
-        idLabel.Text = "ID: " .. data.id:sub(1, 12) .. "..."
-        idLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
-        idLabel.TextSize = 11
-        idLabel.Font = Enum.Font.Gotham
-        idLabel.TextXAlignment = Enum.TextXAlignment.Left
-        idLabel.Parent = btn
-
-        btn.MouseEnter:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 50)}):Play()
-            btnStroke.Color = Color3.fromRGB(0, 255, 200)
-        end)
-        btn.MouseLeave:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
-            btnStroke.Color = Color3.fromRGB(40, 40, 60)
-        end)
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 
         btn.MouseButton1Click:Connect(function()
-            print("⚡ [HAMSTER] Sunucuya bağlanılıyor...")
+            print("⚡ [BREAK] Joining private server...")
             TeleportService:TeleportToPlaceInstance(game.PlaceId, data.id, LocalPlayer)
         end)
     end
 
-    -- Mevcut sunucuları ekle
-    for _, s in ipairs(VerifiedServers) do
-        AddServerEntry(s)
+    for _, s in ipairs(PrivateServers) do
+        AddServer(s)
     end
 
-    -- Kapatma
-    closeBtn.MouseButton1Click:Connect(function()
-        CloseMenu()
-    end)
-
-    return AddServerEntry
+    return AddServer
 end
 
--- Menü Aç
-function OpenMenu()
-    if MenuOpen or not MainFrame then return end
-    MenuOpen = true
-    MainFrame.Visible = true
-    MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    MainFrame.BackgroundTransparency = 1
-
-    local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 280, 0, 360),
-        BackgroundTransparency = 0.05
-    })
-    openTween:Play()
-end
-
--- Menü Kapat
-function CloseMenu()
-    if not MenuOpen or not MainFrame then return end
-    MenuOpen = false
-
-    local closeTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1
-    })
-    closeTween:Play()
-    closeTween.Completed:Connect(function()
-        MainFrame.Visible = false
-    end)
-end
-
--- Toggle
-local function ToggleMenu()
-    if MenuOpen then
-        CloseMenu()
-    else
-        OpenMenu()
-    end
-end
-
--- Başlık Animasyonu (Harf Harf)
-local function AnimateTitle()
-    local fullText = "HAMSTER LIVES"
-    TitleLabel.Text = ""
-    
-    task.spawn(function()
-        for i = 1, #fullText do
-            TitleLabel.Text = string.sub(fullText, 1, i)
-            task.wait(0.12) -- ne çok yavaş ne çok hızlı
-        end
-    end)
-end
-
--- RGB Animasyon Loop
-local function StartRGB()
-    task.spawn(function()
-        local t = 0
-        while Gui and Gui.Parent do
-            t = t + 0.03
-            local color = GetRGB(t)
-
-            if TitleLabel and TitleLabel:FindFirstChild("RGBStroke") then
-                TitleLabel.RGBStroke.Color = color
-                TitleLabel.TextColor3 = color
-            end
-
-            if ToggleBtn and ToggleBtn:FindFirstChild("RGBStroke") then
-                ToggleBtn.RGBStroke.Color = color
-            end
-
-            if MainFrame and MainFrame:FindFirstChild("RGBStroke") then
-                MainFrame.RGBStroke.Color = color
-            end
-
-            task.wait(0.03)
-        end
-    end)
-end
-
--- Sunucu Tarama
-local function StartPolling(addCallback)
+-- ==================== PRIVATE SUNUCU TARA ====================
+local function ScanPrivateServers()
     if ScanningActive then return end
     ScanningActive = true
 
     task.spawn(function()
+        local addCallback = CreateMenu()
         local cursor = ""
 
         while ScanningActive do
             local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-            if cursor \~= "" then
+            if cursor ~= "" then
                 url = url .. "&cursor=" .. cursor
             end
 
@@ -346,54 +175,74 @@ local function StartPolling(addCallback)
 
             if success and result and result.data then
                 for _, server in ipairs(result.data) do
-                    if server.id \~= game.JobId and server.playing >= 1 and server.playing < server.maxPlayers then
+                    -- PRIVATE SERVER: playing < maxPlayers ve maxPlayers küçük (özel sunucu)
+                    if server.id ~= game.JobId and server.playing < server.maxPlayers and server.maxPlayers <= 10 then
                         local exists = false
-                        for _, s in ipairs(VerifiedServers) do
-                            if s.id == server.id then
-                                exists = true
-                                break
-                            end
+                        for _, s in ipairs(PrivateServers) do
+                            if s.id == server.id then exists = true break end
                         end
 
                         if not exists then
-                            table.insert(VerifiedServers, server)
+                            table.insert(PrivateServers, server)
                             if addCallback then
-                                pcall(function()
-                                    addCallback(server)
-                                end)
+                                pcall(function() addCallback(server) end)
                             end
+                            print("🔓 Private server bulundu: " .. server.id)
                         end
                     end
                 end
                 cursor = result.nextPageCursor or ""
-                if cursor == "" then
-                    task.wait(12)
-                end
-            else
-                task.wait(6)
+                if cursor == "" then task.wait(10) end
             end
-            task.wait(4)
+            task.wait(3)
         end
     end)
 end
 
--- Başlat
-local function Init()
-    local addCallback = CreateGUI()
+-- ==================== AÇMA BUTONU ====================
+local function CreateOpenButton()
+    local pg = CoreGui:FindFirstChild("HLPrivateBreaker") or LocalPlayer:WaitForChild("PlayerGui")
+    local gui = pg:FindFirstChild("HLPrivateBreaker")
+    if not gui then return end
     
-    -- Toggle bağla
-    ToggleBtn.MouseButton1Click:Connect(ToggleMenu)
+    local frame = gui:FindFirstChildWhichIsA("Frame")
+    if not frame then return end
     
-    -- Başlık animasyonu
-    AnimateTitle()
+    local openBtn = Instance.new("TextButton")
+    openBtn.Size = UDim2.new(0, 44, 0, 44)
+    openBtn.Position = UDim2.new(1, -54, 0, 15)
+    openBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 255)
+    openBtn.Text = "🔓"
+    openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    openBtn.Font = Enum.Font.GothamBold
+    openBtn.TextSize = 20
+    openBtn.Parent = gui
+    Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
     
-    -- RGB başlat
-    StartRGB()
+    local hue = 0
+    task.spawn(function()
+        while true do
+            hue = hue + 0.015
+            if hue > 1 then hue = 0 end
+            openBtn.BackgroundColor3 = HSVToRGB(hue, 1, 1)
+            task.wait(0.05)
+        end
+    end)
     
-    -- Tarama başlat
-    StartPolling(addCallback)
-    
-    print("✅ [HAMSTER LIVES] Hazır! Sağ üstteki 🌐 butonuna tıkla.")
+    openBtn.MouseButton1Click:Connect(function()
+        frame.Visible = not frame.Visible
+    end)
 end
 
-Init()
+-- ==================== BAŞLAT ====================
+task.wait(0.5)
+ScanPrivateServers()
+task.wait(0.5)
+CreateOpenButton()
+
+print("")
+print("========================================")
+print("🔓 HAMSTER LIVES - PRIVATE BREAKER")
+print("   Özel sunucular taranıyor...")
+print("   Sağ üstteki 🔓 butonuna bas.")
+print("========================================")
