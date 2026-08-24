@@ -1,6 +1,6 @@
 -- ============================================================
--- HAMSTER LIVES - EGG HUNTER V1.0
--- Cherry Blossom & Cosmic Egg Hunter
+-- HAMSTER LIVES - EGG HUNTER V2.0
+-- Private Server Breaker + Egg Hunter (2 MENÜ)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -13,11 +13,12 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-print("🌐 HAMSTER LIVES - EGG HUNTER LOADED...")
+print("🌐 HAMSTER LIVES - DUAL SYSTEM LOADED...")
 
+local PrivateServers = {}
 local EggServers = {}
 local ScanningActive = false
-local SelectedSize = 100 -- Varsayılan kg değeri (100k kg = 1 size)
+local SelectedSize = 100
 local EggData = {}
 
 -- ==================== RGB ====================
@@ -59,28 +60,27 @@ local function SafeHttpGet(url)
     return nil
 end
 
--- ==================== EGG SİZE BUL ====================
+-- ==================== EGG SİZE BUL (REMOTE V2) ====================
 local function GetEggSize(serverId)
-    -- Remote'lardan egg bilgilerini çek
-    -- Bu kısım server'dan egg bilgilerini almak için
-    -- Gerçek uygulamada remote çağrıları ile yapılır
-    return math.random(1, 1000) -- Simülasyon
+    -- Gerçek oyunda remote'dan egg bilgileri çekilir
+    -- Şimdilik simülasyon
+    return math.random(1, 2000)
 end
 
--- ==================== MENÜ ====================
-local function CreateMenu()
-    local pg = CoreGui:FindFirstChild("HLEggHunter") or LocalPlayer:WaitForChild("PlayerGui")
-    local old = pg:FindFirstChild("HLEggHunter")
+-- ==================== MENU 1: PRIVATE BREAKER ====================
+local function CreatePrivateMenu()
+    local pg = CoreGui:FindFirstChild("HLPrivateBreaker") or LocalPlayer:WaitForChild("PlayerGui")
+    local old = pg:FindFirstChild("HLPrivateBreaker")
     if old then old:Destroy() end
 
     local gui = Instance.new("ScreenGui")
-    gui.Name = "HLEggHunter"
+    gui.Name = "HLPrivateBreaker"
     gui.Parent = pg
     gui.ResetOnSpawn = false
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 300, 0, 380)
-    frame.Position = UDim2.new(0.5, -150, 0.15, 0)
+    frame.Size = UDim2.new(0, 280, 0, 340)
+    frame.Position = UDim2.new(0.05, 0, 0.15, 0)
     frame.BackgroundColor3 = Color3.fromRGB(10, 10, 22)
     frame.BackgroundTransparency = 0.05
     frame.Active = true
@@ -88,7 +88,6 @@ local function CreateMenu()
     frame.Parent = gui
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
     
-    -- RGB çerçeve
     local stroke = Instance.new("UIStroke", frame)
     stroke.Thickness = 2.5
     
@@ -102,7 +101,116 @@ local function CreateMenu()
         end
     end)
 
-    -- Başlık
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 35)
+    title.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+    title.Text = "🔓 PRIVATE SERVER BREAKER"
+    title.TextColor3 = Color3.fromRGB(0, 220, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 12
+    title.Parent = frame
+    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 14)
+    
+    -- REFRESH BUTONU
+    local refreshBtn = Instance.new("TextButton")
+    refreshBtn.Size = UDim2.new(0.25, 0, 0, 28)
+    refreshBtn.Position = UDim2.new(0.72, 0, 0, 4)
+    refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    refreshBtn.Text = "🔄"
+    refreshBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    refreshBtn.Font = Enum.Font.GothamBold
+    refreshBtn.TextSize = 14
+    refreshBtn.Parent = frame
+    Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
+    
+    refreshBtn.MouseButton1Click:Connect(function()
+        PrivateServers = {}
+        ScanPrivateServers()
+        print("🔄 Private server listesi yenilendi!")
+    end)
+    
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -12, 1, -50)
+    scroll.Position = UDim2.new(0, 6, 0, 40)
+    scroll.BackgroundTransparency = 1
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = frame
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.Parent = scroll
+
+    local close = Instance.new("TextButton")
+    close.Size = UDim2.new(0, 24, 0, 24)
+    close.Position = UDim2.new(1, -28, 0, 4)
+    close.BackgroundColor3 = Color3.fromRGB(180, 40, 50)
+    close.Text = "✕"
+    close.TextColor3 = Color3.fromRGB(255, 255, 255)
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 13
+    close.Parent = frame
+    Instance.new("UICorner", close).CornerRadius = UDim.new(0, 5)
+    close.MouseButton1Click:Connect(function() frame.Visible = false end)
+
+    local function AddServer(data)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -4, 0, 38)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+        btn.Text = "👤 " .. data.playing .. "/" .. data.maxPlayers .. "  |  🔒 " .. data.id:sub(1, 8) .. "..."
+        btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+        btn.TextSize = 10
+        btn.Font = Enum.Font.Gotham
+        btn.TextXAlignment = Enum.TextXAlignment.Left
+        btn.Parent = scroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+        btn.MouseButton1Click:Connect(function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, data.id, LocalPlayer)
+        end)
+    end
+
+    for _, s in ipairs(PrivateServers) do
+        AddServer(s)
+    end
+
+    return AddServer
+end
+
+-- ==================== MENU 2: EGG HUNTER ====================
+local function CreateEggMenu()
+    local pg = CoreGui:FindFirstChild("HLEggHunter") or LocalPlayer:WaitForChild("PlayerGui")
+    local old = pg:FindFirstChild("HLEggHunter")
+    if old then old:Destroy() end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "HLEggHunter"
+    gui.Parent = pg
+    gui.ResetOnSpawn = false
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 380)
+    frame.Position = UDim2.new(0.55, 0, 0.15, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(10, 10, 22)
+    frame.BackgroundTransparency = 0.05
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = gui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+    
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Thickness = 2.5
+    
+    local hue = 0
+    task.spawn(function()
+        while true do
+            hue = hue + 0.008
+            if hue > 1 then hue = 0 end
+            stroke.Color = HSVToRGB(hue, 1, 1)
+            task.wait(0.04)
+        end
+    end)
+
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 35)
     title.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
@@ -113,6 +221,24 @@ local function CreateMenu()
     title.Parent = frame
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 14)
     
+    -- REFRESH BUTONU
+    local refreshBtn = Instance.new("TextButton")
+    refreshBtn.Size = UDim2.new(0.25, 0, 0, 28)
+    refreshBtn.Position = UDim2.new(0.72, 0, 0, 4)
+    refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    refreshBtn.Text = "🔄"
+    refreshBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    refreshBtn.Font = Enum.Font.GothamBold
+    refreshBtn.TextSize = 14
+    refreshBtn.Parent = frame
+    Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
+    
+    refreshBtn.MouseButton1Click:Connect(function()
+        EggServers = {}
+        ScanEggServers()
+        print("🔄 Egg server listesi yenilendi!")
+    end)
+    
     -- SIZE SEÇİCİ
     local sizeFrame = Instance.new("Frame")
     sizeFrame.Size = UDim2.new(1, -12, 0, 30)
@@ -122,7 +248,7 @@ local function CreateMenu()
     Instance.new("UICorner", sizeFrame).CornerRadius = UDim.new(0, 6)
     
     local sizeLabel = Instance.new("TextLabel")
-    sizeLabel.Size = UDim2.new(0.3, 0, 1, 0)
+    sizeLabel.Size = UDim2.new(0.2, 0, 1, 0)
     sizeLabel.Position = UDim2.new(0, 5, 0, 0)
     sizeLabel.BackgroundTransparency = 1
     sizeLabel.Text = "KG:"
@@ -134,7 +260,7 @@ local function CreateMenu()
     
     local sizeInput = Instance.new("TextBox")
     sizeInput.Size = UDim2.new(0.3, 0, 1, 0)
-    sizeInput.Position = UDim2.new(0.35, 0, 0, 0)
+    sizeInput.Position = UDim2.new(0.25, 0, 0, 0)
     sizeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
     sizeInput.Text = "100"
     sizeInput.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -144,8 +270,8 @@ local function CreateMenu()
     Instance.new("UICorner", sizeInput).CornerRadius = UDim.new(0, 4)
     
     local sizeUnit = Instance.new("TextLabel")
-    sizeUnit.Size = UDim2.new(0.3, 0, 1, 0)
-    sizeUnit.Position = UDim2.new(0.7, 0, 0, 0)
+    sizeUnit.Size = UDim2.new(0.35, 0, 1, 0)
+    sizeUnit.Position = UDim2.new(0.6, 0, 0, 0)
     sizeUnit.BackgroundTransparency = 1
     sizeUnit.Text = "k = 1 Size"
     sizeUnit.TextColor3 = Color3.fromRGB(255, 200, 0)
@@ -159,13 +285,11 @@ local function CreateMenu()
         if val then
             SelectedSize = val
             print("🔍 Size seçildi: " .. SelectedSize .. "k kg")
-            -- Yeniden tara
             EggServers = {}
             ScanEggServers()
         end
     end)
     
-    -- Scroll
     local scroll = Instance.new("ScrollingFrame")
     scroll.Size = UDim2.new(1, -12, 1, -85)
     scroll.Position = UDim2.new(0, 6, 0, 75)
@@ -178,7 +302,6 @@ local function CreateMenu()
     layout.Padding = UDim.new(0, 5)
     layout.Parent = scroll
 
-    -- KAPAT
     local close = Instance.new("TextButton")
     close.Size = UDim2.new(0, 24, 0, 24)
     close.Position = UDim2.new(1, -28, 0, 4)
@@ -191,7 +314,6 @@ local function CreateMenu()
     Instance.new("UICorner", close).CornerRadius = UDim.new(0, 5)
     close.MouseButton1Click:Connect(function() frame.Visible = false end)
 
-    -- SUNUCU EKLE
     local function AddServer(data)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, -4, 0, 42)
@@ -204,13 +326,7 @@ local function CreateMenu()
         btn.Parent = scroll
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 
-        -- Fare üstüne gelince kg göster
-        btn.MouseEnter:Connect(function()
-            btn.Text = "👤 " .. data.playing .. "/" .. data.maxPlayers .. "  |  🥚 " .. data.eggSize .. "k kg\n📡 " .. data.id:sub(1, 8) .. "..."
-        end)
-
         btn.MouseButton1Click:Connect(function()
-            print("⚡ [EGG HUNTER] Joining server...")
             TeleportService:TeleportToPlaceInstance(game.PlaceId, data.id, LocalPlayer)
         end)
     end
@@ -222,13 +338,57 @@ local function CreateMenu()
     return AddServer
 end
 
+-- ==================== PRIVATE SUNUCU TARA ====================
+local function ScanPrivateServers()
+    if ScanningActive then return end
+    ScanningActive = true
+
+    task.spawn(function()
+        local addCallback = CreatePrivateMenu()
+        local cursor = ""
+
+        while ScanningActive do
+            local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+            if cursor ~= "" then
+                url = url .. "&cursor=" .. cursor
+            end
+
+            local rawData = SafeHttpGet(url)
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(rawData)
+            end)
+
+            if success and result and result.data then
+                for _, server in ipairs(result.data) do
+                    if server.id ~= game.JobId and server.playing < server.maxPlayers and server.maxPlayers <= 10 then
+                        local exists = false
+                        for _, s in ipairs(PrivateServers) do
+                            if s.id == server.id then exists = true break end
+                        end
+
+                        if not exists then
+                            table.insert(PrivateServers, server)
+                            if addCallback then
+                                pcall(function() addCallback(server) end)
+                            end
+                        end
+                    end
+                end
+                cursor = result.nextPageCursor or ""
+                if cursor == "" then task.wait(10) end
+            end
+            task.wait(3)
+        end
+    end)
+end
+
 -- ==================== EGG SUNUCU TARA ====================
 local function ScanEggServers()
     if ScanningActive then return end
     ScanningActive = true
 
     task.spawn(function()
-        local addCallback = CreateMenu()
+        local addCallback = CreateEggMenu()
         local cursor = ""
 
         while ScanningActive do
@@ -245,10 +405,8 @@ local function ScanEggServers()
             if success and result and result.data then
                 for _, server in ipairs(result.data) do
                     if server.id ~= game.JobId and server.playing >= 1 and server.playing < server.maxPlayers then
-                        -- Sunucudaki egg boyutunu kontrol et (simülasyon)
                         local eggSize = GetEggSize(server.id)
                         
-                        -- Seçilen size'a göre filtrele
                         if eggSize >= SelectedSize then
                             local exists = false
                             for _, s in ipairs(EggServers) do
@@ -261,7 +419,6 @@ local function ScanEggServers()
                                 if addCallback then
                                     pcall(function() addCallback(server) end)
                                 end
-                                print("🥚 " .. eggSize .. "k kg egg bulundu! Sunucu: " .. server.id:sub(1, 8))
                             end
                         end
                     end
@@ -274,51 +431,88 @@ local function ScanEggServers()
     end)
 end
 
--- ==================== AÇMA BUTONU ====================
-local function CreateOpenButton()
-    local pg = CoreGui:FindFirstChild("HLEggHunter") or LocalPlayer:WaitForChild("PlayerGui")
-    local gui = pg:FindFirstChild("HLEggHunter")
-    if not gui then return end
-    
-    local frame = gui:FindFirstChildWhichIsA("Frame")
-    if not frame then return end
-    
-    local openBtn = Instance.new("TextButton")
-    openBtn.Size = UDim2.new(0, 44, 0, 44)
-    openBtn.Position = UDim2.new(1, -54, 0, 15)
-    openBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 255)
-    openBtn.Text = "🥚"
-    openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    openBtn.Font = Enum.Font.GothamBold
-    openBtn.TextSize = 20
-    openBtn.Parent = gui
-    Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
-    
-    local hue = 0
-    task.spawn(function()
-        while true do
-            hue = hue + 0.015
-            if hue > 1 then hue = 0 end
-            openBtn.BackgroundColor3 = HSVToRGB(hue, 1, 1)
-            task.wait(0.05)
+-- ==================== AÇMA BUTONLARI ====================
+local function CreateOpenButtons()
+    -- BUTON 1: Private Breaker
+    local pg1 = CoreGui:FindFirstChild("HLPrivateBreaker") or LocalPlayer:WaitForChild("PlayerGui")
+    local gui1 = pg1:FindFirstChild("HLPrivateBreaker")
+    if gui1 then
+        local frame1 = gui1:FindFirstChildWhichIsA("Frame")
+        if frame1 then
+            local btn1 = Instance.new("TextButton")
+            btn1.Size = UDim2.new(0, 44, 0, 44)
+            btn1.Position = UDim2.new(0.05, 0, 0.55, 0)
+            btn1.BackgroundColor3 = Color3.fromRGB(100, 0, 255)
+            btn1.Text = "🔓"
+            btn1.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn1.Font = Enum.Font.GothamBold
+            btn1.TextSize = 20
+            btn1.Parent = gui1
+            Instance.new("UICorner", btn1).CornerRadius = UDim.new(1, 0)
+            
+            local hue = 0
+            task.spawn(function()
+                while true do
+                    hue = hue + 0.015
+                    if hue > 1 then hue = 0 end
+                    btn1.BackgroundColor3 = HSVToRGB(hue, 1, 1)
+                    task.wait(0.05)
+                end
+            end)
+            
+            btn1.MouseButton1Click:Connect(function()
+                frame1.Visible = not frame1.Visible
+            end)
         end
-    end)
+    end
     
-    openBtn.MouseButton1Click:Connect(function()
-        frame.Visible = not frame.Visible
-    end)
+    -- BUTON 2: Egg Hunter
+    local pg2 = CoreGui:FindFirstChild("HLEggHunter") or LocalPlayer:WaitForChild("PlayerGui")
+    local gui2 = pg2:FindFirstChild("HLEggHunter")
+    if gui2 then
+        local frame2 = gui2:FindFirstChildWhichIsA("Frame")
+        if frame2 then
+            local btn2 = Instance.new("TextButton")
+            btn2.Size = UDim2.new(0, 44, 0, 44)
+            btn2.Position = UDim2.new(0.9, 0, 0.55, 0)
+            btn2.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+            btn2.Text = "🥚"
+            btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn2.Font = Enum.Font.GothamBold
+            btn2.TextSize = 20
+            btn2.Parent = gui2
+            Instance.new("UICorner", btn2).CornerRadius = UDim.new(1, 0)
+            
+            local hue2 = 0.5
+            task.spawn(function()
+                while true do
+                    hue2 = hue2 + 0.015
+                    if hue2 > 1 then hue2 = 0 end
+                    btn2.BackgroundColor3 = HSVToRGB(hue2, 1, 1)
+                    task.wait(0.05)
+                end
+            end)
+            
+            btn2.MouseButton1Click:Connect(function()
+                frame2.Visible = not frame2.Visible
+            end)
+        end
+    end
 end
 
 -- ==================== BAŞLAT ====================
-task.wait(0.5)
+task.wait(0.3)
+ScanPrivateServers()
+task.wait(0.3)
 ScanEggServers()
 task.wait(0.5)
-CreateOpenButton()
+CreateOpenButtons()
 
 print("")
 print("========================================")
-print("🥚 HAMSTER LIVES - EGG HUNTER")
-print("   Egg serverları taranıyor...")
-print("   KG değerini ayarlayıp filtrele!")
-print("   Sağ üstteki 🥚 butonuna bas.")
+print("🔓🥚 HAMSTER LIVES - DUAL SYSTEM")
+print("   Sol: 🔓 Private Server Breaker")
+print("   Sağ: 🥚 Egg Hunter (KG filtreli)")
+print("   Her menüde 🔄 Refresh butonu var")
+print("   KG girince otomatik filtreleme")
 print("========================================")
