@@ -1,6 +1,6 @@
 -- ============================================================
--- HAMSTER LIVES - THE DARK SIDE GUI V4 FIXED (PART 1/4)
--- TAM EKRAN | HACKER TEMASI | LINE-ART HAMSTER (EMOJİ YOK)
+-- HAMSTER LIVES - THE DARK SIDE GUI V5 (PART 1/4)
+-- TAM EKRAN | HACKER TEMASI | LİNE-ART HAMSTER | MİNİ MOD
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 THE DARK SIDE GUI V4 FIXED BAŞLADI...")
+print("🐹 THE DARK SIDE GUI V5 BAŞLADI...")
 
 -- ============================================================
 -- KONFIG
@@ -29,6 +29,8 @@ local ConsoleLayoutRef = nil
 local ConsoleLogs = {}
 local IntroComplete = false
 local PageTransitionActive = false
+local OpenButtonRef = nil
+local MiniFrameRef = nil
 
 -- ============================================================
 -- LEA SERVER FINDER MOD (HİÇ DEĞİŞMEDİ)
@@ -97,7 +99,6 @@ local function CreateLineArtHamster(parent, size, position, isSmall)
     container.Parent = parent
     container.ZIndex = 1000
     
-    -- Gövde (daire)
     local body = Instance.new("Frame")
     body.Size = UDim2.new(0.7, 0, 0.7, 0)
     body.Position = UDim2.new(0.15, 0, 0.15, 0)
@@ -108,7 +109,6 @@ local function CreateLineArtHamster(parent, size, position, isSmall)
     bodyStroke.Thickness = isSmall and 2 or 3
     bodyStroke.Color = Color3.fromRGB(200, 200, 200)
     
-    -- Kulaklar
     for i = 0, 1 do
         local ear = Instance.new("Frame")
         ear.Size = UDim2.new(0.2, 0, 0.2, 0)
@@ -122,7 +122,6 @@ local function CreateLineArtHamster(parent, size, position, isSmall)
         Instance.new("UICorner", ear).CornerRadius = UDim.new(0, 4)
     end
     
-    -- Gözler (kırmızı)
     for i = 0, 1 do
         local eye = Instance.new("Frame")
         eye.Size = UDim2.new(0.1, 0, 0.1, 0)
@@ -133,7 +132,6 @@ local function CreateLineArtHamster(parent, size, position, isSmall)
         eye.ZIndex = 1002
         Instance.new("UICorner", eye).CornerRadius = UDim.new(1, 0)
         
-        -- Işın
         local beam = Instance.new("Frame")
         beam.Size = UDim2.new(0.02, 0, 0.3, 0)
         beam.Position = UDim2.new(0.05 + (i * 0.38), 0, 0.32, 0)
@@ -143,7 +141,6 @@ local function CreateLineArtHamster(parent, size, position, isSmall)
         beam.ZIndex = 1001
         Instance.new("UICorner", beam).CornerRadius = UDim.new(1, 0)
         
-        -- Işın animasyonu
         task.spawn(function()
             while container and container.Parent do
                 for j = 0, 1, 0.05 do
@@ -155,7 +152,6 @@ local function CreateLineArtHamster(parent, size, position, isSmall)
         end)
     end
     
-    -- Burun
     local nose = Instance.new("Frame")
     nose.Size = UDim2.new(0.04, 0, 0.04, 0)
     nose.Position = UDim2.new(0.48, 0, 0.48, 0)
@@ -165,7 +161,6 @@ local function CreateLineArtHamster(parent, size, position, isSmall)
     nose.ZIndex = 1001
     Instance.new("UICorner", nose).CornerRadius = UDim.new(1, 0)
     
-    -- Ağız
     local mouth = Instance.new("Frame")
     mouth.Size = UDim2.new(0.15, 0, 0.02, 0)
     mouth.Position = UDim2.new(0.42, 0, 0.55, 0)
@@ -178,7 +173,7 @@ local function CreateLineArtHamster(parent, size, position, isSmall)
 end
 
 -- ============================================================
--- INTRO ANİMASYONU (main.Visible TRUE)
+-- INTRO ANİMASYONU
 -- ============================================================
 local function PlayIntro(main, callback)
     local black = Instance.new("Frame")
@@ -235,31 +230,26 @@ local function PlayIntro(main, callback)
     status.TextTransparency = 1
     
     task.spawn(function()
-        -- Hamster büyüme
         local tween1 = TweenService:Create(introHamster, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, 250, 0, 250)
         })
         tween1:Play()
         task.wait(0.8)
-        
         AddConsoleLog("> HAMSTER AWAKENED", Color3.fromRGB(255, 0, 0))
         task.wait(0.3)
         
-        -- Başlık 1
         local tween2 = TweenService:Create(title1, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             TextTransparency = 0
         })
         tween2:Play()
         task.wait(0.5)
         
-        -- Başlık 2
         local tween3 = TweenService:Create(title2, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             TextTransparency = 0
         })
         tween3:Play()
         task.wait(0.5)
         
-        -- Status
         local tween4 = TweenService:Create(status, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             TextTransparency = 0
         })
@@ -269,7 +259,6 @@ local function PlayIntro(main, callback)
         AddConsoleLog("> SYSTEM READY", Color3.fromRGB(0, 255, 100))
         task.wait(0.5)
         
-        -- Siyah ekran kaldır
         local tween5 = TweenService:Create(black, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             BackgroundTransparency = 1
         })
@@ -289,7 +278,6 @@ end-- ============================================================
 -- ANA GUI OLUŞTUR
 -- ============================================================
 local function CreateDarkGUI()
-    -- PlayerGui kullan
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     if not pg then
         pg = Instance.new("ScreenGui")
@@ -315,18 +303,18 @@ local function CreateDarkGUI()
     main.Visible = true
     MainFrame = main
     
-    -- SAĞ ÜST KÖŞE HAMSTER
+    -- SAĞ ÜST KÖŞE HAMSTER (telefonda da görünsün)
     local cornerHamster = CreateLineArtHamster(
         main,
-        UDim2.new(0, 50, 0, 50),
-        UDim2.new(1, -60, 0, 10),
+        UDim2.new(0, isMobile and 40 or 50, 0, isMobile and 40 or 50),
+        UDim2.new(1, isMobile and -50 or -60, 0, isMobile and 15 or 10),
         true
     )
     cornerHamster.ZIndex = 1000
     
-    -- KONSOL
+    -- KONSOL (sol üst)
     local consoleFrame = Instance.new("Frame")
-    consoleFrame.Size = UDim2.new(0, 320, 0, 150)
+    consoleFrame.Size = UDim2.new(0, isMobile and 250 or 320, 0, isMobile and 120 or 150)
     consoleFrame.Position = UDim2.new(0.02, 0, 0.02, 0)
     consoleFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     consoleFrame.BackgroundTransparency = 0.3
@@ -339,7 +327,7 @@ local function CreateDarkGUI()
     consoleTitle.BackgroundTransparency = 1
     consoleTitle.Text = "> SYSTEM CONSOLE"
     consoleTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
-    consoleTitle.TextSize = 12
+    consoleTitle.TextSize = isMobile and 10 or 12
     consoleTitle.Font = Enum.Font.GothamBold
     consoleTitle.TextXAlignment = Enum.TextXAlignment.Left
     consoleTitle.Parent = consoleFrame
@@ -457,13 +445,12 @@ local function CreateDarkGUI()
     local contentLayout = Instance.new("UIListLayout")
     contentLayout.Padding = UDim.new(0, 10)
     contentLayout.Parent = contentScroll-- ============================================================
--- SAYFA İÇERİKLERİ (DÜZELTİLMİŞ elseif YAPISI)
+-- SAYFA İÇERİKLERİ
 -- ============================================================
 local function UpdateContentPage(page)
     if PageTransitionActive then return end
     PageTransitionActive = true
     
-    -- FADE OUT (güvenli)
     for _, child in ipairs(contentScroll:GetChildren()) do
         if not child:IsA("UIListLayout") then
             local props = {BackgroundTransparency = 1}
@@ -476,14 +463,12 @@ local function UpdateContentPage(page)
     end
     task.wait(0.25)
     
-    -- TEMİZLE
     for _, child in ipairs(contentScroll:GetChildren()) do
         if not child:IsA("UIListLayout") then
             child:Destroy()
         end
     end
     
-    -- YENİ İÇERİK
     if page == "SERVER" then
         -- SERVER SAYFASI
         local header = Instance.new("TextLabel")
@@ -530,6 +515,23 @@ local function UpdateContentPage(page)
         line.Parent = contentScroll
         line.ZIndex = 1002
         
+        -- MİNİ MOD BUTONU
+        local miniBtn = Instance.new("TextButton")
+        miniBtn.Size = UDim2.new(0.3, 0, 0, 30)
+        miniBtn.Position = UDim2.new(0.7, 0, 0, 95)
+        miniBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+        miniBtn.Text = "📦 MİNİ MOD"
+        miniBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        miniBtn.TextSize = 11
+        miniBtn.Font = Enum.Font.GothamBold
+        miniBtn.Parent = contentScroll
+        miniBtn.ZIndex = 1002
+        Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(0, 4)
+        
+        miniBtn.MouseButton1Click:Connect(function()
+            ToggleMiniFrame()
+        end)
+        
         for _, server in ipairs(VerifiedServers) do
             local card = Instance.new("Frame")
             card.Size = UDim2.new(1, 0, 0, 70)
@@ -572,7 +574,7 @@ local function UpdateContentPage(page)
             statusText.Position = UDim2.new(0, 12, 0, 50)
             statusText.BackgroundTransparency = 1
             statusText.Text = "● AVAILABLE"
-            statusText.TextColor3 = Color3.fromRGB(0, 255, 100)
+            statusText.TextColor3 = server.playing == 1 and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(0, 255, 100)
             statusText.TextSize = 10
             statusText.Font = Enum.Font.Gotham
             statusText.TextXAlignment = Enum.TextXAlignment.Left
@@ -661,7 +663,7 @@ local function UpdateContentPage(page)
             {"SERVER MODULE", "READY", Color3.fromRGB(0, 255, 100)},
             {"CONSOLE", "ONLINE", Color3.fromRGB(0, 255, 100)},
             {"DEVICE", isMobile and "MOBILE" or "PC", Color3.fromRGB(0, 255, 100)},
-            {"VERSION", "4.0", Color3.fromRGB(200, 200, 200)},
+            {"VERSION", "5.0", Color3.fromRGB(200, 200, 200)},
             {"ANTICHEAT BYPASS", BypassActive and "ACTIVE" or "STANDBY", BypassActive and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 200, 0)}
         }
         
@@ -760,7 +762,6 @@ local function UpdateContentPage(page)
         end
     end
     
-    -- FADE IN (güvenli)
     task.wait(0.1)
     for _, child in ipairs(contentScroll:GetChildren()) do
         if not child:IsA("UIListLayout") then
@@ -770,10 +771,108 @@ local function UpdateContentPage(page)
             end
         end
     end
-    
     contentScroll.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 20)
     PageTransitionActive = false
-    end    -- ============================================================
+        end    -- ============================================================
+    -- MİNİ MOD (150x150, sadece 1 kişilik sunucular)
+    -- ============================================================
+    local function ToggleMiniFrame()
+        if MiniFrameRef then
+            MiniFrameRef.Visible = not MiniFrameRef.Visible
+            return
+        end
+        
+        local mini = Instance.new("Frame")
+        mini.Size = UDim2.new(0, 150, 0, 150)
+        mini.Position = UDim2.new(0.5, -75, 0.1, 0)
+        mini.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        mini.BackgroundTransparency = 0.2
+        mini.Parent = main
+        mini.ZIndex = 2000
+        Instance.new("UICorner", mini).CornerRadius = UDim.new(0, 8)
+        MiniFrameRef = mini
+        
+        local title = Instance.new("TextLabel")
+        title.Size = UDim2.new(1, 0, 0, 25)
+        title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+        title.Text = "★ MİNİ MOD"
+        title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        title.TextSize = 10
+        title.Font = Enum.Font.GothamBold
+        title.Parent = mini
+        title.ZIndex = 2001
+        Instance.new("UICorner", title).CornerRadius = UDim.new(0, 8)
+        
+        local closeMini = Instance.new("TextButton")
+        closeMini.Size = UDim2.new(0, 20, 0, 20)
+        closeMini.Position = UDim2.new(1, -24, 0, 2)
+        closeMini.BackgroundTransparency = 1
+        closeMini.Text = "✕"
+        closeMini.TextColor3 = Color3.fromRGB(200, 200, 200)
+        closeMini.TextSize = 12
+        closeMini.Font = Enum.Font.GothamBold
+        closeMini.Parent = title
+        closeMini.ZIndex = 2002
+        closeMini.MouseButton1Click:Connect(function()
+            mini.Visible = false
+        end)
+        
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, -10, 1, -35)
+        scroll.Position = UDim2.new(0, 5, 0, 30)
+        scroll.BackgroundTransparency = 1
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = mini
+        scroll.ZIndex = 2001
+        
+        local layout = Instance.new("UIListLayout")
+        layout.Padding = UDim.new(0, 3)
+        layout.Parent = scroll
+        
+        -- Sadece 1 kişilik sunucuları ekle
+        local onePlayerServers = {}
+        for _, s in ipairs(VerifiedServers) do
+            if s.playing == 1 then
+                table.insert(onePlayerServers, s)
+            end
+        end
+        
+        if #onePlayerServers == 0 then
+            local empty = Instance.new("TextLabel")
+            empty.Size = UDim2.new(1, 0, 0, 30)
+            empty.BackgroundTransparency = 1
+            empty.Text = "1 KİŞİLİK SUNUCU YOK"
+            empty.TextColor3 = Color3.fromRGB(200, 50, 50)
+            empty.TextSize = 10
+            empty.Font = Enum.Font.Gotham
+            empty.Parent = scroll
+            empty.ZIndex = 2002
+        else
+            for _, server in ipairs(onePlayerServers) do
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(1, -4, 0, 25)
+                btn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+                btn.Text = "👤 1/" .. server.maxPlayers .. " | " .. server.id:sub(1, 6)
+                btn.TextColor3 = Color3.fromRGB(255, 200, 0)
+                btn.TextSize = 9
+                btn.Font = Enum.Font.GothamBold
+                btn.Parent = scroll
+                btn.ZIndex = 2002
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+                
+                btn.MouseButton1Click:Connect(function()
+                    AddConsoleLog("> MINI CONNECT: " .. server.id:sub(1, 8), Color3.fromRGB(255, 200, 0))
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+                end)
+            end
+        end
+        
+        task.wait(0.05)
+        scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end
+    
+    -- ============================================================
     -- MOBİL ALT NAV
     -- ============================================================
     if isMobile then
@@ -845,7 +944,7 @@ local function UpdateContentPage(page)
     end
     
     -- ============================================================
-    -- LEA SERVER FINDER (HATA TOLERANSLI)
+    -- LEA SERVER FINDER
     -- ============================================================
     local function StartPolling()
         if ScanningActive then return end
@@ -884,6 +983,11 @@ local function UpdateContentPage(page)
                                 AddConsoleLog("> SERVER: " .. server.playing .. "/" .. server.maxPlayers .. " players", Color3.fromRGB(0, 255, 200))
                                 if CurrentPage == "SERVER" then
                                     UpdateContentPage("SERVER")
+                                end
+                                -- MINI MOD'U GÜNCELLE
+                                if MiniFrameRef and MiniFrameRef.Visible then
+                                    ToggleMiniFrame()
+                                    ToggleMiniFrame()
                                 end
                             end
                         end
@@ -934,7 +1038,7 @@ local function UpdateContentPage(page)
     -- ============================================================
     StartPolling()
     
-    -- KAPATMA BUTONU
+    -- KAPATMA BUTONU (sadece gizler)
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 30, 0, 30)
     closeBtn.Position = UDim2.new(1, -40, 0, 10)
@@ -954,25 +1058,44 @@ local function UpdateContentPage(page)
     end)
     
     closeBtn.MouseButton1Click:Connect(function()
-        GuiRef:Destroy()
-        GuiRef = nil
-        MainFrame = nil
-        ScanningActive = false
-        bypassActive = false
-        BypassActive = false
+        main.Visible = false
+        -- Açma butonunu göster
+        if OpenButtonRef then
+            OpenButtonRef.Visible = true
+        end
     end)
     
-    -- ESC
+    -- ============================================================
+    -- AÇMA BUTONU (main gizliyken görünür)
+    -- ============================================================
+    local openBtn = Instance.new("TextButton")
+    openBtn.Size = UDim2.new(0, 44, 0, 44)
+    openBtn.Position = UDim2.new(0.02, 0, 0.02, 0)
+    openBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+    openBtn.Text = "🐹"
+    openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    openBtn.TextSize = 22
+    openBtn.Font = Enum.Font.GothamBold
+    openBtn.Parent = gui
+    openBtn.ZIndex = 3000
+    openBtn.Visible = false
+    Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
+    OpenButtonRef = openBtn
+    
+    openBtn.MouseButton1Click:Connect(function()
+        main.Visible = true
+        openBtn.Visible = false
+    end)
+    
+    -- ESC: GUI'yi gizle, butonu göster
     UserInputService.InputBegan:Connect(function(input, gp)
         if gp then return end
         if input.KeyCode == Enum.KeyCode.Escape then
             if GuiRef then
-                GuiRef:Destroy()
-                GuiRef = nil
-                MainFrame = nil
-                ScanningActive = false
-                bypassActive = false
-                BypassActive = false
+                main.Visible = false
+                if OpenButtonRef then
+                    OpenButtonRef.Visible = true
+                end
             end
         end
     end)
@@ -987,7 +1110,7 @@ local function UpdateContentPage(page)
     PlayIntro(main, function()
         UpdateContentPage("SERVER")
         AddConsoleLog("> " .. #VerifiedServers .. " SERVERS FOUND", Color3.fromRGB(0, 255, 200))
-        AddConsoleLog("> SYSTEM READY - PRESS ESC TO CLOSE", Color3.fromRGB(0, 255, 100))
+        AddConsoleLog("> SYSTEM READY - ESC TO HIDE", Color3.fromRGB(0, 255, 100))
         
         for _, btn in ipairs(navButtons) do
             if btn.Name == "SERVER" then
@@ -998,11 +1121,11 @@ local function UpdateContentPage(page)
         end
     end)
     
-    print("🐹 DARK SIDE GUI V4 FIXED YÜKLENDİ!")
+    print("🐹 DARK SIDE GUI V5 YÜKLENDİ!")
 end
 
 -- ============================================================
--- BAŞLAT (HATA YAKALAMA İLE)
+-- BAŞLAT
 -- ============================================================
 task.wait(0.5)
 local success, err = pcall(CreateDarkGUI)
@@ -1013,7 +1136,7 @@ end
 
 print("")
 print("========================================")
-print("🐹 THE DARK SIDE - HAMSTER GUI V4 FIXED")
+print("🐹 THE DARK SIDE - HAMSTER GUI V5")
 print("   ✅ LINE-ART HAMSTER (EMOJİ YOK)")
 print("   ✅ INTRO ANİMASYONU")
 print("   ✅ SMOOTH PAGE TRANSITIONS")
@@ -1021,5 +1144,6 @@ print("   ✅ PC/MOBILE RESPONSIVE")
 print("   ✅ MODERN TOGGLE")
 print("   ✅ TERMINAL CONSOLE")
 print("   ✅ DARK TEMA + KIRMIZI ACCENT")
-print("   ✅ HATA TOLERANSLI HTTP")
+print("   ✅ MİNİ MOD (150x150, 1 KİŞİLİK)")
+print("   ✅ ESC/GİZLE + AÇMA BUTONU")
 print("========================================")
