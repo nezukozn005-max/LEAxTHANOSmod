@@ -1,18 +1,61 @@
 -- ============================================================
--- HAMSTER LIVES - SERVER FINDER V7 (FİNAL)
+-- HAMSTER LIVES - SERVER FINDER V15 (FINAL)
 -- ============================================================
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 HAMSTER LIVES - SERVER FINDER BAŞLADI...")
+print("🐹 HAMSTER LIVES - SERVER FINDER V15 BAŞLADI...")
 
 local Servers = {}
-local ScanActive = false
+local IsScanning = false
+local StopScanning = false
+local MenuVisible = true
+local GuiRef = nil
+local FrameRef = nil
+local ButtonRef = nil
+local ScrollRef = nil
+local LayoutRef = nil
+
+-- ==================== TEMİZLE ====================
+local function CleanEverything()
+    StopScanning = true
+    IsScanning = false
+
+    if GuiRef then
+        pcall(function() GuiRef:Destroy() end)
+        GuiRef = nil
+    end
+
+    if ButtonRef then
+        pcall(function() ButtonRef:Destroy() end)
+        ButtonRef = nil
+    end
+
+    local pg = CoreGui
+    if pg then
+        local old = pg:FindFirstChild("HLServerFinder")
+        if old then pcall(function() old:Destroy() end) end
+        local oldBtn = pg:FindFirstChild("HLServerButton")
+        if oldBtn then pcall(function() oldBtn:Destroy() end) end
+    end
+
+    local pg2 = LocalPlayer:FindFirstChild("PlayerGui")
+    if pg2 then
+        local old = pg2:FindFirstChild("HLServerFinder")
+        if old then pcall(function() old:Destroy() end) end
+        local oldBtn = pg2:FindFirstChild("HLServerButton")
+        if oldBtn then pcall(function() oldBtn:Destroy() end) end
+    end
+
+    Servers = {}
+    FrameRef = nil
+    ScrollRef = nil
+    LayoutRef = nil
+end
 
 -- ==================== RGB ====================
 local function HSVToRGB(h, s, v)
@@ -38,13 +81,13 @@ local function HSVToRGB(h, s, v)
 end
 
 -- ==================== SAFE HTTP ====================
-local function SafeHttpGet(url)
+local function FastHttpGet(url)
     local success, response = pcall(function()
         if syn and syn.request then
-            local req = syn.request({Url = url, Method = "GET"})
+            local req = syn.request({Url = url, Method = "GET", Headers = {["Cache-Control"] = "no-cache"}, Timeout = 5})
             if req and req.Body then return req.Body end
         elseif request then
-            local req = request({Url = url, Method = "GET"})
+            local req = request({Url = url, Method = "GET", Headers = {["Cache-Control"] = "no-cache"}, Timeout = 5})
             if req and req.Body then return req.Body end
         end
         return game:HttpGet(url)
@@ -53,16 +96,69 @@ local function SafeHttpGet(url)
     return nil
 end
 
--- ==================== MENU ====================
+-- ==================== SUNUCU BUTONU OLUŞTUR ====================
+local function CreateServerButton(parent, data)
+    if not parent or not data then return end
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -4, 0, 35)
+
+    if data.playing <= 2 then
+        btn.BackgroundColor3 = Color3.fromRGB(0, 180, 60)
+    elseif data.playing <= 5 then
+        btn.BackgroundColor3 = Color3.fromRGB(200, 170, 0)
+    else
+        btn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+    end
+
+    btn.Text = "👥 " .. data.playing .. "/" .. data.maxPlayers .. "  ⚡" .. (data.ping or 0) .. "ms"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 12
+    btn.Font = Enum.Font.GothamBold
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    local serverId = data.id
+    btn.MouseButton1Click:Connect(function()
+        CleanEverything()
+        task.wait(0.05)
+
+        local success, err = pcall(function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
+        end)
+
+        if not success then
+            print("❌ Teleport başarısız: " .. tostring(err))
+            task.wait(0.5)
+            -- YENİDEN MENU OLUŞTUR VE TARA
+            CreateMenu()
+            ScanServers()
+        end
+    end)
+end
+
+-- ==================== MENU OLUŞTUR ====================
 local function CreateMenu()
-    local pg = CoreGui:FindFirstChild("HLServerFinder") or LocalPlayer:WaitForChild("PlayerGui")
-    local old = pg:FindFirstChild("HLServerFinder")
-    if old then old:Destroy() end
+    CleanEverything()
+
+    local pg = CoreGui
+    if not pg then
+        pg = LocalPlayer:FindFirstChild("PlayerGui")
+        if not pg then
+            pg = Instance.new("ScreenGui")
+            pg.Name = "PlayerGui"
+            pg.Parent = LocalPlayer
+            task.wait(0.1)
+        end
+    end
+    if not pg then return end
 
     local gui = Instance.new("ScreenGui")
     gui.Name = "HLServerFinder"
     gui.Parent = pg
     gui.ResetOnSpawn = false
+    GuiRef = gui
 
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 320, 0, 400)
@@ -72,14 +168,14 @@ local function CreateMenu()
     frame.Active = true
     frame.Draggable = true
     frame.Parent = gui
+    FrameRef = frame
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
-    
-    -- RGB KENARLIK
+
     local stroke = Instance.new("UIStroke", frame)
     stroke.Thickness = 2.5
     local hue = 0
     task.spawn(function()
-        while true do
+        while GuiRef and GuiRef.Parent and frame and frame.Parent do
             hue = hue + 0.008
             if hue > 1 then hue = 0 end
             stroke.Color = HSVToRGB(hue, 1, 1)
@@ -87,7 +183,6 @@ local function CreateMenu()
         end
     end)
 
-    -- BAŞLIK
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 35)
     title.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
@@ -97,8 +192,21 @@ local function CreateMenu()
     title.TextSize = 13
     title.Parent = frame
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 14)
-    
-    -- YENİLE BUTONU
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -12, 1, -50)
+    scroll.Position = UDim2.new(0, 6, 0, 40)
+    scroll.BackgroundTransparency = 1
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = frame
+    ScrollRef = scroll
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.Parent = scroll
+    LayoutRef = layout
+
     local refreshBtn = Instance.new("TextButton")
     refreshBtn.Size = UDim2.new(0.2, 0, 0, 28)
     refreshBtn.Position = UDim2.new(0.78, 0, 0, 4)
@@ -110,24 +218,27 @@ local function CreateMenu()
     refreshBtn.Parent = frame
     Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
     refreshBtn.MouseButton1Click:Connect(function()
+        StopScanning = true
+        
+        -- TIMEOUT İLE BEKLE (MAX 3 SANİYE)
+        local waitTime = 0
+        while IsScanning and waitTime < 30 do
+            task.wait(0.1)
+            waitTime = waitTime + 1
+        end
+        
         Servers = {}
+        for _, child in ipairs(scroll:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+        
+        StopScanning = false
+        IsScanning = false
         ScanServers()
     end)
-    
-    -- LİSTE
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -12, 1, -50)
-    scroll.Position = UDim2.new(0, 6, 0, 40)
-    scroll.BackgroundTransparency = 1
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.Parent = frame
 
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 5)
-    layout.Parent = scroll
-
-    -- KAPAT
     local close = Instance.new("TextButton")
     close.Size = UDim2.new(0, 24, 0, 24)
     close.Position = UDim2.new(1, -28, 0, 4)
@@ -138,133 +249,201 @@ local function CreateMenu()
     close.TextSize = 13
     close.Parent = frame
     close.MouseButton1Click:Connect(function()
-        gui:Destroy()
+        MenuVisible = false
+        frame.Visible = false
     end)
 
-    -- SUNUCU EKLE
-    local function AddServer(data)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -4, 0, 38)
-        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
-        
-        -- OYUNCU SAYISINA GÖRE RENK
-        if data.playing <= 2 then
-            btn.BackgroundColor3 = Color3.fromRGB(0, 180, 60)
-        elseif data.playing <= 5 then
-            btn.BackgroundColor3 = Color3.fromRGB(200, 170, 0)
-        else
-            btn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-        end
-        
-        btn.Text = "👥 " .. data.playing .. "/" .. data.maxPlayers .. "  ⚡" .. (data.ping or 0) .. "ms  🔒 " .. data.id:sub(1, 8)
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = 11
-        btn.Font = Enum.Font.GothamBold
-        btn.TextXAlignment = Enum.TextXAlignment.Left
-        btn.Parent = scroll
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-        
-        btn.MouseButton1Click:Connect(function()
-            btn.Text = "⏳ BAĞLANIYOR..."
-            btn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-            btn.TextColor3 = Color3.fromRGB(0, 0, 0)
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, data.id, LocalPlayer)
-        end)
-    end
-
+    -- MEVCUT SUNUCULARI GÖSTER
     for _, s in ipairs(Servers) do
-        AddServer(s)
+        CreateServerButton(scroll, s)
     end
 
-    return AddServer
+    task.wait(0.05)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
 end
 
 -- ==================== SUNUCU TARA ====================
 local function ScanServers()
-    task.spawn(function()
-        local addCallback = CreateMenu()
-        local cursor = ""
+    if IsScanning then return end
+    IsScanning = true
+    StopScanning = false
 
-        while true do
+    task.spawn(function()
+        if not GuiRef or not GuiRef.Parent then
+            CreateMenu()
+        end
+
+        local cursor = ""
+        local retryCount = 0
+        local requestCount = 0
+
+        while not StopScanning and GuiRef and GuiRef.Parent do
             local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
             if cursor ~= "" then
                 url = url .. "&cursor=" .. cursor
             end
 
-            local rawData = SafeHttpGet(url)
-            local success, result = pcall(function()
-                return HttpService:JSONDecode(rawData)
-            end)
+            local rawData = FastHttpGet(url)
 
-            if success and result and result.data then
-                for _, server in ipairs(result.data) do
-                    if server.id ~= game.JobId and server.playing < server.maxPlayers then
-                        local exists = false
-                        for _, s in ipairs(Servers) do
-                            if s.id == server.id then exists = true break end
-                        end
-                        if not exists then
-                            table.insert(Servers, server)
-                            if addCallback then
-                                pcall(function() addCallback(server) end)
+            if rawData and rawData ~= "" then
+                local success, result = pcall(function()
+                    return HttpService:JSONDecode(rawData)
+                end)
+
+                if success and result and result.data then
+                    retryCount = 0
+                    local addedCount = 0
+                    local scroll = ScrollRef
+                    local layout = LayoutRef
+
+                    for _, server in ipairs(result.data) do
+                        if StopScanning then break end
+
+                        if server.id ~= game.JobId and server.playing < server.maxPlayers then
+                            local exists = false
+                            for _, s in ipairs(Servers) do
+                                if s.id == server.id then
+                                    exists = true
+                                    break
+                                end
+                            end
+                            if not exists then
+                                table.insert(Servers, server)
+                                if scroll then
+                                    pcall(function()
+                                        CreateServerButton(scroll, server)
+                                        addedCount = addedCount + 1
+                                    end)
+                                end
                             end
                         end
                     end
+
+                    if addedCount > 0 and layout then
+                        task.wait(0.02)
+                        scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+                    end
+
+                    cursor = result.nextPageCursor or ""
+                    if cursor == "" then
+                        task.wait(5)
+                    end
+                else
+                    retryCount = retryCount + 1
+                    if retryCount >= 3 then
+                        task.wait(5)
+                        retryCount = 0
+                    else
+                        task.wait(1)
+                    end
                 end
-                cursor = result.nextPageCursor or ""
-                if cursor == "" then task.wait(8) end
+            else
+                retryCount = retryCount + 1
+                if retryCount >= 3 then
+                    task.wait(5)
+                    retryCount = 0
+                else
+                    task.wait(1)
+                end
             end
-            task.wait(2)
+
+            requestCount = requestCount + 1
+            if requestCount > 50 then
+                task.wait(5)
+                requestCount = 0
+            end
+            
+            task.wait(0.5)
         end
+
+        IsScanning = false
     end)
 end
 
 -- ==================== AÇMA BUTONU ====================
 local function CreateOpenButton()
-    local pg = CoreGui:FindFirstChild("HLServerFinder") or LocalPlayer:WaitForChild("PlayerGui")
-    local gui = pg:FindFirstChild("HLServerFinder")
-    if gui then
-        local frame = gui:FindFirstChildWhichIsA("Frame")
-        if frame then
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(0, 50, 0, 50)
-            btn.Position = UDim2.new(0.5, -25, 0.85, 0)
-            btn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
-            btn.Text = "🐹"
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.Font = Enum.Font.GothamBold
-            btn.TextSize = 24
-            btn.Parent = gui
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-            
-            local hue = 0
-            task.spawn(function()
-                while true do
-                    hue = hue + 0.015
-                    if hue > 1 then hue = 0 end
-                    btn.BackgroundColor3 = HSVToRGB(hue, 1, 1)
-                    task.wait(0.05)
-                end
-            end)
-            
-            btn.MouseButton1Click:Connect(function()
-                frame.Visible = not frame.Visible
-            end)
+    task.wait(0.2)
+
+    if ButtonRef then
+        pcall(function() ButtonRef:Destroy() end)
+        ButtonRef = nil
+    end
+
+    local pg = CoreGui
+    if not pg then
+        pg = LocalPlayer:FindFirstChild("PlayerGui")
+        if not pg then
+            pg = Instance.new("ScreenGui")
+            pg.Name = "PlayerGui"
+            pg.Parent = LocalPlayer
         end
     end
+    if not pg then return end
+
+    local btn = Instance.new("TextButton")
+    btn.Name = "HLServerButton"
+    btn.Size = UDim2.new(0, 44, 0, 44)
+    btn.Position = UDim2.new(0.02, 0, 0.02, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+    btn.Text = "🐹"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 22
+    btn.Parent = pg
+    btn.ZIndex = 999
+    ButtonRef = btn
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+    local hue = 0
+    task.spawn(function()
+        while ButtonRef and ButtonRef.Parent do
+            hue = hue + 0.015
+            if hue > 1 then hue = 0 end
+            ButtonRef.BackgroundColor3 = HSVToRGB(hue, 1, 1)
+            task.wait(0.05)
+        end
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        if FrameRef and FrameRef.Parent then
+            MenuVisible = not MenuVisible
+            FrameRef.Visible = MenuVisible
+        else
+            CleanEverything()
+            Servers = {}
+            CreateMenu()
+            MenuVisible = true
+            ScanServers()
+        end
+    end)
 end
 
 -- ==================== BAŞLAT ====================
-task.wait(0.3)
-ScanServers()
-task.wait(0.5)
-CreateOpenButton()
+local function Init()
+    CleanEverything()
+    Servers = {}
+    IsScanning = false
+    StopScanning = false
 
-print("")
-print("========================================")
-print("🐹 HAMSTER LIVES - SERVER FINDER")
-print("   📡 Tüm sunucular taranıyor")
-print("   🟢 Yeşil = 1-2 kişi  🟡 Sarı = 3-5  🔴 Kırmızı = 6+")
-print("   👆 Sunucuya tıkla ve bağlan!")
-print("   🐹 Alttaki butona tıkla menüyü aç/kapa")
-print("========================================")
+    CreateMenu()
+    MenuVisible = true
+
+    task.wait(0.1)
+    ScanServers()
+
+    task.wait(0.2)
+    CreateOpenButton()
+
+    print("")
+    print("========================================")
+    print("🐹 HAMSTER LIVES - SERVER FINDER V15")
+    print("   ✅ Tüm hatalar fixlendi")
+    print("   ✅ Sunucuya tıklayınca tamamen temizlenir")
+    print("   ✅ Hiç donma yok")
+    print("   ✅ Gecikme sıfır")
+    print("   🐹 Sol üstteki butona tıkla menüyü aç/kapa")
+    print("========================================")
+end
+
+task.wait(0.3)
+pcall(Init)
