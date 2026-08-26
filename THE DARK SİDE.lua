@@ -1,6 +1,6 @@
 -- ============================================================
--- HAMSTER LIVES - MINI SERVER FINDER V14 (TEMİZ & SADE)
--- İLK VERSİYONUN AYNISI | COREGUI | 150x150 | SÜRÜKLE
+-- HAMSTER LIVES - MINI SERVER FINDER V15 (FINAL FIX)
+-- EKSİK END DÜZELTİLDİ | COREGUI | 150x150 | SÜRÜKLE
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -10,32 +10,27 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 MINI SERVER FINDER V14 BAŞLADI...")
+print("🐹 MINI SERVER FINDER V15 BAŞLADI...")
 
 local VerifiedServers = {}
 local ScanningActive = false
 local GuiRef = nil
 
 -- ============================================================
--- HATA YAKALAYICI HTTP
+-- HTTP
 -- ============================================================
 local function SafeHttpGet(url)
     local success, response = pcall(function()
         return game:HttpGet(url)
     end)
-    if success and response then
-        return response
-    else
-        print("❌ HTTP Hatası:", url)
-        return nil
-    end
+    if success and response then return response end
+    return nil
 end
 
 -- ============================================================
--- MENU OLUŞTUR (COREGUI)
+-- MENU OLUŞTUR
 -- ============================================================
 local function CreateMiniMenu()
-    -- Eski GUI'yi temizle
     local old = CoreGui:FindFirstChild("MiniServerFinder")
     if old then old:Destroy() end
     
@@ -44,9 +39,7 @@ local function CreateMiniMenu()
     gui.Parent = CoreGui
     gui.ResetOnSpawn = false
     GuiRef = gui
-    print("✅ GUI oluşturuldu")
 
-    -- 150x200 MENU
     local menu = Instance.new("Frame")
     menu.Size = UDim2.new(0, 150, 0, 200)
     menu.Position = UDim2.new(0.5, -75, 0.1, 0)
@@ -56,9 +49,7 @@ local function CreateMiniMenu()
     menu.Active = true
     menu.Draggable = true
     Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 8)
-    print("✅ Menu frame oluşturuldu")
 
-    -- BAŞLIK
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 22)
     title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
@@ -69,7 +60,6 @@ local function CreateMiniMenu()
     title.Parent = menu
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 8)
 
-    -- KAPATMA
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 18, 0, 18)
     closeBtn.Position = UDim2.new(1, -20, 0, 2)
@@ -85,7 +75,6 @@ local function CreateMiniMenu()
         ScanningActive = false
     end)
 
-    -- SAYAÇ
     local countLabel = Instance.new("TextLabel")
     countLabel.Size = UDim2.new(1, 0, 0, 16)
     countLabel.Position = UDim2.new(0, 0, 0, 24)
@@ -96,7 +85,6 @@ local function CreateMiniMenu()
     countLabel.Font = Enum.Font.Gotham
     countLabel.Parent = menu
 
-    -- LİSTE
     local scroll = Instance.new("ScrollingFrame")
     scroll.Size = UDim2.new(1, -10, 1, -50)
     scroll.Position = UDim2.new(0, 5, 0, 42)
@@ -111,7 +99,6 @@ local function CreateMiniMenu()
     layout.Padding = UDim.new(0, 3)
     layout.Parent = scroll
 
-    -- SUNUCU BUTONU
     local function AddServerButton(server)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, -4, 0, 26)
@@ -144,13 +131,11 @@ local function CreateMiniMenu()
         end)
     end
 
-    -- MEVCUT SUNUCULARI EKLE
     for _, server in ipairs(VerifiedServers) do
         AddServerButton(server)
     end
     countLabel.Text = "👥 SUNUCU: " .. #VerifiedServers
 
-    -- YENİ SUNUCU EKLEME
     local function AddNewServer(server)
         AddServerButton(server)
         countLabel.Text = "👥 SUNUCU: " .. #VerifiedServers
@@ -194,7 +179,7 @@ local function CreateMiniMenu()
 end
 
 -- ============================================================
--- SUNUCU TARAMA
+-- TARAMA
 -- ============================================================
 local function StartScanning(addServerCallback)
     if ScanningActive then return end
@@ -235,7 +220,11 @@ local function StartScanning(addServerCallback)
                     end
                 end
                 cursor = result.nextPageCursor or ""
-                if cursor == "" then task.wait(2)
+                if cursor == "" then 
+                    task.wait(2)
+                else
+                    task.wait(1)
+                end
             else
                 task.wait(1)
             end
@@ -248,28 +237,22 @@ end
 -- BAŞLAT
 -- ============================================================
 local function Init()
-    print("🔄 Başlatılıyor...")
     local addCallback = CreateMiniMenu()
     if addCallback then
-        print("✅ Menü oluşturuldu, tarama başlıyor...")
         StartScanning(addCallback)
-        print("🐹 HAZIR!")
-    else
-        print("❌ Menü oluşturulamadı!")
+        print("🐹 MINI SERVER FINDER V15 HAZIR!")
+        print("⚡ ANINDA BAĞLANMA AKTİF!")
     end
 end
 
 task.wait(0.5)
-local success, err = pcall(Init)
-if not success then
-    warn("🐹 KRİTİK HATA:", err)
-end
+pcall(Init)
 
 print("")
 print("========================================")
-print("🐹 HAMSTER LIVES - MINI SERVER FINDER V14")
+print("🐹 HAMSTER LIVES - MINI SERVER FINDER V15")
 print("   ✅ 150x150 SÜRÜKLEYEBİLİR")
 print("   ✅ ANINDA BAĞLANMA")
 print("   ✅ KARANLIK TEMA")
-print("   ✅ COREGUI - TEMİZ")
+print("   ✅ EKSİK END DÜZELTİLDİ")
 print("========================================")
