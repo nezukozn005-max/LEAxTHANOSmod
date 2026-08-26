@@ -1,18 +1,16 @@
 -- ============================================================
--- HAMSTER LIVES - ULTRA FAST SERVER FINDER V8 (PART 1/4)
--- ANINDA BAĞLANMA | 2 SANİYE | ULTRA HIZLI
+-- HAMSTER LIVES - MINI SERVER FINDER V9 (PART 1/3)
+-- 150x150 | SÜRÜKLEYEBİLİR | ANINDA BAĞLANMA | BYPASS YOK
 -- ============================================================
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
-local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 ULTRA FAST SERVER FINDER V8 BAŞLADI...")
+print("🐹 MINI SERVER FINDER V9 BAŞLADI...")
 
 -- ============================================================
 -- KONFIG
@@ -20,13 +18,13 @@ print("🐹 ULTRA FAST SERVER FINDER V8 BAŞLADI...")
 local VerifiedServers = {}
 local ScanningActive = false
 local GuiRef = nil
-local MainFrame = nil
-local ServerListScroll = nil
-local ServerListLayout = nil
-local FastTeleport = true
+local MenuFrame = nil
+local IsDragging = false
+local DragStart = nil
+local StartPos = nil
 
 -- ============================================================
--- LEA SERVER FINDER MOD (HIZLI HTTP)
+-- HIZLI HTTP
 -- ============================================================
 local function SafeHttpGet(url)
     local success, response = pcall(function()
@@ -36,9 +34,6 @@ local function SafeHttpGet(url)
         elseif request then
             local req = request({Url = url, Method = "GET", Headers = {["Cache-Control"] = "no-cache"}})
             if req and req.Body then return req.Body end
-        elseif http and http.request then
-            local req = http.request({Url = url, Method = "GET", Headers = {["Cache-Control"] = "no-cache"}})
-            if req and req.Body then return req.Body end
         end
         return game:HttpGet(url)
     end)
@@ -47,91 +42,9 @@ local function SafeHttpGet(url)
 end
 
 -- ============================================================
--- LINE-ART HAMSTER (KÜÇÜK)
+-- MINI MENU OLUŞTUR (150x150 SÜRÜKLEYEBİLİR)
 -- ============================================================
-local function CreateLineArtHamster(parent, size, position)
-    local container = Instance.new("Frame")
-    container.Size = size
-    container.Position = position
-    container.BackgroundTransparency = 1
-    container.Parent = parent
-    container.ZIndex = 1000
-    
-    local body = Instance.new("Frame")
-    body.Size = UDim2.new(0.7, 0, 0.7, 0)
-    body.Position = UDim2.new(0.15, 0, 0.15, 0)
-    body.BackgroundTransparency = 1
-    body.Parent = container
-    body.ZIndex = 1001
-    local bodyStroke = Instance.new("UIStroke", body)
-    bodyStroke.Thickness = 2
-    bodyStroke.Color = Color3.fromRGB(200, 200, 200)
-    
-    for i = 0, 1 do
-        local ear = Instance.new("Frame")
-        ear.Size = UDim2.new(0.2, 0, 0.2, 0)
-        ear.Position = UDim2.new(0.15 + (i * 0.5), 0, 0.05, 0)
-        ear.BackgroundTransparency = 1
-        ear.Parent = container
-        ear.ZIndex = 1001
-        local earStroke = Instance.new("UIStroke", ear)
-        earStroke.Thickness = 2
-        earStroke.Color = Color3.fromRGB(200, 200, 200)
-        Instance.new("UICorner", ear).CornerRadius = UDim.new(0, 4)
-    end
-    
-    for i = 0, 1 do
-        local eye = Instance.new("Frame")
-        eye.Size = UDim2.new(0.1, 0, 0.1, 0)
-        eye.Position = UDim2.new(0.22 + (i * 0.4), 0, 0.32, 0)
-        eye.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        eye.BackgroundTransparency = 0.2
-        eye.Parent = container
-        eye.ZIndex = 1002
-        Instance.new("UICorner", eye).CornerRadius = UDim.new(1, 0)
-        
-        local beam = Instance.new("Frame")
-        beam.Size = UDim2.new(0.02, 0, 0.3, 0)
-        beam.Position = UDim2.new(0.05 + (i * 0.38), 0, 0.32, 0)
-        beam.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        beam.BackgroundTransparency = 0.5
-        beam.Parent = container
-        beam.ZIndex = 1001
-        Instance.new("UICorner", beam).CornerRadius = UDim.new(1, 0)
-        
-        task.spawn(function()
-            while container and container.Parent do
-                for j = 0, 1, 0.05 do
-                    beam.BackgroundTransparency = 0.3 + (math.sin(j * 10) * 0.3)
-                    beam.Size = UDim2.new(0.02, 0, 0.2 + math.sin(j * 5) * 0.1, 0)
-                    task.wait(0.02)
-                end
-            end
-        end)
-    end
-    
-    local nose = Instance.new("Frame")
-    nose.Size = UDim2.new(0.04, 0, 0.04, 0)
-    nose.Position = UDim2.new(0.48, 0, 0.48, 0)
-    nose.BackgroundColor3 = Color3.fromRGB(255, 150, 150)
-    nose.BackgroundTransparency = 0.3
-    nose.Parent = container
-    nose.ZIndex = 1001
-    Instance.new("UICorner", nose).CornerRadius = UDim.new(1, 0)
-    
-    local mouth = Instance.new("Frame")
-    mouth.Size = UDim2.new(0.15, 0, 0.02, 0)
-    mouth.Position = UDim2.new(0.42, 0, 0.55, 0)
-    mouth.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-    mouth.BackgroundTransparency = 0.5
-    mouth.Parent = container
-    mouth.ZIndex = 1001
-    
-    return container
-end-- ============================================================
--- ULTRA HIZLI INTRO (KISA)
--- ============================================================
-local function PlayIntro(callback)
+local function CreateMiniMenu()
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     if not pg then
         pg = Instance.new("ScreenGui")
@@ -139,123 +52,51 @@ local function PlayIntro(callback)
         pg.Parent = LocalPlayer
     end
     
-    local introGui = Instance.new("ScreenGui")
-    introGui.Name = "IntroGui"
-    introGui.Parent = pg
-    introGui.ResetOnSpawn = false
-    introGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    
-    local black = Instance.new("Frame")
-    black.Size = UDim2.new(1, 0, 1, 0)
-    black.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    black.Parent = introGui
-    black.ZIndex = 2000
-    
-    local introHamster = CreateLineArtHamster(
-        black,
-        UDim2.new(0, 150, 0, 150),
-        UDim2.new(0.5, -75, 0.3, -75)
-    )
-    introHamster.ZIndex = 2001
-    introHamster.Size = UDim2.new(0, 0, 0, 0)
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(0.8, 0, 0, 30)
-    title.Position = UDim2.new(0.1, 0, 0.58, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "DARK SIDE"
-    title.TextColor3 = Color3.fromRGB(180, 0, 0)
-    title.TextSize = 25
-    title.Font = Enum.Font.GothamBold
-    title.TextScaled = true
-    title.Parent = black
-    title.ZIndex = 2001
-    title.TextTransparency = 1
-    
-    task.spawn(function()
-        local tween1 = TweenService:Create(introHamster, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 150, 0, 150)
-        })
-        tween1:Play()
-        task.wait(0.4)
-        task.wait(0.1)
-        
-        local tween2 = TweenService:Create(title, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            TextTransparency = 0
-        })
-        tween2:Play()
-        task.wait(0.3)
-        task.wait(0.2)
-        
-        local tween3 = TweenService:Create(black, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            BackgroundTransparency = 1
-        })
-        tween3:Play()
-        task.wait(0.3)
-        
-        introGui:Destroy()
-        if callback then callback() end
-    end)
-end
-
--- ============================================================
--- ANA MENÜ (150x150 ORTADA - ULTRA HIZLI)
--- ============================================================
-local function CreateMainMenu()
-    local pg = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pg then
-        pg = Instance.new("ScreenGui")
-        pg.Name = "PlayerGui"
-        pg.Parent = LocalPlayer
-    end
-    
-    local old = pg:FindFirstChild("DarkServerFinder")
+    local old = pg:FindFirstChild("MiniServerFinder")
     if old then old:Destroy() end
     
     local gui = Instance.new("ScreenGui")
-    gui.Name = "DarkServerFinder"
+    gui.Name = "MiniServerFinder"
     gui.Parent = pg
     gui.ResetOnSpawn = false
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     GuiRef = gui
     
-    local main = Instance.new("Frame")
-    main.Size = UDim2.new(1, 0, 1, 0)
-    main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    main.Parent = gui
-    main.ZIndex = 999
-    MainFrame = main
+    -- 150x150 MENU (SÜRÜKLEYEBİLİR)
+    local menu = Instance.new("Frame")
+    menu.Size = UDim2.new(0, 150, 0, 200)
+    menu.Position = UDim2.new(0.5, -75, 0.1, 0)
+    menu.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+    menu.BackgroundTransparency = 0.1
+    menu.Parent = gui
+    menu.ZIndex = 1000
+    menu.Active = true
+    menu.Draggable = true
+    Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 8)
+    MenuFrame = menu
     
-    -- MENU KUTUSU (180x250)
-    local menuBox = Instance.new("Frame")
-    menuBox.Size = UDim2.new(0, 180, 0, 250)
-    menuBox.Position = UDim2.new(0.5, -90, 0.5, -125)
-    menuBox.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-    menuBox.BackgroundTransparency = 0.1
-    menuBox.Parent = main
-    menuBox.ZIndex = 1000
-    Instance.new("UICorner", menuBox).CornerRadius = UDim.new(0, 8)
-    
-    local stroke = Instance.new("UIStroke", menuBox)
+    -- İNCE KENARLIK
+    local stroke = Instance.new("UIStroke", menu)
     stroke.Thickness = 1.5
-    stroke.Color = Color3.fromRGB(40, 40, 40)
+    stroke.Color = Color3.fromRGB(180, 0, 0)
+    stroke.Transparency = 0.5
     
-    -- BAŞLIK
+    -- BAŞLIK (KIRMIZI)
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 28)
+    title.Size = UDim2.new(1, 0, 0, 22)
     title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-    title.Text = "🐹 DARK SIDE"
+    title.Text = "🐹 HAMSTER"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextSize = 12
+    title.TextSize = 10
     title.Font = Enum.Font.GothamBold
-    title.Parent = menuBox
+    title.Parent = menu
     title.ZIndex = 1001
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 8)
     
-    -- KAPATMA
+    -- KAPATMA BUTONU (KÜÇÜK)
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 18, 0, 18)
-    closeBtn.Position = UDim2.new(1, -22, 0, 5)
+    closeBtn.Position = UDim2.new(1, -20, 0, 2)
     closeBtn.BackgroundTransparency = 1
     closeBtn.Text = "✕"
     closeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -266,40 +107,52 @@ local function CreateMainMenu()
     closeBtn.MouseButton1Click:Connect(function()
         GuiRef:Destroy()
         GuiRef = nil
-        MainFrame = nil
+        MenuFrame = nil
         ScanningActive = false
     end)
     
-    -- SUNUCU LİSTESİ
+    -- SUNUCU SAYISI
+    local countLabel = Instance.new("TextLabel")
+    countLabel.Size = UDim2.new(1, 0, 0, 16)
+    countLabel.Position = UDim2.new(0, 0, 0, 24)
+    countLabel.BackgroundTransparency = 1
+    countLabel.Text = "👥 SUNUCU: " .. #VerifiedServers
+    countLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    countLabel.TextSize = 9
+    countLabel.Font = Enum.Font.Gotham
+    countLabel.Parent = menu
+    countLabel.ZIndex = 1001
+    
+    -- SUNUCU LİSTESİ (SCROLL)
     local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -10, 1, -38)
-    scroll.Position = UDim2.new(0, 5, 0, 33)
+    scroll.Size = UDim2.new(1, -10, 1, -50)
+    scroll.Position = UDim2.new(0, 5, 0, 42)
     scroll.BackgroundTransparency = 1
     scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.Parent = menuBox
+    scroll.Parent = menu
     scroll.ZIndex = 1001
-    ServerListScroll = scroll
+    scroll.ScrollBarThickness = 3
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
     
     local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 4)
-    layout.Parent = scroll
-    ServerListLayout = layout    -- ============================================================
-    -- ULTRA HIZLI SUNUCU BUTONU (ANINDA BAĞLANMA)
+    layout.Padding = UDim.new(0, 3)
+    layout.Parent = scroll    -- ============================================================
+    -- SUNUCU BUTONU (ANINDA BAĞLANMA)
     -- ============================================================
     local function AddServerButton(server)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -4, 0, 30)
+        btn.Size = UDim2.new(1, -4, 0, 26)
         btn.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-        btn.Text = "👤 " .. server.playing .. "/" .. server.maxPlayers .. "\n" .. server.id:sub(1, 8)
+        btn.Text = "👤 " .. server.playing .. "/" .. server.maxPlayers
         btn.TextColor3 = server.playing == 1 and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(200, 200, 200)
         btn.TextSize = 9
         btn.Font = Enum.Font.GothamBold
-        btn.TextWrapped = true
         btn.Parent = scroll
         btn.ZIndex = 1002
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
         
+        -- HOVER
         btn.MouseEnter:Connect(function()
             btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
         end)
@@ -307,23 +160,21 @@ local function CreateMainMenu()
             btn.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
         end)
         
+        -- ANINDA BAĞLANMA
         btn.MouseButton1Click:Connect(function()
-            -- ANİNDA BAĞLAN - GECİKME YOK
             local serverId = server.id
-            btn.Text = "⚡ BAĞLANIYOR..."
-            btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            btn.Text = "⚡ GİDİYOR..."
+            btn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             
-            -- ULTRA HIZLI TELEPORT (task.spawn ile anında)
             task.spawn(function()
-                -- ÖNCEKİ GUI'Yİ TEMİZLE
+                -- GUI'Yİ TEMİZLE
                 if GuiRef then
                     pcall(function() GuiRef:Destroy() end)
                     GuiRef = nil
-                    MainFrame = nil
+                    MenuFrame = nil
                 end
-                
-                -- DOĞRUDAN TELEPORT (2 saniyeden hızlı)
+                -- ANINDA BAĞLAN
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
             end)
         end)
@@ -334,22 +185,60 @@ local function CreateMainMenu()
         AddServerButton(server)
     end
     
-    -- YENİ SUNUCU EKLE
+    -- YENİ SUNUCU EKLEME FONKSİYONU
     local function AddNewServer(server)
         AddServerButton(server)
-        task.wait(0.05)
-        if ServerListLayout and ServerListScroll then
-            ServerListScroll.CanvasSize = UDim2.new(0, 0, 0, ServerListLayout.AbsoluteContentSize.Y + 10)
+        -- SAYACI GÜNCELLE
+        if countLabel then
+            countLabel.Text = "👥 SUNUCU: " .. #VerifiedServers
         end
+        task.wait(0.05)
+        scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
     end
+    
+    -- ============================================================
+    -- SÜRÜKLEME (DRAG) SİSTEMİ
+    -- ============================================================
+    local dragging = false
+    local dragInput = nil
+    local dragStart = nil
+    local startPos = nil
+    
+    title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = menu.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    title.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging and menu then
+            local delta = input.Position - dragStart
+            local newX = startPos.X.Offset + delta.X
+            local newY = startPos.Y.Offset + delta.Y
+            menu.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+        end
+    end)
     
     return AddNewServer
 end
 
 -- ============================================================
--- ULTRA HIZLI SUNUCU TARAMA
+-- SUNUCU TARAMA (HIZLI)
 -- ============================================================
-local function StartFastPolling(addServerCallback)
+local function StartScanning(addServerCallback)
     if ScanningActive then return end
     ScanningActive = true
     
@@ -393,57 +282,28 @@ local function StartFastPolling(addServerCallback)
             else
                 task.wait(0.5)
             end
+            
             requestCount = requestCount + 1
-            if requestCount > 20 then
+            if requestCount > 30 then
                 task.wait(2.0)
                 requestCount = 0
             end
             task.wait(0.3)
         end
     end)
-        end-- ============================================================
--- BYPASS MOTORU (ARKA PLANDA - ULTRA HIZLI)
--- ============================================================
-local function StartBypassEngine()
-    task.spawn(function()
-        while GuiRef and GuiRef.Parent do
-            -- HIZLI ANTİCHEAT TARAMASI
-            local found = 0
-            for _, obj in ipairs(game:GetDescendants()) do
-                if obj.Name then
-                    local name = obj.Name:lower()
-                    if name:find("anticheat") or name:find("ac") or name:find("security") or name:find("protect") or name:find("ban") or name:find("kick") or name:find("detect") or name:find("monitor") or name:find("guard") then
-                        pcall(function()
-                            if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
-                                obj.Disabled = true
-                                found = found + 1
-                            end
-                        end)
-                    end
-                end
-            end
-            task.wait(0.5)
-        end
-    end)
-end
-
--- ============================================================
+    end-- ============================================================
 -- BAŞLAT
 -- ============================================================
 local function Init()
-    PlayIntro(function()
-        -- BYPASS'ı BAŞLAT
-        StartBypassEngine()
-        
-        -- MENÜYÜ OLUŞTUR
-        local addCallback = CreateMainMenu()
-        
-        -- TARAMAYI BAŞLAT
-        StartFastPolling(addCallback)
-        
-        print("🐹 ULTRA FAST SERVER FINDER V8 HAZIR!")
-        print("⚡ ANINDA BAĞLANMA AKTİF!")
-    end)
+    -- MENÜYÜ OLUŞTUR
+    local addCallback = CreateMiniMenu()
+    
+    -- TARAMAYI BAŞLAT
+    StartScanning(addCallback)
+    
+    print("🐹 MINI SERVER FINDER V9 HAZIR!")
+    print("⚡ ANINDA BAĞLANMA AKTİF!")
+    print("🖱️ SÜRÜKLEYEBİLİR MENU!")
 end
 
 -- BAŞLAT
@@ -456,10 +316,10 @@ end
 
 print("")
 print("========================================")
-print("🐹 HAMSTER LIVES - ULTRA FAST V8")
-print("   ✅ ANINDA BAĞLANMA (2 SANİYE)")
-print("   ✅ 150x150 ORTADA")
+print("🐹 HAMSTER LIVES - MINI SERVER FINDER V9")
+print("   ✅ 150x150 SÜRÜKLEYEBİLİR")
+print("   ✅ ANINDA BAĞLANMA")
+print("   ✅ BYPASS YOK (TEMİZ)")
 print("   ✅ KARANLIK TEMA")
-print("   ✅ ULTRA HIZLI TARAMA")
-print("   ✅ BYPASS AKTİF")
+print("   ✅ SADECE SUNUCU LİSTESİ")
 print("========================================")
