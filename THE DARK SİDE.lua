@@ -1,40 +1,26 @@
 -- ============================================================
--- HAMSTER LIVES - MINI SERVER FINDER V9 (PART 1/3)
--- 150x150 | SÜRÜKLEYEBİLİR | ANINDA BAĞLANMA | BYPASS YOK
+-- HAMSTER LIVES - MINI SERVER FINDER V10 (TEK PARÇA)
+-- 150x150 | SÜRÜKLEYEBİLİR | ANINDA BAĞLANMA
 -- ============================================================
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 MINI SERVER FINDER V9 BAŞLADI...")
+print("🐹 MINI SERVER FINDER V10 BAŞLADI...")
 
--- ============================================================
--- KONFIG
--- ============================================================
 local VerifiedServers = {}
 local ScanningActive = false
 local GuiRef = nil
 local MenuFrame = nil
-local IsDragging = false
-local DragStart = nil
-local StartPos = nil
 
 -- ============================================================
 -- HIZLI HTTP
 -- ============================================================
 local function SafeHttpGet(url)
     local success, response = pcall(function()
-        if syn and syn.request then
-            local req = syn.request({Url = url, Method = "GET", Headers = {["Cache-Control"] = "no-cache"}})
-            if req and req.Body then return req.Body end
-        elseif request then
-            local req = request({Url = url, Method = "GET", Headers = {["Cache-Control"] = "no-cache"}})
-            if req and req.Body then return req.Body end
-        end
         return game:HttpGet(url)
     end)
     if success and response then return response end
@@ -42,7 +28,7 @@ local function SafeHttpGet(url)
 end
 
 -- ============================================================
--- MINI MENU OLUŞTUR (150x150 SÜRÜKLEYEBİLİR)
+-- MINI MENU OLUŞTUR
 -- ============================================================
 local function CreateMiniMenu()
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
@@ -50,7 +36,9 @@ local function CreateMiniMenu()
         pg = Instance.new("ScreenGui")
         pg.Name = "PlayerGui"
         pg.Parent = LocalPlayer
+        task.wait(0.1)
     end
+    if not pg then return nil end
     
     local old = pg:FindFirstChild("MiniServerFinder")
     if old then old:Destroy() end
@@ -59,29 +47,24 @@ local function CreateMiniMenu()
     gui.Name = "MiniServerFinder"
     gui.Parent = pg
     gui.ResetOnSpawn = false
-    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     GuiRef = gui
     
-    -- 150x150 MENU (SÜRÜKLEYEBİLİR)
     local menu = Instance.new("Frame")
     menu.Size = UDim2.new(0, 150, 0, 200)
     menu.Position = UDim2.new(0.5, -75, 0.1, 0)
     menu.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
     menu.BackgroundTransparency = 0.1
     menu.Parent = gui
-    menu.ZIndex = 1000
     menu.Active = true
     menu.Draggable = true
     Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 8)
     MenuFrame = menu
     
-    -- İNCE KENARLIK
     local stroke = Instance.new("UIStroke", menu)
     stroke.Thickness = 1.5
     stroke.Color = Color3.fromRGB(180, 0, 0)
     stroke.Transparency = 0.5
     
-    -- BAŞLIK (KIRMIZI)
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 22)
     title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
@@ -90,10 +73,8 @@ local function CreateMiniMenu()
     title.TextSize = 10
     title.Font = Enum.Font.GothamBold
     title.Parent = menu
-    title.ZIndex = 1001
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 8)
     
-    -- KAPATMA BUTONU (KÜÇÜK)
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 18, 0, 18)
     closeBtn.Position = UDim2.new(1, -20, 0, 2)
@@ -103,15 +84,13 @@ local function CreateMiniMenu()
     closeBtn.TextSize = 11
     closeBtn.Font = Enum.Font.GothamBold
     closeBtn.Parent = title
-    closeBtn.ZIndex = 1002
     closeBtn.MouseButton1Click:Connect(function()
-        GuiRef:Destroy()
+        if GuiRef then GuiRef:Destroy() end
         GuiRef = nil
         MenuFrame = nil
         ScanningActive = false
     end)
     
-    -- SUNUCU SAYISI
     local countLabel = Instance.new("TextLabel")
     countLabel.Size = UDim2.new(1, 0, 0, 16)
     countLabel.Position = UDim2.new(0, 0, 0, 24)
@@ -121,9 +100,7 @@ local function CreateMiniMenu()
     countLabel.TextSize = 9
     countLabel.Font = Enum.Font.Gotham
     countLabel.Parent = menu
-    countLabel.ZIndex = 1001
     
-    -- SUNUCU LİSTESİ (SCROLL)
     local scroll = Instance.new("ScrollingFrame")
     scroll.Size = UDim2.new(1, -10, 1, -50)
     scroll.Position = UDim2.new(0, 5, 0, 42)
@@ -131,15 +108,14 @@ local function CreateMiniMenu()
     scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     scroll.Parent = menu
-    scroll.ZIndex = 1001
     scroll.ScrollBarThickness = 3
     scroll.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
     
     local layout = Instance.new("UIListLayout")
     layout.Padding = UDim.new(0, 3)
-    layout.Parent = scroll    -- ============================================================
-    -- SUNUCU BUTONU (ANINDA BAĞLANMA)
-    -- ============================================================
+    layout.Parent = scroll
+    
+    -- SUNUCU BUTONU
     local function AddServerButton(server)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, -4, 0, 26)
@@ -149,10 +125,8 @@ local function CreateMiniMenu()
         btn.TextSize = 9
         btn.Font = Enum.Font.GothamBold
         btn.Parent = scroll
-        btn.ZIndex = 1002
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
         
-        -- HOVER
         btn.MouseEnter:Connect(function()
             btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
         end)
@@ -160,7 +134,6 @@ local function CreateMiniMenu()
             btn.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
         end)
         
-        -- ANINDA BAĞLANMA
         btn.MouseButton1Click:Connect(function()
             local serverId = server.id
             btn.Text = "⚡ GİDİYOR..."
@@ -168,37 +141,26 @@ local function CreateMiniMenu()
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             
             task.spawn(function()
-                -- GUI'Yİ TEMİZLE
-                if GuiRef then
-                    pcall(function() GuiRef:Destroy() end)
-                    GuiRef = nil
-                    MenuFrame = nil
-                end
-                -- ANINDA BAĞLAN
+                if GuiRef then pcall(function() GuiRef:Destroy() end) end
+                GuiRef = nil
+                MenuFrame = nil
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
             end)
         end)
     end
     
-    -- MEVCUT SUNUCULARI EKLE
     for _, server in ipairs(VerifiedServers) do
         AddServerButton(server)
     end
     
-    -- YENİ SUNUCU EKLEME FONKSİYONU
     local function AddNewServer(server)
         AddServerButton(server)
-        -- SAYACI GÜNCELLE
-        if countLabel then
-            countLabel.Text = "👥 SUNUCU: " .. #VerifiedServers
-        end
+        countLabel.Text = "👥 SUNUCU: " .. #VerifiedServers
         task.wait(0.05)
         scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
     end
     
-    -- ============================================================
-    -- SÜRÜKLEME (DRAG) SİSTEMİ
-    -- ============================================================
+    -- SÜRÜKLEME
     local dragging = false
     local dragInput = nil
     local dragStart = nil
@@ -226,9 +188,7 @@ local function CreateMiniMenu()
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging and menu then
             local delta = input.Position - dragStart
-            local newX = startPos.X.Offset + delta.X
-            local newY = startPos.Y.Offset + delta.Y
-            menu.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+            menu.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
     
@@ -236,7 +196,7 @@ local function CreateMiniMenu()
 end
 
 -- ============================================================
--- SUNUCU TARAMA (HIZLI)
+-- SUNUCU TARAMA
 -- ============================================================
 local function StartScanning(addServerCallback)
     if ScanningActive then return end
@@ -244,7 +204,6 @@ local function StartScanning(addServerCallback)
     
     task.spawn(function()
         local cursor = ""
-        local requestCount = 0
         
         while ScanningActive and GuiRef and GuiRef.Parent do
             local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -254,7 +213,7 @@ local function StartScanning(addServerCallback)
             
             local rawData = SafeHttpGet(url)
             if not rawData then
-                task.wait(0.5)
+                task.wait(1)
                 continue
             end
             
@@ -278,48 +237,39 @@ local function StartScanning(addServerCallback)
                     end
                 end
                 cursor = result.nextPageCursor or ""
-                if cursor == "" then task.wait(1.0)
+                if cursor == "" then task.wait(2)
             else
-                task.wait(0.5)
+                task.wait(1)
             end
-            
-            requestCount = requestCount + 1
-            if requestCount > 30 then
-                task.wait(2.0)
-                requestCount = 0
-            end
-            task.wait(0.3)
+            task.wait(0.5)
         end
     end)
-    end-- ============================================================
+end
+
+-- ============================================================
 -- BAŞLAT
 -- ============================================================
 local function Init()
-    -- MENÜYÜ OLUŞTUR
     local addCallback = CreateMiniMenu()
-    
-    -- TARAMAYI BAŞLAT
-    StartScanning(addCallback)
-    
-    print("🐹 MINI SERVER FINDER V9 HAZIR!")
-    print("⚡ ANINDA BAĞLANMA AKTİF!")
-    print("🖱️ SÜRÜKLEYEBİLİR MENU!")
+    if addCallback then
+        StartScanning(addCallback)
+        print("🐹 MINI SERVER FINDER V10 HAZIR!")
+        print("⚡ ANINDA BAĞLANMA AKTİF!")
+    else
+        print("❌ MENU OLUŞTURULAMADI!")
+    end
 end
 
--- BAŞLAT
-task.wait(0.3)
+task.wait(0.5)
 local success, err = pcall(Init)
 if not success then
     warn("🐹 HATA:", err)
-    print("🐹 HATA DETAYI:", err)
 end
 
 print("")
 print("========================================")
-print("🐹 HAMSTER LIVES - MINI SERVER FINDER V9")
+print("🐹 HAMSTER LIVES - MINI SERVER FINDER V10")
 print("   ✅ 150x150 SÜRÜKLEYEBİLİR")
 print("   ✅ ANINDA BAĞLANMA")
-print("   ✅ BYPASS YOK (TEMİZ)")
 print("   ✅ KARANLIK TEMA")
-print("   ✅ SADECE SUNUCU LİSTESİ")
 print("========================================")
