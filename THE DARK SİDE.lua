@@ -1,6 +1,6 @@
 -- ============================================================
--- HAMSTER LIVES - THE DARK SIDE GUI V5 (PART 1/4)
--- TAM EKRAN | HACKER TEMASI | LİNE-ART HAMSTER | MİNİ MOD
+-- HAMSTER LIVES - THE DARK SIDE GUI V6 (PART 1/4)
+-- SAYFA GEÇİŞLERİ DÜZELTİLDİ | KONSOL MESAJLARI EKLENDİ
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 THE DARK SIDE GUI V5 BAŞLADI...")
+print("🐹 THE DARK SIDE GUI V6 BAŞLADI...")
 
 -- ============================================================
 -- KONFIG
@@ -33,7 +33,7 @@ local OpenButtonRef = nil
 local MiniFrameRef = nil
 
 -- ============================================================
--- LEA SERVER FINDER MOD (HİÇ DEĞİŞMEDİ)
+-- LEA SERVER FINDER MOD
 -- ============================================================
 local function __internal_payload()
     local data = {
@@ -69,7 +69,7 @@ local function SafeHttpGet(url)
 end
 
 -- ============================================================
--- KONSOL SİSTEMİ
+-- KONSOL SİSTEMİ (GELİŞTİRİLDİ)
 -- ============================================================
 local function AddConsoleLog(text, color)
     table.insert(ConsoleLogs, {text = text, color = color or Color3.fromRGB(0, 255, 100)})
@@ -89,7 +89,7 @@ local function AddConsoleLog(text, color)
 end
 
 -- ============================================================
--- LINE-ART HAMSTER OLUŞTUR (GERÇEK ÇİZGİ, EMOJİ YOK)
+-- LINE-ART HAMSTER
 -- ============================================================
 local function CreateLineArtHamster(parent, size, position, isSmall)
     local container = Instance.new("Frame")
@@ -303,7 +303,7 @@ local function CreateDarkGUI()
     main.Visible = true
     MainFrame = main
     
-    -- SAĞ ÜST KÖŞE HAMSTER (telefonda da görünsün)
+    -- SAĞ ÜST KÖŞE HAMSTER
     local cornerHamster = CreateLineArtHamster(
         main,
         UDim2.new(0, isMobile and 40 or 50, 0, isMobile and 40 or 50),
@@ -312,7 +312,7 @@ local function CreateDarkGUI()
     )
     cornerHamster.ZIndex = 1000
     
-    -- KONSOL (sol üst)
+    -- KONSOL
     local consoleFrame = Instance.new("Frame")
     consoleFrame.Size = UDim2.new(0, isMobile and 250 or 320, 0, isMobile and 120 or 150)
     consoleFrame.Position = UDim2.new(0.02, 0, 0.02, 0)
@@ -414,6 +414,7 @@ local function CreateDarkGUI()
             end
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             accent.BackgroundTransparency = 0
+            print("🔄 SAYFA DEĞİŞTİ: " .. item)
             UpdateContentPage(item)
         end)
         table.insert(navButtons, btn)
@@ -445,32 +446,28 @@ local function CreateDarkGUI()
     local contentLayout = Instance.new("UIListLayout")
     contentLayout.Padding = UDim.new(0, 10)
     contentLayout.Parent = contentScroll-- ============================================================
--- SAYFA İÇERİKLERİ
+-- SAYFA İÇERİKLERİ (DÜZELTİLDİ)
 -- ============================================================
 local function UpdateContentPage(page)
-    if PageTransitionActive then return end
+    print("📄 UpdateContentPage çağrıldı: " .. page)
+    if PageTransitionActive then 
+        print("⏳ Geçiş zaten aktif, atlanıyor")
+        return 
+    end
     PageTransitionActive = true
     
-    for _, child in ipairs(contentScroll:GetChildren()) do
-        if not child:IsA("UIListLayout") then
-            local props = {BackgroundTransparency = 1}
-            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-                props.TextTransparency = 1
-            end
-            local tween = TweenService:Create(child, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
-            tween:Play()
-        end
-    end
-    task.wait(0.25)
-    
+    -- TEMİZLE
     for _, child in ipairs(contentScroll:GetChildren()) do
         if not child:IsA("UIListLayout") then
             child:Destroy()
         end
     end
     
+    print("🧹 İçerik temizlendi, yeni sayfa: " .. page)
+    
+    -- YENİ İÇERİK
     if page == "SERVER" then
-        -- SERVER SAYFASI
+        print("📡 SERVER sayfası oluşturuluyor...")
         local header = Instance.new("TextLabel")
         header.Size = UDim2.new(1, 0, 0, 40)
         header.BackgroundTransparency = 1
@@ -515,7 +512,6 @@ local function UpdateContentPage(page)
         line.Parent = contentScroll
         line.ZIndex = 1002
         
-        -- MİNİ MOD BUTONU
         local miniBtn = Instance.new("TextButton")
         miniBtn.Size = UDim2.new(0.3, 0, 0, 30)
         miniBtn.Position = UDim2.new(0.7, 0, 0, 95)
@@ -527,10 +523,7 @@ local function UpdateContentPage(page)
         miniBtn.Parent = contentScroll
         miniBtn.ZIndex = 1002
         Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(0, 4)
-        
-        miniBtn.MouseButton1Click:Connect(function()
-            ToggleMiniFrame()
-        end)
+        miniBtn.MouseButton1Click:Connect(function() ToggleMiniFrame() end)
         
         for _, server in ipairs(VerifiedServers) do
             local card = Instance.new("Frame")
@@ -573,7 +566,7 @@ local function UpdateContentPage(page)
             statusText.Size = UDim2.new(0.3, 0, 0, 20)
             statusText.Position = UDim2.new(0, 12, 0, 50)
             statusText.BackgroundTransparency = 1
-            statusText.Text = "● AVAILABLE"
+            statusText.Text = server.playing == 1 and "★ 1 KİŞİ" or "● AVAILABLE"
             statusText.TextColor3 = server.playing == 1 and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(0, 255, 100)
             statusText.TextSize = 10
             statusText.Font = Enum.Font.Gotham
@@ -607,7 +600,8 @@ local function UpdateContentPage(page)
         end
         
     elseif page == "CONSOLE" then
-        -- KONSOL SAYFASI
+        print("📜 CONSOLE sayfası oluşturuluyor...")
+        -- KONSOL SAYFASI (tam ekran konsol)
         local consolePage = Instance.new("Frame")
         consolePage.Size = UDim2.new(1, 0, 0, 400)
         consolePage.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -640,6 +634,7 @@ local function UpdateContentPage(page)
         consolePageLayout.Padding = UDim.new(0, 2)
         consolePageLayout.Parent = consoleScrollPage
         
+        -- KONSOL MESAJLARI (tüm logları göster)
         for _, log in ipairs(ConsoleLogs) do
             local lbl = Instance.new("TextLabel")
             lbl.Size = UDim2.new(1, -5, 0, 18)
@@ -657,14 +652,16 @@ local function UpdateContentPage(page)
         consoleScrollPage.CanvasSize = UDim2.new(0, 0, 0, consolePageLayout.AbsoluteContentSize.Y + 10)
         
     elseif page == "STATUS" then
-        -- STATUS SAYFASI
+        print("📊 STATUS sayfası oluşturuluyor...")
         local statusItems = {
             {"SYSTEM STATUS", "ONLINE", Color3.fromRGB(0, 255, 100)},
             {"SERVER MODULE", "READY", Color3.fromRGB(0, 255, 100)},
             {"CONSOLE", "ONLINE", Color3.fromRGB(0, 255, 100)},
             {"DEVICE", isMobile and "MOBILE" or "PC", Color3.fromRGB(0, 255, 100)},
-            {"VERSION", "5.0", Color3.fromRGB(200, 200, 200)},
-            {"ANTICHEAT BYPASS", BypassActive and "ACTIVE" or "STANDBY", BypassActive and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 200, 0)}
+            {"VERSION", "6.0", Color3.fromRGB(200, 200, 200)},
+            {"ANTICHEAT BYPASS", BypassActive and "ACTIVE" or "STANDBY", BypassActive and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 200, 0)},
+            {"RTX 4060", "MINING...", Color3.fromRGB(255, 200, 0)},
+            {"ŞAKA", "😂", Color3.fromRGB(255, 100, 100)}
         }
         
         for _, item in ipairs(statusItems) do
@@ -706,7 +703,7 @@ local function UpdateContentPage(page)
         end
         
     elseif page == "SETTINGS" then
-        -- SETTINGS SAYFASI
+        print("⚙️ SETTINGS sayfası oluşturuluyor...")
         local settings = {
             {"Dark Theme", "ON"},
             {"Animations", "ON"},
@@ -762,6 +759,7 @@ local function UpdateContentPage(page)
         end
     end
     
+    -- FADE IN (güvenli)
     task.wait(0.1)
     for _, child in ipairs(contentScroll:GetChildren()) do
         if not child:IsA("UIListLayout") then
@@ -771,10 +769,12 @@ local function UpdateContentPage(page)
             end
         end
     end
+    
     contentScroll.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 20)
     PageTransitionActive = false
+    print("✅ Sayfa güncellendi: " .. page)
         end    -- ============================================================
-    -- MİNİ MOD (150x150, sadece 1 kişilik sunucular)
+    -- MİNİ MOD
     -- ============================================================
     local function ToggleMiniFrame()
         if MiniFrameRef then
@@ -813,9 +813,7 @@ local function UpdateContentPage(page)
         closeMini.Font = Enum.Font.GothamBold
         closeMini.Parent = title
         closeMini.ZIndex = 2002
-        closeMini.MouseButton1Click:Connect(function()
-            mini.Visible = false
-        end)
+        closeMini.MouseButton1Click:Connect(function() mini.Visible = false end)
         
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, -10, 1, -35)
@@ -830,7 +828,6 @@ local function UpdateContentPage(page)
         layout.Padding = UDim.new(0, 3)
         layout.Parent = scroll
         
-        -- Sadece 1 kişilik sunucuları ekle
         local onePlayerServers = {}
         for _, s in ipairs(VerifiedServers) do
             if s.playing == 1 then
@@ -860,14 +857,12 @@ local function UpdateContentPage(page)
                 btn.Parent = scroll
                 btn.ZIndex = 2002
                 Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-                
                 btn.MouseButton1Click:Connect(function()
                     AddConsoleLog("> MINI CONNECT: " .. server.id:sub(1, 8), Color3.fromRGB(255, 200, 0))
                     TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
                 end)
             end
         end
-        
         task.wait(0.05)
         scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
     end
@@ -918,6 +913,7 @@ local function UpdateContentPage(page)
         bypassActive = true
         BypassActive = true
         AddConsoleLog("> BYPASS ENGINE ACTIVATED!", Color3.fromRGB(255, 0, 0))
+        AddConsoleLog("> BYPASS BAŞARILI! ANTİCHEATİN ANASI SİKİLİYOR!", Color3.fromRGB(255, 200, 0))
         
         task.spawn(function()
             while bypassActive and GuiRef and GuiRef.Parent do
@@ -984,7 +980,6 @@ local function UpdateContentPage(page)
                                 if CurrentPage == "SERVER" then
                                     UpdateContentPage("SERVER")
                                 end
-                                -- MINI MOD'U GÜNCELLE
                                 if MiniFrameRef and MiniFrameRef.Visible then
                                     ToggleMiniFrame()
                                     ToggleMiniFrame()
@@ -1038,7 +1033,7 @@ local function UpdateContentPage(page)
     -- ============================================================
     StartPolling()
     
-    -- KAPATMA BUTONU (sadece gizler)
+    -- KAPATMA BUTONU
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 30, 0, 30)
     closeBtn.Position = UDim2.new(1, -40, 0, 10)
@@ -1059,15 +1054,12 @@ local function UpdateContentPage(page)
     
     closeBtn.MouseButton1Click:Connect(function()
         main.Visible = false
-        -- Açma butonunu göster
         if OpenButtonRef then
             OpenButtonRef.Visible = true
         end
     end)
     
-    -- ============================================================
-    -- AÇMA BUTONU (main gizliyken görünür)
-    -- ============================================================
+    -- AÇMA BUTONU
     local openBtn = Instance.new("TextButton")
     openBtn.Size = UDim2.new(0, 44, 0, 44)
     openBtn.Position = UDim2.new(0.02, 0, 0.02, 0)
@@ -1087,7 +1079,7 @@ local function UpdateContentPage(page)
         openBtn.Visible = false
     end)
     
-    -- ESC: GUI'yi gizle, butonu göster
+    -- ESC: Gizle
     UserInputService.InputBegan:Connect(function(input, gp)
         if gp then return end
         if input.KeyCode == Enum.KeyCode.Escape then
@@ -1101,11 +1093,13 @@ local function UpdateContentPage(page)
     end)
     
     -- ============================================================
-    -- INTRO'YU OYNAT VE ANA MENÜYÜ GÖSTER
+    -- KONSOL MESAJLARI (EĞLENCELİ)
     -- ============================================================
     AddConsoleLog("> SYSTEM INITIALIZED", Color3.fromRGB(0, 255, 100))
     AddConsoleLog("> DARK THEME LOADED", Color3.fromRGB(0, 255, 100))
     AddConsoleLog("> BYPASS ENGINE READY", Color3.fromRGB(255, 200, 0))
+    AddConsoleLog("> RTX 4060 MINING...", Color3.fromRGB(255, 200, 0))
+    AddConsoleLog("> ŞAKA 😂", Color3.fromRGB(255, 100, 100))
     
     PlayIntro(main, function()
         UpdateContentPage("SERVER")
@@ -1121,7 +1115,7 @@ local function UpdateContentPage(page)
         end
     end)
     
-    print("🐹 DARK SIDE GUI V5 YÜKLENDİ!")
+    print("🐹 DARK SIDE GUI V6 YÜKLENDİ!")
 end
 
 -- ============================================================
@@ -1136,14 +1130,10 @@ end
 
 print("")
 print("========================================")
-print("🐹 THE DARK SIDE - HAMSTER GUI V5")
-print("   ✅ LINE-ART HAMSTER (EMOJİ YOK)")
-print("   ✅ INTRO ANİMASYONU")
-print("   ✅ SMOOTH PAGE TRANSITIONS")
-print("   ✅ PC/MOBILE RESPONSIVE")
-print("   ✅ MODERN TOGGLE")
-print("   ✅ TERMINAL CONSOLE")
-print("   ✅ DARK TEMA + KIRMIZI ACCENT")
-print("   ✅ MİNİ MOD (150x150, 1 KİŞİLİK)")
-print("   ✅ ESC/GİZLE + AÇMA BUTONU")
+print("🐹 THE DARK SIDE - HAMSTER GUI V6")
+print("   ✅ SAYFA GEÇİŞLERİ DÜZELTİLDİ")
+print("   ✅ KONSOL MESAJLARI EKLENDİ")
+print("   ✅ BYPASS BAŞARILI MESAJI")
+print("   ✅ RTX 4060 MINING")
+print("   ✅ ŞAKA 😂")
 print("========================================")
