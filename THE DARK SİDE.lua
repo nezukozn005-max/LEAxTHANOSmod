@@ -1,5 +1,5 @@
 -- ============================================================
--- HAMSTER LIVES - MINI SERVER FINDER V10 (TEK PARÇA)
+-- HAMSTER LIVES - MINI SERVER FINDER V11 (FIXED)
 -- 150x150 | SÜRÜKLEYEBİLİR | ANINDA BAĞLANMA
 -- ============================================================
 
@@ -9,12 +9,11 @@ local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 MINI SERVER FINDER V10 BAŞLADI...")
+print("🐹 MINI SERVER FINDER V11 BAŞLADI...")
 
 local VerifiedServers = {}
 local ScanningActive = false
 local GuiRef = nil
-local MenuFrame = nil
 
 -- ============================================================
 -- HIZLI HTTP
@@ -31,34 +30,21 @@ end
 -- MINI MENU OLUŞTUR
 -- ============================================================
 local function CreateMiniMenu()
-    local pg = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pg then
-        pg = Instance.new("ScreenGui")
-        pg.Name = "PlayerGui"
-        pg.Parent = LocalPlayer
-        task.wait(0.1)
-    end
-    if not pg then return nil end
-    
-    local old = pg:FindFirstChild("MiniServerFinder")
-    if old then old:Destroy() end
-    
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "MiniServerFinder"
-    gui.Parent = pg
-    gui.ResetOnSpawn = false
-    GuiRef = gui
+    local pg = Instance.new("ScreenGui")
+    pg.Name = "MiniServerFinder"
+    pg.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    pg.ResetOnSpawn = false
+    GuiRef = pg
     
     local menu = Instance.new("Frame")
     menu.Size = UDim2.new(0, 150, 0, 200)
     menu.Position = UDim2.new(0.5, -75, 0.1, 0)
     menu.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
     menu.BackgroundTransparency = 0.1
-    menu.Parent = gui
+    menu.Parent = pg
     menu.Active = true
     menu.Draggable = true
     Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 8)
-    MenuFrame = menu
     
     local stroke = Instance.new("UIStroke", menu)
     stroke.Thickness = 1.5
@@ -87,7 +73,6 @@ local function CreateMiniMenu()
     closeBtn.MouseButton1Click:Connect(function()
         if GuiRef then GuiRef:Destroy() end
         GuiRef = nil
-        MenuFrame = nil
         ScanningActive = false
     end)
     
@@ -115,7 +100,6 @@ local function CreateMiniMenu()
     layout.Padding = UDim.new(0, 3)
     layout.Parent = scroll
     
-    -- SUNUCU BUTONU
     local function AddServerButton(server)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, -4, 0, 26)
@@ -143,7 +127,6 @@ local function CreateMiniMenu()
             task.spawn(function()
                 if GuiRef then pcall(function() GuiRef:Destroy() end) end
                 GuiRef = nil
-                MenuFrame = nil
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
             end)
         end)
@@ -253,7 +236,7 @@ local function Init()
     local addCallback = CreateMiniMenu()
     if addCallback then
         StartScanning(addCallback)
-        print("🐹 MINI SERVER FINDER V10 HAZIR!")
+        print("🐹 MINI SERVER FINDER V11 HAZIR!")
         print("⚡ ANINDA BAĞLANMA AKTİF!")
     else
         print("❌ MENU OLUŞTURULAMADI!")
@@ -268,7 +251,7 @@ end
 
 print("")
 print("========================================")
-print("🐹 HAMSTER LIVES - MINI SERVER FINDER V10")
+print("🐹 HAMSTER LIVES - MINI SERVER FINDER V11")
 print("   ✅ 150x150 SÜRÜKLEYEBİLİR")
 print("   ✅ ANINDA BAĞLANMA")
 print("   ✅ KARANLIK TEMA")
