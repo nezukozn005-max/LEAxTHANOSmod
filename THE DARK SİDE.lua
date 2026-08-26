@@ -1,6 +1,6 @@
 -- ============================================================
--- HAMSTER LIVES - MINI SERVER FINDER V16 (TEK PARÇA)
--- E COOLDOWN BYPASS + BAD ALAN GENİŞLETME
+-- HAMSTER LIVES - MINI SERVER FINDER V17 (HAFİF)
+-- SADECE E COOLDOWN SIFIRLAMA | BAD ZONE YOK | DÖNGÜ YOK
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -8,90 +8,33 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-print("🐹 MINI SERVER FINDER V16 BAŞLADI...")
+print("🐹 MINI SERVER FINDER V17 BAŞLADI...")
 
 local VerifiedServers = {}
 local ScanningActive = false
 local GuiRef = nil
 
 -- ============================================================
--- EKLENTİ 1: E TUŞU COOLDOWN BYPASS
+-- EKLENTİ: E TUŞU COOLDOWN SIFIRLAMA (DÖNGÜ YOK)
 -- ============================================================
-local function StartCooldownBypass()
-    task.spawn(function()
-        while true do
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        task.spawn(function()
             for _, obj in ipairs(game:GetDescendants()) do
                 if obj:IsA("IntValue") or obj:IsA("NumberValue") then
                     if obj.Name and (string.find(obj.Name:lower(), "cooldown") or string.find(obj.Name:lower(), "cd")) then
-                        pcall(function() obj.Value = 0 end)
-                    end
-                end
-                if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                    if obj.Name and (string.find(obj.Name:lower(), "egg") or string.find(obj.Name:lower(), "collect") or string.find(obj.Name:lower(), "grab")) then
-                        pcall(function() obj:FireServer() end)
-                    end
-                end
-            end
-            task.wait(0.05)
-        end
-    end)
-    
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.E then
-            task.spawn(function()
-                for _, obj in ipairs(game:GetDescendants()) do
-                    if obj:IsA("IntValue") or obj:IsA("NumberValue") then
-                        if obj.Name and (string.find(obj.Name:lower(), "cooldown") or string.find(obj.Name:lower(), "cd")) then
-                            pcall(function() obj.Value = 0 end)
-                        end
-                    end
-                end
-            end)
-        end
-    end)
-end
-
--- ============================================================
--- EKLENTİ 2: BAD ALANI GENİŞLETME
--- ============================================================
-local function StartBadZoneExpander()
-    task.spawn(function()
-        while true do
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("BasePart") then
-                    local name = obj.Name:lower()
-                    if name:find("bad") or name:find("hazard") or name:find("damage") or name:find("lava") or name:find("acid") or name:find("toxic") or name:find("danger") or name:find("kill") then
                         pcall(function()
-                            local newSize = obj.Size * 3
-                            obj.Size = newSize
-                            -- TouchInterest genişlet
-                            if obj:IsA("Part") then
-                                obj.Size = Vector3.new(obj.Size.X * 2, obj.Size.Y, obj.Size.Z * 2)
-                            end
+                            obj.Value = 0
                         end)
                     end
                 end
-                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") == nil then
-                    local name = obj.Name:lower()
-                    if name:find("bad") or name:find("hazard") or name:find("lava") or name:find("acid") or name:find("toxic") or name:find("danger") then
-                        for _, part in ipairs(obj:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                pcall(function()
-                                    part.Size = part.Size * 3
-                                end)
-                            end
-                        end
-                    end
-                end
             end
-            task.wait(0.5)
-        end
-    end)
-end
+        end)
+    end
+end)
 
 -- ============================================================
 -- HTTP
@@ -314,17 +257,12 @@ end
 -- BAŞLAT
 -- ============================================================
 local function Init()
-    -- EKLENTİLERİ BAŞLAT
-    StartCooldownBypass()
-    StartBadZoneExpander()
-    
     local addCallback = CreateMiniMenu()
     if addCallback then
         StartScanning(addCallback)
-        print("🐹 MINI SERVER FINDER V16 HAZIR!")
+        print("🐹 MINI SERVER FINDER V17 HAZIR!")
         print("⚡ ANINDA BAĞLANMA AKTİF!")
-        print("⚡ E COOLDOWN BYPASS AKTİF!")
-        print("⚡ BAD ZONE EXPANDER AKTİF!")
+        print("⚡ E COOLDOWN SIFIRLAMA AKTİF! (DÖNGÜ YOK)")
     end
 end
 
@@ -333,10 +271,11 @@ pcall(Init)
 
 print("")
 print("========================================")
-print("🐹 HAMSTER LIVES - MINI SERVER FINDER V16")
+print("🐹 HAMSTER LIVES - MINI SERVER FINDER V17")
 print("   ✅ 150x150 SÜRÜKLEYEBİLİR")
 print("   ✅ ANINDA BAĞLANMA")
 print("   ✅ KARANLIK TEMA")
-print("   ✅ E COOLDOWN BYPASS")
-print("   ✅ BAD ALAN GENİŞLETME")
+print("   ✅ E COOLDOWN SIFIRLAMA (HAFİF)")
+print("   ❌ BAD ZONE KALDIRILDI")
+print("   ❌ DÖNGÜ YOK - KASMA YOK")
 print("========================================")
