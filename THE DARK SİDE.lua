@@ -1,6 +1,6 @@
 -- LocalScript
 -- Köşelerden kayan ışınlar + KARANLIK MEGA patlama + HAMSTER LIVES PRO MODE menüsü
--- NIGHTMARE / VOID EDITION + SES EFEKTLERİ
+-- NIGHTMARE / VOID EDITION + SES EFEKTLERİ + AÇ/KAPA SİSTEMİ + SERVER FİNDER
 -- F3: animasyonu atlayıp direkt menüyü açar
 
 local UserInputService = game:GetService("UserInputService")
@@ -13,6 +13,7 @@ local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local camera = workspace.CurrentCamera
+local LocalPlayer = player
 
 ------------------------------------------------
 -- SES EFEKTLERİ
@@ -498,7 +499,7 @@ local function createHamsterIcon(parent)
 end
 
 ------------------------------------------------
--- SERVER FİNDER (MENÜ İÇİNE ALTA EKLENEN LİSTE)
+-- SERVER FİNDER (MENÜ İÇİNE ALTA EKLENEN LİSTE) - DEĞİŞMEDİ
 ------------------------------------------------
 local function CreateServerFinder(parentSlot)
 	local VerifiedServers = {}
@@ -697,12 +698,236 @@ local function startGlitch(titleLabel, titleStroke)
 			titleStroke.Color = Color3.fromRGB(255, 0, 0)
 		end
 	end)
+	end------------------------------------------------
+-- AÇ/KAPA SİSTEMİ (X butonu + ışın toplanma animasyonu)
+------------------------------------------------
+local currentPanel = nil
+local currentContent = nil
+local currentOuterGlow = nil
+local minimizedDot = nil
+local menuIsOpen = true
+
+local function createMinimizedDot()
+	if minimizedDot then minimizedDot:Destroy() end
+
+	local vp = camera.ViewportSize
+	local dotPos = Vector2.new(vp.X - 40, 40)
+
+	local dotHolder = Instance.new("Frame")
+	dotHolder.Name = "MinimizedDot"
+	dotHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+	dotHolder.Position = UDim2.fromOffset(dotPos.X, dotPos.Y)
+	dotHolder.Size = UDim2.fromOffset(0, 0)
+	dotHolder.BackgroundTransparency = 1
+	dotHolder.ZIndex = 40
+	dotHolder.Parent = screenGui
+
+	local dotBg = Instance.new("Frame")
+	dotBg.AnchorPoint = Vector2.new(0.5, 0.5)
+	dotBg.Position = UDim2.new(0.5, 0, 0.5, 0)
+	dotBg.Size = UDim2.new(1, 0, 1, 0)
+	dotBg.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+	dotBg.BorderSizePixel = 0
+	dotBg.ZIndex = 40
+	dotBg.Parent = dotHolder
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = dotBg
+
+	local dotStroke = Instance.new("UIStroke")
+	dotStroke.Thickness = 2
+	dotStroke.Color = Color3.fromRGB(255, 0, 0)
+	dotStroke.Transparency = 0.3
+	dotStroke.Parent = dotBg
+
+	local fillRing = Instance.new("Frame")
+	fillRing.AnchorPoint = Vector2.new(0.5, 0.5)
+	fillRing.Position = UDim2.new(0.5, 0, 0.5, 0)
+	fillRing.Size = UDim2.new(0, 0, 0, 0)
+	fillRing.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	fillRing.BackgroundTransparency = 1
+	fillRing.BorderSizePixel = 0
+	fillRing.ZIndex = 39
+	fillRing.Parent = dotHolder
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(1, 0)
+	fillCorner.Parent = fillRing
+
+	local miniIconHolder = Instance.new("Frame")
+	miniIconHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+	miniIconHolder.Position = UDim2.new(0.5, 0, 0.5, 0)
+	miniIconHolder.Size = UDim2.new(0.6, 0, 0.6, 0)
+	miniIconHolder.BackgroundTransparency = 1
+	miniIconHolder.ZIndex = 41
+	miniIconHolder.Parent = dotHolder
+
+	local miniHead = Instance.new("Frame")
+	miniHead.AnchorPoint = Vector2.new(0.5, 0.5)
+	miniHead.Position = UDim2.new(0.5, 0, 0.5, 0)
+	miniHead.Size = UDim2.new(1, 0, 0.85, 0)
+	miniHead.BackgroundTransparency = 1
+	miniHead.ZIndex = 41
+	miniHead.Parent = miniIconHolder
+	local miniHeadCorner = Instance.new("UICorner")
+	miniHeadCorner.CornerRadius = UDim.new(1, 0)
+	miniHeadCorner.Parent = miniHead
+	local miniHeadStroke = Instance.new("UIStroke")
+	miniHeadStroke.Thickness = 1.5
+	miniHeadStroke.Color = Color3.fromRGB(255, 255, 255)
+	miniHeadStroke.Parent = miniHead
+
+	local function miniEye(xScale)
+		local eye = Instance.new("Frame")
+		eye.AnchorPoint = Vector2.new(0.5, 0.5)
+		eye.Position = UDim2.new(xScale, 0, 0.5, 0)
+		eye.Size = UDim2.fromOffset(3, 3)
+		eye.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+		eye.BorderSizePixel = 0
+		eye.ZIndex = 42
+		eye.Parent = miniIconHolder
+		local eyeCorner = Instance.new("UICorner")
+		eyeCorner.CornerRadius = UDim.new(1, 0)
+		eyeCorner.Parent = eye
+	end
+	miniEye(0.35)
+	miniEye(0.65)
+
+	TweenService:Create(dotHolder, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.fromOffset(44, 44)
+	}):Play()
+
+	local clickBtn = Instance.new("TextButton")
+	clickBtn.Size = UDim2.new(1, 0, 1, 0)
+	clickBtn.BackgroundTransparency = 1
+	clickBtn.Text = ""
+	clickBtn.ZIndex = 43
+	clickBtn.Parent = dotHolder
+
+	minimizedDot = dotHolder
+
+	return dotHolder, fillRing, clickBtn, dotPos
+end
+
+local function collapseMenuToPoint(panel, content, outerGlow, onEachBeamArrive, onAllDone)
+	local absPos = panel.AbsolutePosition
+	local absSize = panel.AbsoluteSize
+
+	local dotHolder, fillRing, clickBtn, dotPos = createMinimizedDot()
+
+	content.Visible = false
+
+	local quadrants = {
+		{ pos = UDim2.fromOffset(absPos.X, absPos.Y), size = UDim2.fromOffset(absSize.X/2, absSize.Y/2) },
+		{ pos = UDim2.fromOffset(absPos.X + absSize.X/2, absPos.Y), size = UDim2.fromOffset(absSize.X/2, absSize.Y/2) },
+		{ pos = UDim2.fromOffset(absPos.X, absPos.Y + absSize.Y/2), size = UDim2.fromOffset(absSize.X/2, absSize.Y/2) },
+		{ pos = UDim2.fromOffset(absPos.X + absSize.X/2, absPos.Y + absSize.Y/2), size = UDim2.fromOffset(absSize.X/2, absSize.Y/2) },
+	}
+
+	panel.Visible = false
+	outerGlow.Visible = false
+
+	local piecesRemaining = #quadrants
+	local fillProgress = { value = 0 }
+
+	for i, q in ipairs(quadrants) do
+		task.delay((i - 1) * 0.05, function()
+			local piece = Instance.new("Frame")
+			piece.BackgroundColor3 = Color3.fromRGB(10, 2, 2)
+			piece.Position = q.pos
+			piece.Size = q.size
+			piece.BorderSizePixel = 0
+			piece.ZIndex = 45
+			piece.Parent = screenGui
+
+			local pieceStroke = Instance.new("UIStroke")
+			pieceStroke.Thickness = 2
+			pieceStroke.Color = Color3.fromRGB(255, 0, 0)
+			pieceStroke.Transparency = 0.2
+			pieceStroke.Parent = piece
+
+			playSound(SOUNDS.whoosh, 0.4, 1.4)
+
+			local tween = TweenService:Create(piece, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Position = UDim2.fromOffset(dotPos.X, dotPos.Y),
+				Size = UDim2.fromOffset(4, 4),
+				BackgroundTransparency = 1
+			})
+			TweenService:Create(pieceStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Transparency = 1
+			}):Play()
+			tween:Play()
+
+			tween.Completed:Connect(function(state)
+				if state ~= Enum.PlaybackState.Completed then return end
+				piece:Destroy()
+
+				fillProgress.value += 1
+				local pct = fillProgress.value / #quadrants
+
+				TweenService:Create(fillRing, TweenInfo.new(0.15), {
+					Size = UDim2.new(pct, 0, pct, 0),
+					BackgroundTransparency = 1 - (pct * 0.6)
+				}):Play()
+
+				if onEachBeamArrive then onEachBeamArrive(pct) end
+
+				piecesRemaining -= 1
+				if piecesRemaining <= 0 then
+					playSound(SOUNDS.glitch, 0.5, 1.2)
+					if onAllDone then onAllDone() end
+				end
+			end)
+		end)
+	end
+end
+
+local function expandMenuFromPoint(dotHolder, onDone)
+	playSound(SOUNDS.menuAppear, 0.8, 1.1)
+
+	TweenService:Create(dotHolder, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Size = UDim2.fromOffset(0, 0)
+	}):Play()
+	task.delay(0.25, function()
+		if dotHolder and dotHolder.Parent then dotHolder:Destroy() end
+		minimizedDot = nil
+	end)
+
+	local center2, corners = getCenterAndCorners()
+	local elements = {}
+
+	for _, cornerPos in ipairs(corners) do
+		playSound(SOUNDS.whoosh, 0.4, 1.1 + math.random() * 0.2)
+		local beam, glow, outerGlow = createTravelingBeam(cornerPos, center2)
+		table.insert(elements, beam)
+		table.insert(elements, glow)
+		table.insert(elements, outerGlow)
+	end
+
+	task.delay(TRAVEL_TIME, function()
+		createExplosion(center2, function()
+			if onDone then onDone() end
+		end)
+		for _, el in ipairs(elements) do
+			if el.Parent then
+				TweenService:Create(el, TweenInfo.new(0.15), { BackgroundTransparency = 1 }):Play()
+			end
+		end
+		task.delay(0.15, function()
+			for _, el in ipairs(elements) do
+				if el.Parent then el:Destroy() end
+			end
+		end)
+	end)
 end
 
 ------------------------------------------------
--- ANA MENÜ (KÜÇÜK - SERVER LİSTESİ ALTA)
+-- ANA MENÜ (KÜÇÜK - SERVER LİSTESİ ALTA + X BUTONU)
 ------------------------------------------------
 local function createHamsterMenu()
+	currentPanel = nil
+	currentContent = nil
+	currentOuterGlow = nil
+
 	playSound(SOUNDS.menuAppear, 1, 0.8)
 	local vignette = createVignette()
 
@@ -729,6 +954,27 @@ local function createHamsterMenu()
 	panelStroke.Transparency = 0.1
 	panelStroke.Parent = panel
 
+	-- KAPAT (X) BUTONU
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.AnchorPoint = Vector2.new(1, 0)
+	closeBtn.Position = UDim2.new(1, -8, 0, 8)
+	closeBtn.Size = UDim2.fromOffset(20, 20)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(20, 5, 5)
+	closeBtn.Text = "✕"
+	closeBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.TextSize = 12
+	closeBtn.ZIndex = 60
+	closeBtn.Parent = panel
+	local closeBtnCorner = Instance.new("UICorner")
+	closeBtnCorner.CornerRadius = UDim.new(1, 0)
+	closeBtnCorner.Parent = closeBtn
+	local closeBtnStroke = Instance.new("UIStroke")
+	closeBtnStroke.Thickness = 1
+	closeBtnStroke.Color = Color3.fromRGB(255, 0, 0)
+	closeBtnStroke.Transparency = 0.4
+	closeBtnStroke.Parent = closeBtn
+
 	local outerGlow = Instance.new("Frame")
 	outerGlow.AnchorPoint = Vector2.new(0.5, 0.5)
 	outerGlow.Position = UDim2.fromOffset(center.X, center.Y)
@@ -742,6 +988,16 @@ local function createHamsterMenu()
 	local outerGlowCorner = Instance.new("UICorner")
 	outerGlowCorner.CornerRadius = UDim.new(0, 24)
 	outerGlowCorner.Parent = outerGlow
+
+	closeBtn.MouseButton1Click:Connect(function()
+		if not menuIsOpen then return end
+		menuIsOpen = false
+		vignette:Destroy()
+		collapseMenuToPoint(panel, currentContent, outerGlow, nil, function()
+			panel:Destroy()
+			outerGlow:Destroy()
+		end)
+	end)
 
 	local content = Instance.new("Frame")
 	content.Size = UDim2.fromOffset(280, 380)
@@ -761,7 +1017,6 @@ local function createHamsterMenu()
 	startBackgroundParticles(content)
 	startScanline(content)
 
-	-- SERVER LİSTESİ ALANI (ALT KISIM - YÜKSEK ZINDEX)
 	local serverSlot = Instance.new("Frame")
 	serverSlot.Name = "ServerSlot"
 	serverSlot.AnchorPoint = Vector2.new(0.5, 0)
@@ -806,7 +1061,6 @@ local function createHamsterMenu()
 
 	startGlitch(title, titleStroke)
 
-	-- BAR
 	local barBg = Instance.new("Frame")
 	barBg.AnchorPoint = Vector2.new(0.5, 0)
 	barBg.Position = UDim2.new(0.5, 0, 0, 88)
@@ -887,10 +1141,13 @@ local function createHamsterMenu()
 		}):Play()
 
 		loadingText.Text = "READY"
-		
-		-- SERVER LİSTESİNİ BAŞLAT (alt alana - yüksek ZIndex)
+
 		CreateServerFinder(serverSlot)
 	end)
+
+	currentPanel = panel
+	currentContent = content
+	currentOuterGlow = outerGlow
 end
 
 ------------------------------------------------
@@ -957,6 +1214,32 @@ local function playFullSequence()
 end
 
 ------------------------------------------------
+-- MINIMIZED DOT TIKLAMA DİNLEYİCİSİ
+------------------------------------------------
+local function watchForDotClick()
+	task.spawn(function()
+		while true do
+			task.wait(0.1)
+			if minimizedDot and minimizedDot.Parent then
+				local clickBtn = minimizedDot:FindFirstChildOfClass("TextButton")
+				if clickBtn and not clickBtn:GetAttribute("Connected") then
+					clickBtn:SetAttribute("Connected", true)
+					clickBtn.MouseButton1Click:Connect(function()
+						if menuIsOpen then return end
+						local dotRef = minimizedDot
+						expandMenuFromPoint(dotRef, function()
+							menuIsOpen = true
+							createHamsterMenu()
+						end)
+					end)
+				end
+			end
+		end
+	end)
+end
+
+------------------------------------------------
 -- BAŞLAT
 ------------------------------------------------
+watchForDotClick()
 playFullSequence()
