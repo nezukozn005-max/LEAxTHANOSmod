@@ -1,6 +1,6 @@
 -- LocalScript
 -- Köşelerden kayan ışınlar + KARANLIK MEGA patlama + HAMSTER LIVES PRO MODE menüsü
--- NIGHTMARE / VOID EDITION + SES EFEKTLERİ + AÇ/KAPA SİSTEMİ + SERVER FİNDER (ANINDA TELEPORT + ULTRA COOL BUTONLAR)
+-- NIGHTMARE / VOID EDITION + SES EFEKTLERİ + AÇ/KAPA SİSTEMİ + DEEPSEEK TELEPORT SİSTEMİ + BİLDİRİM
 -- F3: animasyonu atlayıp direkt menüyü açar
 
 local UserInputService = game:GetService("UserInputService")
@@ -9,6 +9,7 @@ local TweenService = game:GetService("TweenService")
 local SoundService = game:GetService("SoundService")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
+local DataStoreService = game:GetService("DataStoreService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -499,21 +500,32 @@ local function createHamsterIcon(parent)
 end
 
 ------------------------------------------------
--- SERVER FİNDER (ANINDA TELEPORT + ULTRA COOL SAYDAM BUTONLAR)
+-- SERVER FİNDER (DEEPSEEK'İN TELEPORT MANTIĞI - MENÜ İÇİNE ADAPTE EDİLDİ)
 ------------------------------------------------
 local function CreateServerFinder(parentSlot)
-	local VerifiedServers = {}
+	local Servers = {}
 	local GuiRef = nil
-	local scanning = false
-	local teleportTriggered = false
+	local Scanning = false
 
-	local function SafeHttpGet(url)
-		if teleportTriggered then return nil end
+	local function GetServers()
+		local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
 		local success, response = pcall(function()
 			return game:HttpGet(url)
 		end)
-		if success and response then return response end
-		return nil
+		if success and response then
+			local ok, data = pcall(function() return HttpService:JSONDecode(response) end)
+			if ok and data and data.data then
+				local list = {}
+				for _, s in ipairs(data.data) do
+					if s.playing < s.maxPlayers then
+						table.insert(list, s)
+					end
+				end
+				table.sort(list, function(a, b) return a.playing < b.playing end)
+				return list, data.nextPageCursor
+			end
+		end
+		return {}, nil
 	end
 
 	local function BuildList()
@@ -525,255 +537,119 @@ local function CreateServerFinder(parentSlot)
 		main.Size = UDim2.new(1, -5, 1, -5)
 		main.Position = UDim2.new(0, 2.5, 0, 2.5)
 		main.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-		main.BackgroundTransparency = 0.35
+		main.BackgroundTransparency = 0.2
 		main.Parent = parentSlot
 		main.ZIndex = 50
 		Instance.new("UICorner", main).CornerRadius = UDim.new(0, 6)
 		GuiRef = main
 
+		local count = Instance.new("TextLabel")
+		count.Size = UDim2.new(1, 0, 0, 14)
+		count.Position = UDim2.new(0, 0, 0, 2)
+		count.BackgroundTransparency = 1
+		count.Text = "👥 0"
+		count.TextColor3 = Color3.fromRGB(150, 150, 150)
+		count.TextSize = 9
+		count.Font = Enum.Font.Gotham
+		count.ZIndex = 51
+		count.Parent = main
+
 		local scroll = Instance.new("ScrollingFrame")
-		scroll.Size = UDim2.new(1, -8, 1, -8)
-		scroll.Position = UDim2.new(0, 4, 0, 4)
+		scroll.Size = UDim2.new(1, -8, 1, -20)
+		scroll.Position = UDim2.new(0, 4, 0, 18)
 		scroll.BackgroundTransparency = 1
 		scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		scroll.Parent = main
 		scroll.ZIndex = 51
 		scroll.ScrollBarThickness = 3
-		scroll.ScrollBarImageColor3 = Color3.fromRGB(255, 60, 60)
-		scroll.ScrollBarImageTransparency = 0.3
+		scroll.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
 
 		local layout = Instance.new("UIListLayout")
-		layout.Padding = UDim.new(0, 4)
+		layout.Padding = UDim.new(0, 3)
 		layout.Parent = scroll
 
-		local function AddServer(server)
-			if server.playing ~= 1 then return end
-
-			-- ============================================================
-			-- ULTRA COOL SAYDAM SERVER BUTONU
-			-- ============================================================
+		local function AddButton(server)
 			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1, -4, 0, 28)
-			btn.BackgroundColor3 = Color3.fromRGB(25, 8, 8)
-			btn.BackgroundTransparency = 0.4
-			btn.Text = ""
-			btn.AutoButtonColor = false
-			btn.ZIndex = 52
+			btn.Size = UDim2.new(1, -4, 0, 22)
+			btn.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+			btn.Text = server.playing .. "/" .. server.maxPlayers
+			btn.TextColor3 = server.playing == 1 and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(200, 200, 200)
+			btn.TextSize = 9
+			btn.Font = Enum.Font.GothamBold
 			btn.Parent = scroll
+			btn.ZIndex = 52
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
-			local btnCorner = Instance.new("UICorner")
-			btnCorner.CornerRadius = UDim.new(0, 7)
-			btnCorner.Parent = btn
-
-			local btnStroke = Instance.new("UIStroke")
-			btnStroke.Thickness = 1
-			btnStroke.Color = Color3.fromRGB(255, 50, 50)
-			btnStroke.Transparency = 0.5
-			btnStroke.Parent = btn
-
-			local btnGradient = Instance.new("UIGradient")
-			btnGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 15, 15)),
-				ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 5, 5)),
-			})
-			btnGradient.Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0.3),
-				NumberSequenceKeypoint.new(1, 0.55),
-			})
-			btnGradient.Rotation = 90
-			btnGradient.Parent = btn
-
-			-- Sol tarafta yeşil "boş server" nokta göstergesi
-			local statusDot = Instance.new("Frame")
-			statusDot.AnchorPoint = Vector2.new(0, 0.5)
-			statusDot.Position = UDim2.new(0, 8, 0.5, 0)
-			statusDot.Size = UDim2.fromOffset(6, 6)
-			statusDot.BackgroundColor3 = Color3.fromRGB(80, 255, 120)
-			statusDot.BorderSizePixel = 0
-			statusDot.ZIndex = 53
-			statusDot.Parent = btn
-			local statusDotCorner = Instance.new("UICorner")
-			statusDotCorner.CornerRadius = UDim.new(1, 0)
-			statusDotCorner.Parent = statusDot
-
-			-- Nokta hafif nefes alsın
-			task.spawn(function()
-				while statusDot.Parent do
-					TweenService:Create(statusDot, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-						BackgroundTransparency = 0.5
-					}):Play()
-					task.wait(0.8)
-					if not statusDot.Parent then break end
-					TweenService:Create(statusDot, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-						BackgroundTransparency = 0
-					}):Play()
-					task.wait(0.8)
-				end
-			end)
-
-			-- Server ID metni
-			local idLabel = Instance.new("TextLabel")
-			idLabel.AnchorPoint = Vector2.new(0, 0.5)
-			idLabel.Position = UDim2.new(0, 20, 0.5, 0)
-			idLabel.Size = UDim2.new(0.55, 0, 1, 0)
-			idLabel.BackgroundTransparency = 1
-			idLabel.Text = server.id:sub(1, 8)
-			idLabel.TextColor3 = Color3.fromRGB(255, 220, 150)
-			idLabel.Font = Enum.Font.GothamBold
-			idLabel.TextSize = 10
-			idLabel.TextXAlignment = Enum.TextXAlignment.Left
-			idLabel.TextTruncate = Enum.TextTruncate.AtEnd
-			idLabel.ZIndex = 53
-			idLabel.Parent = btn
-
-			-- Oyuncu sayısı rozeti (sağda, yuvarlatılmış pill)
-			local badge = Instance.new("Frame")
-			badge.AnchorPoint = Vector2.new(1, 0.5)
-			badge.Position = UDim2.new(1, -6, 0.5, 0)
-			badge.Size = UDim2.fromOffset(38, 16)
-			badge.BackgroundColor3 = Color3.fromRGB(255, 30, 30)
-			badge.BackgroundTransparency = 0.25
-			badge.ZIndex = 53
-			badge.Parent = btn
-			local badgeCorner = Instance.new("UICorner")
-			badgeCorner.CornerRadius = UDim.new(1, 0)
-			badgeCorner.Parent = badge
-			local badgeStroke = Instance.new("UIStroke")
-			badgeStroke.Thickness = 1
-			badgeStroke.Color = Color3.fromRGB(255, 150, 150)
-			badgeStroke.Transparency = 0.4
-			badgeStroke.Parent = badge
-
-			local badgeText = Instance.new("TextLabel")
-			badgeText.Size = UDim2.new(1, 0, 1, 0)
-			badgeText.BackgroundTransparency = 1
-			badgeText.Text = "👤" .. server.playing
-			badgeText.TextColor3 = Color3.fromRGB(255, 255, 255)
-			badgeText.Font = Enum.Font.GothamBold
-			badgeText.TextSize = 9
-			badgeText.ZIndex = 54
-			badgeText.Parent = badge
-
-			-- Hover efekti: hafif parlama + kenarlık netleşmesi + büyüme
 			btn.MouseEnter:Connect(function()
-				TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundTransparency = 0.15,
-					Size = UDim2.new(1, -4, 0, 30)
-				}):Play()
-				TweenService:Create(btnStroke, TweenInfo.new(0.15), {
-					Transparency = 0.1,
-					Thickness = 1.5
-				}):Play()
+				btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
 			end)
 			btn.MouseLeave:Connect(function()
-				TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundTransparency = 0.4,
-					Size = UDim2.new(1, -4, 0, 28)
-				}):Play()
-				TweenService:Create(btnStroke, TweenInfo.new(0.15), {
-					Transparency = 0.5,
-					Thickness = 1
-				}):Play()
+				btn.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 			end)
 
-			-- ============================================================
-			-- TIKLAYINCA: tarama anında durur, GUI hemen kapanır,
-			-- teleport hiçbir şeyi beklemeden ayrı thread'de tetiklenir
-			-- ============================================================
 			btn.MouseButton1Click:Connect(function()
-				if teleportTriggered then return end
-				teleportTriggered = true
-				scanning = false
-
-				-- Tıklama anında görsel geri bildirim (flash)
-				TweenService:Create(btn, TweenInfo.new(0.1), {
-					BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-					BackgroundTransparency = 0.2
-				}):Play()
-
 				local sid = server.id
-
-				if GuiRef then
-					GuiRef:Destroy()
-					GuiRef = nil
-				end
+				btn.Text = "⏳"
+				btn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+				btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 				task.spawn(function()
-					pcall(function()
-						TeleportService:TeleportToPlaceInstance(game.PlaceId, sid, LocalPlayer)
-					end)
+					if GuiRef then GuiRef:Destroy() end
+					GuiRef = nil
+					TeleportService:TeleportToPlaceInstance(game.PlaceId, sid, LocalPlayer)
 				end)
 			end)
 		end
 
-		for _, s in ipairs(VerifiedServers) do
-			AddServer(s)
+		for _, s in ipairs(Servers) do
+			AddButton(s)
 		end
+		count.Text = "👥 " .. #Servers
 
-		local function AddNew(server)
-			if teleportTriggered then return end
-			if server.playing == 1 then
-				AddServer(server)
-				task.wait(0.05)
-				if scroll and scroll.Parent then
-					scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
-				end
+		local function AddNew(s)
+			AddButton(s)
+			count.Text = "👥 " .. #Servers
+			task.wait(0.05)
+			if scroll and scroll.Parent then
+				scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
 			end
 		end
 
 		return AddNew
 	end
 
-	local function StartScan(addCb)
-		if scanning then return end
-		scanning = true
+	local function StartScan()
+		if Scanning then return end
+		Scanning = true
 
 		task.spawn(function()
-			local cursor = ""
-			while GuiRef and GuiRef.Parent and scanning and not teleportTriggered do
-				local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-				if cursor ~= "" then url = url .. "&cursor=" .. cursor end
+			local add = BuildList()
 
-				local raw = SafeHttpGet(url)
-
-				if teleportTriggered then break end
-
-				if raw then
-					local ok, res = pcall(function() return HttpService:JSONDecode(raw) end)
-					if ok and res and res.data then
-						for _, s in ipairs(res.data) do
-							if teleportTriggered then break end
-							if s.id ~= game.JobId and s.playing == 1 and s.playing < s.maxPlayers then
-								local exists = false
-								for _, v in ipairs(VerifiedServers) do
-									if v.id == s.id then exists = true break end
-								end
-								if not exists then
-									table.insert(VerifiedServers, s)
-									if addCb then addCb(s) end
-								end
+			while GuiRef and GuiRef.Parent do
+				local data = GetServers()
+				if data then
+					for _, s in ipairs(data) do
+						if s.id ~= game.JobId then
+							local exists = false
+							for _, v in ipairs(Servers) do
+								if v.id == s.id then exists = true break end
+							end
+							if not exists then
+								table.insert(Servers, s)
+								if add then add(s) end
 							end
 						end
-						cursor = res.nextPageCursor or ""
-						if cursor == "" then task.wait(3) else task.wait(1) end
-					else
-						task.wait(1)
 					end
-				else
-					task.wait(1)
 				end
-
-				task.wait(0.5)
+				task.wait(1.5)
 			end
+			Scanning = false
 		end)
 	end
 
-	local addCb = BuildList()
-	if addCb then StartScan(addCb) end
-end
-
-------------------------------------------------
+	StartScan()
+	end------------------------------------------------
 -- ARKA PLAN PARÇACIKLARI
 ------------------------------------------------
 local function startBackgroundParticles(content)
@@ -849,7 +725,9 @@ local function startGlitch(titleLabel, titleStroke)
 			titleStroke.Color = Color3.fromRGB(255, 0, 0)
 		end
 	end)
-end------------------------------------------------
+end
+
+------------------------------------------------
 -- AÇ/KAPA SİSTEMİ (X butonu + ışın toplanma animasyonu)
 ------------------------------------------------
 local currentPanel = nil
@@ -1072,8 +950,102 @@ local function expandMenuFromPoint(dotHolder, onDone)
 end
 
 ------------------------------------------------
+-- BİLDİRİM SİSTEMİ (İLK AÇILIŞTA ÖZÜR MESAJI - KALICI HATIRLAR)
+------------------------------------------------
+local notifStore = DataStoreService:GetDataStore("HamsterNotifSeen_v1")
+
+local function hasSeenNotification()
+	local success, result = pcall(function()
+		return notifStore:GetAsync("seen_" .. LocalPlayer.UserId)
+	end)
+	if success and result == true then
+		return true
+	end
+	return false
+end
+
+local function markNotificationSeen()
+	task.spawn(function()
+		pcall(function()
+			notifStore:SetAsync("seen_" .. LocalPlayer.UserId, true)
+		end)
+	end)
+end
+
+local function ShowApologyNotification(parentPanel)
+	local overlay = Instance.new("Frame")
+	overlay.Name = "NotifOverlay"
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	overlay.BackgroundTransparency = 0.3
+	overlay.ZIndex = 200
+	overlay.Parent = screenGui
+
+	local box = Instance.new("Frame")
+	box.AnchorPoint = Vector2.new(0.5, 0.5)
+	box.Position = UDim2.new(0.5, 0, 0.5, 0)
+	box.Size = UDim2.new(0, 240, 0, 150)
+	box.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+	box.ZIndex = 201
+	box.Parent = overlay
+	local boxCorner = Instance.new("UICorner")
+	boxCorner.CornerRadius = UDim.new(0, 10)
+	boxCorner.Parent = box
+	local boxStroke = Instance.new("UIStroke")
+	boxStroke.Thickness = 2
+	boxStroke.Color = Color3.fromRGB(180, 0, 0)
+	boxStroke.Parent = box
+
+	local titleLbl = Instance.new("TextLabel")
+	titleLbl.Size = UDim2.new(1, -16, 0, 24)
+	titleLbl.Position = UDim2.new(0, 8, 0, 10)
+	titleLbl.BackgroundTransparency = 1
+	titleLbl.Text = "⚠️ BİLGİLENDİRME"
+	titleLbl.TextColor3 = Color3.fromRGB(255, 80, 80)
+	titleLbl.Font = Enum.Font.GothamBold
+	titleLbl.TextSize = 13
+	titleLbl.ZIndex = 202
+	titleLbl.Parent = box
+
+	local msgLbl = Instance.new("TextLabel")
+	msgLbl.Size = UDim2.new(1, -20, 0, 70)
+	msgLbl.Position = UDim2.new(0, 10, 0, 36)
+	msgLbl.BackgroundTransparency = 1
+	msgLbl.Text = "Sunucu gecikmeleri ve hatalar için özür dilerim, elimde olan bir şey değil. Bundan sonra başka güncelleme olmayacak. İyi oyunlar!"
+	msgLbl.TextColor3 = Color3.fromRGB(220, 220, 220)
+	msgLbl.Font = Enum.Font.Gotham
+	msgLbl.TextSize = 11
+	msgLbl.TextWrapped = true
+	msgLbl.TextYAlignment = Enum.TextYAlignment.Top
+	msgLbl.ZIndex = 202
+	msgLbl.Parent = box
+
+	local okBtn = Instance.new("TextButton")
+	okBtn.AnchorPoint = Vector2.new(0.5, 1)
+	okBtn.Position = UDim2.new(0.5, 0, 1, -12)
+	okBtn.Size = UDim2.new(0, 100, 0, 30)
+	okBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+	okBtn.Text = "TAMAM"
+	okBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	okBtn.Font = Enum.Font.GothamBold
+	okBtn.TextSize = 12
+	okBtn.ZIndex = 202
+	okBtn.Parent = box
+	local okCorner = Instance.new("UICorner")
+	okCorner.CornerRadius = UDim.new(0, 8)
+	okCorner.Parent = okBtn
+
+	okBtn.MouseButton1Click:Connect(function()
+		overlay:Destroy()
+		markNotificationSeen()
+	end)
+end
+
+------------------------------------------------
 -- ANA MENÜ (KÜÇÜK - SERVER LİSTESİ ALTA + X BUTONU)
 ------------------------------------------------
+local firstMenuOpen = true
+
 local function createHamsterMenu()
 	currentPanel = nil
 	currentContent = nil
@@ -1293,6 +1265,16 @@ local function createHamsterMenu()
 		loadingText.Text = "READY"
 
 		CreateServerFinder(serverSlot)
+
+		-- Bildirim sadece ilk açılışta ve daha önce görülmediyse
+		if firstMenuOpen then
+			firstMenuOpen = false
+			task.spawn(function()
+				if not hasSeenNotification() then
+					ShowApologyNotification(panel)
+				end
+			end)
+		end
 	end)
 
 	currentPanel = panel
@@ -1300,96 +1282,7 @@ local function createHamsterMenu()
 	currentOuterGlow = outerGlow
 end
 
-------------------------------------------------
--- ANA ÇALIŞTIRICI
-------------------------------------------------
-local function playFullSequence()
-	if skipAnimation then
-		createHamsterMenu()
-		return
-	end
-
-	local center, corners = getCenterAndCorners()
-	local elements = {}
-	local finished = false
-
-	local function goToMenu()
-		if finished then return end
-		finished = true
-		for _, el in ipairs(elements) do
-			if el and el.Parent then el:Destroy() end
-		end
-		createHamsterMenu()
-	end
-
-	for _, cornerPos in ipairs(corners) do
-		playSound(SOUNDS.whoosh, 0.5, 1 + math.random() * 0.2)
-		local beam, glow, outerGlow = createTravelingBeam(cornerPos, center)
-		table.insert(elements, beam)
-		table.insert(elements, glow)
-		table.insert(elements, outerGlow)
-	end
-
-	local skipConn
-	skipConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if input.KeyCode == Enum.KeyCode.F3 then
-			skipConn:Disconnect()
-			goToMenu()
-		end
-	end)
-
-	task.delay(TRAVEL_TIME, function()
-		if finished then return end
-		createExplosion(center, function()
-			if not finished then
-				finished = true
-				skipConn:Disconnect()
-				createHamsterMenu()
-			end
-		end)
-
-		for _, el in ipairs(elements) do
-			if el.Parent then
-				TweenService:Create(el, TweenInfo.new(0.15), {
-					BackgroundTransparency = 1
-				}):Play()
-			end
-		end
-		task.delay(0.15, function()
-			for _, el in ipairs(elements) do
-				if el.Parent then el:Destroy() end
-			end
-		end)
-	end)
-end
-
-------------------------------------------------
--- MINIMIZED DOT TIKLAMA DİNLEYİCİSİ
-------------------------------------------------
-local function watchForDotClick()
-	task.spawn(function()
-		while true do
-			task.wait(0.1)
-			if minimizedDot and minimizedDot.Parent then
-				local clickBtn = minimizedDot:FindFirstChildOfClass("TextButton")
-				if clickBtn and not clickBtn:GetAttribute("Connected") then
-					clickBtn:SetAttribute("Connected", true)
-					clickBtn.MouseButton1Click:Connect(function()
-						if menuIsOpen then return end
-						local dotRef = minimizedDot
-						expandMenuFromPoint(dotRef, function()
-							menuIsOpen = true
-							createHamsterMenu()
-						end)
-					end)
-				end
-			end
-		end
-	end)
-end
-
-------------------------------------------------
--- BAŞLAT
+------------------------- BAŞLAT
 ------------------------------------------------
 watchForDotClick()
 playFullSequence()
