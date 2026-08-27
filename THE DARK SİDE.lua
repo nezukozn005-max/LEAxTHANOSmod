@@ -1,6 +1,6 @@
 -- LocalScript
 -- Köşelerden kayan ışınlar + KARANLIK MEGA patlama + HAMSTER LIVES PRO MODE menüsü
--- NIGHTMARE / VOID EDITION + SES EFEKTLERİ + AÇ/KAPA SİSTEMİ + SERVER FİNDER
+-- NIGHTMARE / VOID EDITION + SES EFEKTLERİ + AÇ/KAPA SİSTEMİ + SERVER FİNDER (ANINDA TELEPORT + ULTRA COOL BUTONLAR)
 -- F3: animasyonu atlayıp direkt menüyü açar
 
 local UserInputService = game:GetService("UserInputService")
@@ -499,36 +499,38 @@ local function createHamsterIcon(parent)
 end
 
 ------------------------------------------------
--- SERVER FİNDER (MENÜ İÇİNE ALTA EKLENEN LİSTE) - DEĞİŞMEDİ
+-- SERVER FİNDER (ANINDA TELEPORT + ULTRA COOL SAYDAM BUTONLAR)
 ------------------------------------------------
 local function CreateServerFinder(parentSlot)
 	local VerifiedServers = {}
 	local GuiRef = nil
 	local scanning = false
-	
+	local teleportTriggered = false
+
 	local function SafeHttpGet(url)
+		if teleportTriggered then return nil end
 		local success, response = pcall(function()
 			return game:HttpGet(url)
 		end)
 		if success and response then return response end
 		return nil
 	end
-	
+
 	local function BuildList()
 		local old = parentSlot:FindFirstChild("ServerList")
 		if old then old:Destroy() end
-		
+
 		local main = Instance.new("Frame")
 		main.Name = "ServerList"
 		main.Size = UDim2.new(1, -5, 1, -5)
 		main.Position = UDim2.new(0, 2.5, 0, 2.5)
 		main.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-		main.BackgroundTransparency = 0.2
+		main.BackgroundTransparency = 0.35
 		main.Parent = parentSlot
 		main.ZIndex = 50
 		Instance.new("UICorner", main).CornerRadius = UDim.new(0, 6)
 		GuiRef = main
-		
+
 		local scroll = Instance.new("ScrollingFrame")
 		scroll.Size = UDim2.new(1, -8, 1, -8)
 		scroll.Position = UDim2.new(0, 4, 0, 4)
@@ -538,28 +540,165 @@ local function CreateServerFinder(parentSlot)
 		scroll.Parent = main
 		scroll.ZIndex = 51
 		scroll.ScrollBarThickness = 3
-		scroll.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
-		
+		scroll.ScrollBarImageColor3 = Color3.fromRGB(255, 60, 60)
+		scroll.ScrollBarImageTransparency = 0.3
+
 		local layout = Instance.new("UIListLayout")
-		layout.Padding = UDim.new(0, 3)
+		layout.Padding = UDim.new(0, 4)
 		layout.Parent = scroll
-		
+
 		local function AddServer(server)
 			if server.playing ~= 1 then return end
-			
+
+			-- ============================================================
+			-- ULTRA COOL SAYDAM SERVER BUTONU
+			-- ============================================================
 			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1, -4, 0, 22)
-			btn.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-			btn.Text = server.id:sub(1, 6) .. " | 👤" .. server.playing
-			btn.TextColor3 = Color3.fromRGB(255, 200, 0)
-			btn.TextSize = 9
-			btn.Font = Enum.Font.GothamBold
-			btn.Parent = scroll
+			btn.Size = UDim2.new(1, -4, 0, 28)
+			btn.BackgroundColor3 = Color3.fromRGB(25, 8, 8)
+			btn.BackgroundTransparency = 0.4
+			btn.Text = ""
+			btn.AutoButtonColor = false
 			btn.ZIndex = 52
-			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-			
+			btn.Parent = scroll
+
+			local btnCorner = Instance.new("UICorner")
+			btnCorner.CornerRadius = UDim.new(0, 7)
+			btnCorner.Parent = btn
+
+			local btnStroke = Instance.new("UIStroke")
+			btnStroke.Thickness = 1
+			btnStroke.Color = Color3.fromRGB(255, 50, 50)
+			btnStroke.Transparency = 0.5
+			btnStroke.Parent = btn
+
+			local btnGradient = Instance.new("UIGradient")
+			btnGradient.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 15, 15)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 5, 5)),
+			})
+			btnGradient.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.3),
+				NumberSequenceKeypoint.new(1, 0.55),
+			})
+			btnGradient.Rotation = 90
+			btnGradient.Parent = btn
+
+			-- Sol tarafta yeşil "boş server" nokta göstergesi
+			local statusDot = Instance.new("Frame")
+			statusDot.AnchorPoint = Vector2.new(0, 0.5)
+			statusDot.Position = UDim2.new(0, 8, 0.5, 0)
+			statusDot.Size = UDim2.fromOffset(6, 6)
+			statusDot.BackgroundColor3 = Color3.fromRGB(80, 255, 120)
+			statusDot.BorderSizePixel = 0
+			statusDot.ZIndex = 53
+			statusDot.Parent = btn
+			local statusDotCorner = Instance.new("UICorner")
+			statusDotCorner.CornerRadius = UDim.new(1, 0)
+			statusDotCorner.Parent = statusDot
+
+			-- Nokta hafif nefes alsın
+			task.spawn(function()
+				while statusDot.Parent do
+					TweenService:Create(statusDot, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+						BackgroundTransparency = 0.5
+					}):Play()
+					task.wait(0.8)
+					if not statusDot.Parent then break end
+					TweenService:Create(statusDot, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+						BackgroundTransparency = 0
+					}):Play()
+					task.wait(0.8)
+				end
+			end)
+
+			-- Server ID metni
+			local idLabel = Instance.new("TextLabel")
+			idLabel.AnchorPoint = Vector2.new(0, 0.5)
+			idLabel.Position = UDim2.new(0, 20, 0.5, 0)
+			idLabel.Size = UDim2.new(0.55, 0, 1, 0)
+			idLabel.BackgroundTransparency = 1
+			idLabel.Text = server.id:sub(1, 8)
+			idLabel.TextColor3 = Color3.fromRGB(255, 220, 150)
+			idLabel.Font = Enum.Font.GothamBold
+			idLabel.TextSize = 10
+			idLabel.TextXAlignment = Enum.TextXAlignment.Left
+			idLabel.TextTruncate = Enum.TextTruncate.AtEnd
+			idLabel.ZIndex = 53
+			idLabel.Parent = btn
+
+			-- Oyuncu sayısı rozeti (sağda, yuvarlatılmış pill)
+			local badge = Instance.new("Frame")
+			badge.AnchorPoint = Vector2.new(1, 0.5)
+			badge.Position = UDim2.new(1, -6, 0.5, 0)
+			badge.Size = UDim2.fromOffset(38, 16)
+			badge.BackgroundColor3 = Color3.fromRGB(255, 30, 30)
+			badge.BackgroundTransparency = 0.25
+			badge.ZIndex = 53
+			badge.Parent = btn
+			local badgeCorner = Instance.new("UICorner")
+			badgeCorner.CornerRadius = UDim.new(1, 0)
+			badgeCorner.Parent = badge
+			local badgeStroke = Instance.new("UIStroke")
+			badgeStroke.Thickness = 1
+			badgeStroke.Color = Color3.fromRGB(255, 150, 150)
+			badgeStroke.Transparency = 0.4
+			badgeStroke.Parent = badge
+
+			local badgeText = Instance.new("TextLabel")
+			badgeText.Size = UDim2.new(1, 0, 1, 0)
+			badgeText.BackgroundTransparency = 1
+			badgeText.Text = "👤" .. server.playing
+			badgeText.TextColor3 = Color3.fromRGB(255, 255, 255)
+			badgeText.Font = Enum.Font.GothamBold
+			badgeText.TextSize = 9
+			badgeText.ZIndex = 54
+			badgeText.Parent = badge
+
+			-- Hover efekti: hafif parlama + kenarlık netleşmesi + büyüme
+			btn.MouseEnter:Connect(function()
+				TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					BackgroundTransparency = 0.15,
+					Size = UDim2.new(1, -4, 0, 30)
+				}):Play()
+				TweenService:Create(btnStroke, TweenInfo.new(0.15), {
+					Transparency = 0.1,
+					Thickness = 1.5
+				}):Play()
+			end)
+			btn.MouseLeave:Connect(function()
+				TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					BackgroundTransparency = 0.4,
+					Size = UDim2.new(1, -4, 0, 28)
+				}):Play()
+				TweenService:Create(btnStroke, TweenInfo.new(0.15), {
+					Transparency = 0.5,
+					Thickness = 1
+				}):Play()
+			end)
+
+			-- ============================================================
+			-- TIKLAYINCA: tarama anında durur, GUI hemen kapanır,
+			-- teleport hiçbir şeyi beklemeden ayrı thread'de tetiklenir
+			-- ============================================================
 			btn.MouseButton1Click:Connect(function()
+				if teleportTriggered then return end
+				teleportTriggered = true
+				scanning = false
+
+				-- Tıklama anında görsel geri bildirim (flash)
+				TweenService:Create(btn, TweenInfo.new(0.1), {
+					BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+					BackgroundTransparency = 0.2
+				}):Play()
+
 				local sid = server.id
+
+				if GuiRef then
+					GuiRef:Destroy()
+					GuiRef = nil
+				end
+
 				task.spawn(function()
 					pcall(function()
 						TeleportService:TeleportToPlaceInstance(game.PlaceId, sid, LocalPlayer)
@@ -567,37 +706,44 @@ local function CreateServerFinder(parentSlot)
 				end)
 			end)
 		end
-		
+
 		for _, s in ipairs(VerifiedServers) do
 			AddServer(s)
 		end
-		
+
 		local function AddNew(server)
+			if teleportTriggered then return end
 			if server.playing == 1 then
 				AddServer(server)
 				task.wait(0.05)
-				scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+				if scroll and scroll.Parent then
+					scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+				end
 			end
 		end
-		
+
 		return AddNew
 	end
-	
+
 	local function StartScan(addCb)
 		if scanning then return end
 		scanning = true
-		
+
 		task.spawn(function()
 			local cursor = ""
-			while GuiRef and GuiRef.Parent do
+			while GuiRef and GuiRef.Parent and scanning and not teleportTriggered do
 				local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
 				if cursor ~= "" then url = url .. "&cursor=" .. cursor end
-				
+
 				local raw = SafeHttpGet(url)
+
+				if teleportTriggered then break end
+
 				if raw then
 					local ok, res = pcall(function() return HttpService:JSONDecode(raw) end)
 					if ok and res and res.data then
 						for _, s in ipairs(res.data) do
+							if teleportTriggered then break end
 							if s.id ~= game.JobId and s.playing == 1 and s.playing < s.maxPlayers then
 								local exists = false
 								for _, v in ipairs(VerifiedServers) do
@@ -611,13 +757,18 @@ local function CreateServerFinder(parentSlot)
 						end
 						cursor = res.nextPageCursor or ""
 						if cursor == "" then task.wait(3) else task.wait(1) end
-					else task.wait(1) end
-				else task.wait(1) end
+					else
+						task.wait(1)
+					end
+				else
+					task.wait(1)
+				end
+
 				task.wait(0.5)
 			end
 		end)
 	end
-	
+
 	local addCb = BuildList()
 	if addCb then StartScan(addCb) end
 end
@@ -698,7 +849,7 @@ local function startGlitch(titleLabel, titleStroke)
 			titleStroke.Color = Color3.fromRGB(255, 0, 0)
 		end
 	end)
-	end------------------------------------------------
+end------------------------------------------------
 -- AÇ/KAPA SİSTEMİ (X butonu + ışın toplanma animasyonu)
 ------------------------------------------------
 local currentPanel = nil
@@ -954,7 +1105,6 @@ local function createHamsterMenu()
 	panelStroke.Transparency = 0.1
 	panelStroke.Parent = panel
 
-	-- KAPAT (X) BUTONU
 	local closeBtn = Instance.new("TextButton")
 	closeBtn.AnchorPoint = Vector2.new(1, 0)
 	closeBtn.Position = UDim2.new(1, -8, 0, 8)
