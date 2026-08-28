@@ -1,5 +1,5 @@
 -- ============================================================
--- HAMSTER LIVES - WHITELIST KONTROL SİSTEMİ (ANINDA GEÇİŞ)
+-- HAMSTER LIVES - WHITELIST KONTROL (ANINDA)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -15,7 +15,7 @@ local ALLOWED_USERS = {
 }
 
 -- ============================================================
--- WHITELIST KONTROLÜ (ANINDA)
+-- WHITELIST KONTROLÜ (ANINDA KARAR VER)
 -- ============================================================
 local function IsUserAllowed()
     local username = LocalPlayer.Name
@@ -28,7 +28,7 @@ local function IsUserAllowed()
 end
 
 -- ============================================================
--- WHITELIST GUI (KONTROL EKRANI - 0.3 SANİYE)
+-- WHITELIST GUI (SADECE YETKİSİZLER İÇİN GÖSTER)
 -- ============================================================
 local whitelistGui = Instance.new("ScreenGui")
 whitelistGui.Name = "WhitelistGUI"
@@ -60,7 +60,7 @@ boxStroke.Thickness = 1.5
 boxStroke.Color = Color3.fromRGB(60, 60, 60)
 boxStroke.Transparency = 0.5
 
--- Büyüteç (🔍) - sadece gösterip kaldır
+-- Büyüteç (🔍) - sadece yetkisizler görür
 local magnifier = Instance.new("TextLabel")
 magnifier.Size = UDim2.new(0, 60, 0, 60)
 magnifier.Position = UDim2.new(0.5, -30, 0, 10)
@@ -72,7 +72,7 @@ magnifier.Font = Enum.Font.GothamBold
 magnifier.Parent = box
 magnifier.ZIndex = 2
 
--- "Kontrol ediliyorsunuz..." (0.3 saniye görünür)
+-- "Kontrol ediliyorsunuz..." - sadece yetkisizler görür
 local checkingLabel = Instance.new("TextLabel")
 checkingLabel.Size = UDim2.new(1, 0, 0, 30)
 checkingLabel.Position = UDim2.new(0, 0, 0, 80)
@@ -85,18 +85,18 @@ checkingLabel.Parent = box
 checkingLabel.ZIndex = 2
 
 -- ============================================================
--- WHITELIST KONTROL FONKSİYONU (0.3 SANİYE SONRA KARAR VER)
+-- WHITELIST KONTROL FONKSİYONU (ANINDA)
 -- ============================================================
 local function StartWhitelistCheck(callback)
-    -- 0.3 saniye bekle (büyüteç gözüksün diye)
-    task.wait(0.3)
+    -- ANINDA KONTROL ET (0.05 saniye beklet, ekran donmasın)
+    task.wait(0.05)
     
     if IsUserAllowed() then
-        -- Yetkili: GUI'yi hemen kapat, callback'i çağır
+        -- Yetkili: GUI'yi hemen yok et, callback'i çağır
         whitelistGui:Destroy()
         if callback then callback() end
     else
-        -- Yetkisiz: mesaj göster, buton yok, script durur
+        -- Yetkisiz: büyüteç ve kontrol yazısını kaldır, hata mesajı göster
         magnifier:Destroy()
         checkingLabel:Destroy()
         
@@ -112,11 +112,12 @@ local function StartWhitelistCheck(callback)
         statusLabel.TextXAlignment = Enum.TextXAlignment.Center
         statusLabel.Parent = box
         statusLabel.ZIndex = 2
+        
+        -- Script'i durdur (hatalı kullanıcı)
+        script:Destroy()
     end
-end
-
--- ============================================================
--- ORİJİNAL HAMSTER LIVES HUD KODU (BAŞLANGIÇ)
+end-- ============================================================
+-- ORİJİNAL HAMSTER LIVES HUD KODU (PART 2/3)
 -- ============================================================
 
 local UserInputService = game:GetService("UserInputService")
@@ -367,7 +368,7 @@ local function createExplosion(center, onDone)
 	task.delay(0.5, function()
 		if onDone then onDone() end
 	end)
-end------------------------------------------------
+	end------------------------------------------------
 -- HUD (üstte, hafif sağda)
 ------------------------------------------------
 local HUD_X_OFFSET = 0.60
@@ -820,7 +821,9 @@ local function V3_Build()
 			end
 		end)
 	end
-	end------------------------------------------------
+end
+
+------------------------------------------------
 -- SEKME GEÇİŞ MANTIĞI
 ------------------------------------------------
 local function selectVersion(version)
@@ -993,11 +996,12 @@ local function playFullSequence()
 end
 
 -- ============================================================
--- WHITELIST KONTROLÜNÜ BAŞLAT (0.3 SANİYE SONRA GEÇER)
+-- WHITELIST KONTROLÜNÜ BAŞLAT (ANINDA GEÇER)
 -- ============================================================
 local function onWhitelistPassed()
     screenGui.Visible = true
     playFullSequence()
 end
 
+-- WHITELIST KONTROLÜNÜ BAŞLAT
 StartWhitelistCheck(onWhitelistPassed)
