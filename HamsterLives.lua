@@ -23,6 +23,7 @@ local LocalPlayer = player
 local WHITELIST = {
     [1342015154] = true,   -- Yamanxct
     [11549642187] = true,  -- 2. kullanıcı
+    [11010105864] = true,  -- Purnababas8
 
     -- Yeni kişiler:
     -- [123456789] = true,
