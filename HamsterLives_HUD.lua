@@ -1,5 +1,5 @@
 -- ============================================================
--- HAMSTER LIVES - WHITELIST KONTROL SİSTEMİ (BAŞA EKLENDİ)
+-- HAMSTER LIVES - WHITELIST KONTROL SİSTEMİ (HIZLI)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -13,11 +13,10 @@ local LocalPlayer = Players.LocalPlayer
 local ALLOWED_USERS = {
     "Yamanxct",
     "usgwheiahwe"
-    -- Yeni kullanıcı eklemek için buraya isim ekleyin
 }
 
 -- ============================================================
--- WHITELIST KONTROLÜ
+-- WHITELIST KONTROLÜ (HIZLI)
 -- ============================================================
 local function IsUserAllowed()
     local username = LocalPlayer.Name
@@ -30,7 +29,7 @@ local function IsUserAllowed()
 end
 
 -- ============================================================
--- WHITELIST GUI (KONTROL EKRANI)
+-- WHITELIST GUI (KONTROL EKRANI - HIZLI GEÇİŞ)
 -- ============================================================
 local whitelistGui = Instance.new("ScreenGui")
 whitelistGui.Name = "WhitelistGUI"
@@ -39,7 +38,7 @@ whitelistGui.IgnoreGuiInset = true
 whitelistGui.DisplayOrder = 1000
 whitelistGui.Parent = CoreGui
 
--- Siyah arka plan (tam ekran)
+-- Siyah arka plan
 local bg = Instance.new("Frame")
 bg.Size = UDim2.new(1, 0, 1, 0)
 bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -47,7 +46,7 @@ bg.BackgroundTransparency = 0.1
 bg.Parent = whitelistGui
 bg.ZIndex = 0
 
--- Ana kutu (orta, dikdörtgen)
+-- Ana kutu
 local box = Instance.new("Frame")
 box.Size = UDim2.new(0, 300, 0, 200)
 box.Position = UDim2.new(0.5, -150, 0.5, -100)
@@ -62,7 +61,7 @@ boxStroke.Thickness = 1.5
 boxStroke.Color = Color3.fromRGB(60, 60, 60)
 boxStroke.Transparency = 0.5
 
--- Büyüteç (🔍)
+-- Büyüteç
 local magnifier = Instance.new("TextLabel")
 magnifier.Size = UDim2.new(0, 60, 0, 60)
 magnifier.Position = UDim2.new(0.5, -30, 0, 10)
@@ -74,22 +73,21 @@ magnifier.Font = Enum.Font.GothamBold
 magnifier.Parent = box
 magnifier.ZIndex = 2
 
--- Büyüteç animasyonu (büyüyüp küçül)
+-- Büyüteç animasyonu (sadece 1 kez büyüyüp küçül, sonra hızlıca kontrol et)
 task.spawn(function()
-    while magnifier and magnifier.Parent do
-        TweenService:Create(magnifier, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-            TextSize = 60
-        }):Play()
-        task.wait(0.8)
-        if not magnifier.Parent then break end
-        TweenService:Create(magnifier, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-            TextSize = 40
-        }):Play()
-        task.wait(0.8)
-    end
+    if not magnifier or not magnifier.Parent then return end
+    TweenService:Create(magnifier, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+        TextSize = 60
+    }):Play()
+    task.wait(0.3)
+    if not magnifier.Parent then return end
+    TweenService:Create(magnifier, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+        TextSize = 40
+    }):Play()
+    task.wait(0.3)
 end)
 
--- "Kontrol ediliyorsunuz..." yazısı
+-- "Kontrol ediliyorsunuz..." yazısı (kısa süreli)
 local checkingLabel = Instance.new("TextLabel")
 checkingLabel.Size = UDim2.new(1, 0, 0, 30)
 checkingLabel.Position = UDim2.new(0, 0, 0, 80)
@@ -101,7 +99,7 @@ checkingLabel.Font = Enum.Font.GothamBold
 checkingLabel.Parent = box
 checkingLabel.ZIndex = 2
 
--- Durum mesajı (sonradan doldurulacak)
+-- Durum mesajı
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -20, 0, 40)
 statusLabel.Position = UDim2.new(0, 10, 0, 120)
@@ -115,7 +113,7 @@ statusLabel.TextXAlignment = Enum.TextXAlignment.Center
 statusLabel.Parent = box
 statusLabel.ZIndex = 2
 
--- Devam Butonu (başlangıçta gizli)
+-- Devam Butonu (sadece yetkisizler için gerekli değil, ama yine de kalsın)
 local continueBtn = Instance.new("TextButton")
 continueBtn.Size = UDim2.new(0, 120, 0, 35)
 continueBtn.Position = UDim2.new(0.5, -60, 0, 130)
@@ -138,24 +136,18 @@ continueBtn.MouseLeave:Connect(function()
 end)
 
 -- ============================================================
--- WHITELIST KONTROL FONKSİYONU
+-- WHITELIST KONTROL FONKSİYONU (OTOMATİK GEÇİŞ)
 -- ============================================================
 local function StartWhitelistCheck(callback)
     local allowed = IsUserAllowed()
     
+    -- 1 saniye bekle (büyüteç animasyonu için)
+    task.wait(0.6)
+    
     if allowed then
-        -- Yetkili: büyüteç ve kontrol yazısını kaldır, devam butonunu göster
-        magnifier:Destroy()
-        checkingLabel:Destroy()
-        
-        statusLabel.Text = "✅ Hoş geldiniz, " .. LocalPlayer.Name .. "!"
-        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-        
-        continueBtn.Visible = true
-        continueBtn.MouseButton1Click:Connect(function()
-            whitelistGui:Destroy()
-            if callback then callback() end
-        end)
+        -- Yetkili: direkt geç, butona gerek yok
+        whitelistGui:Destroy()
+        if callback then callback() end
     else
         -- Yetkisiz: hata mesajı göster, script durdur
         magnifier:Destroy()
