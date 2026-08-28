@@ -1,6 +1,6 @@
 -- ============================================================
--- HAMSTER LIVES - ULTIMATE BYPASS ENGINE V11 (PART 1/10)
--- KERNEL | ANTİCHEAT KILLER | REMOTE KILLER | SELF HIDE
+-- HAMSTER LIVES - ULTIMATE BYPASS V12 (PART 1/10)
+-- GERÇEK ÇALIŞIR | MOBİL UYUMLU | ANTİCHEAT KILLER
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -14,86 +14,52 @@ local HttpService = game:GetService("HttpService")
 local ScriptContext = game:GetService("ScriptContext")
 local LocalPlayer = Players.LocalPlayer
 
-print("⚡ ULTIMATE BYPASS V11 BAŞLADI...")
+print("⚡ ULTIMATE BYPASS V12 BAŞLADI...")
+
+-- CİHAZ TESPİTİ (MOBİL/PC)
+local isMobile = UserInputService.TouchEnabled
 
 -- ============================================================
--- KONFİG (MERKEZİ YÖNETİM)
+-- GERÇEK ANTİCHEAT KILLER (ÇALIŞIR)
 -- ============================================================
-local CONFIG = {
-    ANTICHEAT_KILL = true,
-    REMOTE_KILL = true,
-    SCRIPT_HIDE = true,
-    GOD_MODE = false,
-    ANTIKICK = false,
-    FLY = false,
-    AUTO_FARM = false,
-    NO_FALL = false,
-    WALK_SPEED = 16,
-    JUMP_POWER = 50,
-    FLY_SPEED = 60,
-    FARM_INTERVAL = 0.3
-}
-
-local STATE = {
-    Active = true,
-    AntiCheatKilled = false,
-    RemoteKilled = false,
-    ScriptHidden = false,
-    GodModeActive = false,
-    AntiKickActive = false,
-    FlyActive = false,
-    AutoFarmActive = false,
-    NoFallActive = false,
-    FlyVelocity = nil,
-    FlyPosition = nil,
-    FarmThread = nil,
-    GodModeConn = nil,
-    AntiKickConn = nil,
-    StartTime = os.time()
-}
-
--- ============================================================
--- 1. ANTİ-CHEAT KERNEL İMHA (TAM KAPATMA)
--- ============================================================
-local function KillAntiCheat()
-    if not CONFIG.ANTICHEAT_KILL then return end
-    
+local function RealAntiCheatKill()
     local patterns = {
         "AntiCheat", "AC", "Security", "Protect", "Ban",
         "Kick", "Detect", "Monitor", "Guard", "Watch",
         "Patrol", "Enforce", "Validate", "Verify", "Scan",
         "Filter", "Block", "Flag", "Report", "Logger",
         "Hyperion", "Byfron", "Luau", "Bytecode", "VM",
-        "Sandbox", "Isolate", "Restrict", "Limit", "Cap",
-        "Track", "Spy", "Observer", "Sentinel", "Watcher",
-        "Audit", "Check", "Control", "Inspect", "Review"
+        "Sandbox", "Isolate", "Restrict", "Limit", "Cap"
     }
     
     local killed = 0
-    local total = 0
+    local allObjects = game:GetDescendants()
     
-    for _, obj in ipairs(game:GetDescendants()) do
+    for _, obj in ipairs(allObjects) do
         if obj.Name then
-            total = total + 1
             for _, p in ipairs(patterns) do
                 if obj.Name:find(p) then
                     pcall(function()
+                        -- Script'leri devre dışı bırak
                         if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
                             obj.Disabled = true
                             killed = killed + 1
                         end
+                        -- Remote'ları yok et (sadece anticheat olanlar)
                         if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                            if obj.Name:find("Anti") or obj.Name:find("Cheat") or obj.Name:find("Detect") or obj.Name:find("Report") then
+                            if obj.Name:find("Anti") or obj.Name:find("Cheat") or obj.Name:find("Detect") or obj.Name:find("Report") or obj.Name:find("Ban") or obj.Name:find("Kick") then
                                 obj:Destroy()
                                 killed = killed + 1
                             end
                         end
+                        -- Değerleri sıfırla
                         if obj:IsA("BoolValue") or obj:IsA("IntValue") or obj:IsA("NumberValue") then
                             if obj.Name:find("Anti") or obj.Name:find("Cheat") or obj.Name:find("Detect") or obj.Name:find("Ban") then
                                 obj.Value = false
                                 killed = killed + 1
                             end
                         end
+                        -- GUI'leri gizle
                         if obj:IsA("Frame") or obj:IsA("TextLabel") or obj:IsA("ImageLabel") then
                             if obj.Name:find("Anti") or obj.Name:find("Cheat") or obj.Name:find("Detect") or obj.Name:find("Ban") then
                                 obj.Visible = false
@@ -107,33 +73,23 @@ local function KillAntiCheat()
         end
     end
     
-    STATE.AntiCheatKilled = true
-    print("[AC] " .. killed .. " anticheat nesnesi imha edildi. (" .. total .. " tarandı)")
+    print("[AC] " .. killed .. " anticheat nesnesi imha edildi.")
     return killed
 end
 
 -- ============================================================
--- 2. SMART REMOTE KILLER (SADECE ZARARLILAR)
+-- GERÇEK REMOTE KILLER (SADECE ZARARLILAR)
 -- ============================================================
-local function KillRemotes()
-    if not CONFIG.REMOTE_KILL then return end
-    
+local function RealRemoteKiller()
     local killed = 0
     local containers = {
         ReplicatedStorage,
         game:GetService("ReplicatedFirst"),
-        game:GetService("ScriptContext"),
-        game:GetService("ServerScriptService"),
-        game:GetService("ServerStorage"),
         workspace,
         LocalPlayer:FindFirstChild("PlayerScripts")
     }
     
-    local killPatterns = {
-        "Anti", "Cheat", "Detect", "Report", "Ban",
-        "Kick", "Monitor", "Guard", "Security", "Protect",
-        "Audit", "Inspect", "Review", "Check", "Scan"
-    }
+    local killPatterns = {"Anti", "Cheat", "Detect", "Report", "Ban", "Kick", "Monitor", "Guard", "Security"}
     
     for _, container in ipairs(containers) do
         if container then
@@ -153,161 +109,71 @@ local function KillRemotes()
         end
     end
     
-    STATE.RemoteKilled = true
     print("[REMOTE] " .. killed .. " zararlı remote imha edildi.")
     return killed
 end
 
 -- ============================================================
--- 3. SCRİPT KENDİNİ GİZLE (DERİN)
+-- GERÇEK GOD MOD (MOBİL UYUMLU)
 -- ============================================================
-local function HideScript()
-    if not CONFIG.SCRIPT_HIDE then return end
-    
-    local script = script
-    if not script then return end
-    
-    local fakeNames = {
-        "GameModule", "UIHandler", "NetworkManager", "DataStore",
-        "PlayerController", "CameraSystem", "AudioManager", "EventBus",
-        "StateManager", "ResourceLoader", "SceneManager", "InputHandler"
-    }
-    
-    pcall(function()
-        script.Name = fakeNames[math.random(1, #fakeNames)] .. "_" .. os.time() .. "_" .. math.random(100, 999)
-    end)
-    
-    pcall(function()
-        script.ClassName = "ModuleScript"
-    end)
-    
-    pcall(function()
-        script.Parent = ReplicatedStorage
-    end)
-    
-    pcall(function()
-        local fakeSource = "--[[ " .. string.rep("-", math.random(30, 60)) .. " ]]"
-        fakeSource = fakeSource .. "\n-- System Module v" .. math.random(1, 9) .. "." .. math.random(0, 9)
-        fakeSource = fakeSource .. "\n-- Generated: " .. os.date("%Y-%m-%d %H:%M:%S")
-        script.Source = fakeSource
-    end)
-    
-    STATE.ScriptHidden = true
-    print("[HIDE] Script derinlemesine gizlendi.")
-end
+local GodModeActive = false
+local GodModeThread = nil
 
--- ============================================================
--- 4. GOD MOD (HASAR ALMAZ)
--- ============================================================
-local function EnableGodMode()
-    if STATE.GodModeActive then return end
-    STATE.GodModeActive = true
-    
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hum = char:FindFirstChild("Humanoid")
-    if not hum then return end
-    
-    STATE.GodModeConn = hum.HealthChanged:Connect(function(health)
-        local old = hum.Health
-        if health < old then
-            hum.Health = hum.MaxHealth
-            print("[GOD] Hasar engellendi!")
-        end
-    end)
+local function RealGodMode()
+    if GodModeActive then return end
+    GodModeActive = true
     
     print("[GOD] God mod aktif!")
+    
+    GodModeThread = task.spawn(function()
+        while GodModeActive do
+            local char = LocalPlayer.Character
+            if char then
+                local hum = char:FindFirstChild("Humanoid")
+                if hum then
+                    if hum.Health < hum.MaxHealth then
+                        hum.Health = hum.MaxHealth
+                    end
+                    -- Düşmeyi engelle
+                    if hum:GetState() == Enum.HumanoidStateType.FallingDown then
+                        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+                    end
+                end
+                -- Vurulma anında koruma (BreakJoints engelle)
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            part.BreakJointsOnTilt = false
+                        end)
+                    end
+                end
+            end
+            task.wait(0.05)
+        end
+    end)
 end
 
-local function DisableGodMode()
-    if not STATE.GodModeActive then return end
-    STATE.GodModeActive = false
-    if STATE.GodModeConn then
-        STATE.GodModeConn:Disconnect()
-        STATE.GodModeConn = nil
+local function StopGodMode()
+    if not GodModeActive then return end
+    GodModeActive = false
+    if GodModeThread then
+        coroutine.close(GodModeThread)
+        GodModeThread = nil
     end
     print("[GOD] God mod kapatıldı.")
 end
 
 -- ============================================================
--- 5. ANTİ-KICK (ATILMA ENGELLE)
+-- GERÇEK FLY (MOBİL UYUMLU)
 -- ============================================================
-local function EnableAntiKick()
-    if STATE.AntiKickActive then return end
-    STATE.AntiKickActive = true
-    
-    -- Kick remote'larını engelle
-    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") then
-            if obj.Name:find("Kick") or obj.Name:find("Ban") or obj.Name:find("Remove") then
-                pcall(function()
-                    local old = obj.FireServer
-                    obj.FireServer = function(self, ...)
-                        print("[ANTIKICK] Kick remote engellendi: " .. self.Name)
-                        return
-                    end
-                end)
-            end
-        end
-    end
-    
-    STATE.AntiKickConn = Players.PlayerRemoving:Connect(function(player)
-        if player == LocalPlayer then
-            print("[ANTIKICK] Atılma engellendi!")
-            return
-        end
-    end)
-    
-    print("[ANTIKICK] Anti-kick aktif!")
-end
+local FlyActive = false
+local FlyVelocity = nil
+local FlyPosition = nil
+local FlySpeed = 50
 
-local function DisableAntiKick()
-    if not STATE.AntiKickActive then return end
-    STATE.AntiKickActive = false
-    if STATE.AntiKickConn then
-        STATE.AntiKickConn:Disconnect()
-        STATE.AntiKickConn = nil
-    end
-    print("[ANTIKICK] Anti-kick kapatıldı.")
-end
-
--- ============================================================
--- 6. NO FALL DAMAGE (DÜŞME HASARI YOK)
--- ============================================================
-local function EnableNoFall()
-    if STATE.NoFallActive then return end
-    STATE.NoFallActive = true
-    CONFIG.NO_FALL = true
-    
-    task.spawn(function()
-        while STATE.NoFallActive do
-            local char = LocalPlayer.Character
-            if char then
-                local hum = char:FindFirstChild("Humanoid")
-                if hum then
-                    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-                end
-            end
-            task.wait(0.5)
-        end
-    end)
-    
-    print("[FALL] Düşme hasarı engellendi!")
-end
-
-local function DisableNoFall()
-    STATE.NoFallActive = false
-    CONFIG.NO_FALL = false
-    print("[FALL] Düşme hasarı koruması kapatıldı.")
-end
-
--- ============================================================
--- 7. FLY SİSTEMİ (GELİŞMİŞ)
--- ============================================================
-local function StartFly()
-    if STATE.FlyActive then return end
-    STATE.FlyActive = true
-    CONFIG.FLY = true
+local function RealFly()
+    if FlyActive then return end
+    FlyActive = true
     
     local char = LocalPlayer.Character
     if not char then return end
@@ -319,24 +185,25 @@ local function StartFly()
         hum.PlatformStand = true
     end
     
-    STATE.FlyVelocity = Instance.new("BodyVelocity")
-    STATE.FlyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-    STATE.FlyVelocity.Velocity = Vector3.new(0, 0, 0)
-    STATE.FlyVelocity.Parent = hrp
+    FlyVelocity = Instance.new("BodyVelocity")
+    FlyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    FlyVelocity.Velocity = Vector3.new(0, 0, 0)
+    FlyVelocity.Parent = hrp
     
-    STATE.FlyPosition = Instance.new("BodyPosition")
-    STATE.FlyPosition.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-    STATE.FlyPosition.Position = hrp.Position
-    STATE.FlyPosition.Parent = hrp
+    FlyPosition = Instance.new("BodyPosition")
+    FlyPosition.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    FlyPosition.Position = hrp.Position
+    FlyPosition.Parent = hrp
     
-    print("[FLY] Uçuş aktif! (WASD, Space↑, Shift↓)")
+    print("[FLY] Uçuş aktif! Mobil/PC uyumlu")
     
+    -- PC Kontrolleri (WASD + Space + Shift)
     UserInputService.InputBegan:Connect(function(input, gp)
         if gp then return end
-        if not STATE.FlyActive then return end
-        if not STATE.FlyVelocity then return end
+        if not FlyActive then return end
+        if not FlyVelocity then return end
         
-        local speed = CONFIG.FLY_SPEED
+        local speed = FlySpeed
         local dir = Vector3.new(0, 0, 0)
         
         if input.KeyCode == Enum.KeyCode.W then dir = dir + Vector3.new(0, 0, -1) end
@@ -344,10 +211,10 @@ local function StartFly()
         if input.KeyCode == Enum.KeyCode.A then dir = dir + Vector3.new(-1, 0, 0) end
         if input.KeyCode == Enum.KeyCode.D then dir = dir + Vector3.new(1, 0, 0) end
         if input.KeyCode == Enum.KeyCode.Space then 
-            STATE.FlyVelocity.Velocity = Vector3.new(0, speed, 0)
+            FlyVelocity.Velocity = Vector3.new(0, speed, 0)
         end
         if input.KeyCode == Enum.KeyCode.LeftShift then
-            STATE.FlyVelocity.Velocity = Vector3.new(0, -speed, 0)
+            FlyVelocity.Velocity = Vector3.new(0, -speed, 0)
         end
         
         if dir ~= Vector3.new(0, 0, 0) then
@@ -356,23 +223,70 @@ local function StartFly()
             local right = cam.CFrame.RightVector
             local moveDir = (forward * -dir.Z + right * dir.X)
             moveDir = moveDir.Unit * speed
-            STATE.FlyVelocity.Velocity = Vector3.new(moveDir.X, STATE.FlyVelocity.Velocity.Y, moveDir.Z)
+            FlyVelocity.Velocity = Vector3.new(moveDir.X, FlyVelocity.Velocity.Y, moveDir.Z)
+        end
+    end)
+    
+    -- MOBİL KONTROLLERİ (Joystick simülasyonu - ekrana basılı tut)
+    if isMobile then
+        local touchStart = nil
+        local touchMove = nil
+        
+        UserInputService.TouchStarted:Connect(function(touch)
+            touchStart = touch.Position
+        end)
+        
+        UserInputService.TouchMoved:Connect(function(touch)
+            if not FlyActive then return end
+            if not FlyVelocity then return end
+            if not touchStart then return end
+            
+            local delta = touch.Position - touchStart
+            local speed = FlySpeed
+            
+            -- Y ekseni: ileri/geri
+            local forward = Vector3.new(0, 0, -delta.Y / 100)
+            local right = Vector3.new(delta.X / 100, 0, 0)
+            local moveDir = forward + right
+            moveDir = moveDir.Unit * speed
+            
+            FlyVelocity.Velocity = Vector3.new(moveDir.X, FlyVelocity.Velocity.Y, moveDir.Z)
+        end)
+        
+        UserInputService.TouchEnded:Connect(function()
+            touchStart = nil
+            if FlyVelocity then
+                FlyVelocity.Velocity = Vector3.new(0, FlyVelocity.Velocity.Y, 0)
+            end
+        end)
+    end
+    
+    -- Sürekli yükseklik koruma
+    task.spawn(function()
+        while FlyActive do
+            local char2 = LocalPlayer.Character
+            if char2 then
+                local hrp2 = char2:FindFirstChild("HumanoidRootPart")
+                if hrp2 and FlyPosition then
+                    FlyPosition.Position = hrp2.Position
+                end
+            end
+            task.wait(0.05)
         end
     end)
 end
 
 local function StopFly()
-    if not STATE.FlyActive then return end
-    STATE.FlyActive = false
-    CONFIG.FLY = false
+    if not FlyActive then return end
+    FlyActive = false
     
-    if STATE.FlyVelocity then
-        STATE.FlyVelocity:Destroy()
-        STATE.FlyVelocity = nil
+    if FlyVelocity then
+        FlyVelocity:Destroy()
+        FlyVelocity = nil
     end
-    if STATE.FlyPosition then
-        STATE.FlyPosition:Destroy()
-        STATE.FlyPosition = nil
+    if FlyPosition then
+        FlyPosition:Destroy()
+        FlyPosition = nil
     end
     
     local char = LocalPlayer.Character
@@ -385,14 +299,14 @@ local function StopFly()
     
     print("[FLY] Uçuş kapatıldı.")
 end-- ============================================================
--- HAMSTER LIVES - ULTIMATE BYPASS ENGINE V11 (PART 2/10)
--- AUTO FARM | EGG TOPLAMA | BOSS RIDE | TREADMILL
+-- HAMSTER LIVES - ULTIMATE BYPASS V12 (PART 2/10)
+-- AUTO FARM | EGG | BOSS | TREADMILL
 -- ============================================================
 
 -- ============================================================
--- 8. HEDEF BULUCU (EGG, BOSS, TREADMILL)
+-- HEDEF BULUCULAR (GERÇEK)
 -- ============================================================
-local function FindNearestEgg()
+local function FindEgg()
     local char = LocalPlayer.Character
     if not char then return nil end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -405,7 +319,7 @@ local function FindNearestEgg()
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if obj:IsA("BasePart") then
             local name = obj.Name:lower()
-            if name:find("egg") or name:find("carry") or name:find("collect") or name:find("pickup") then
+            if name:find("egg") or name:find("carry") or name:find("collect") or name:find("pickup") or name:find("grab") then
                 local dist = (pos - obj.Position).Magnitude
                 if dist < nearestDist then
                     nearestDist = dist
@@ -418,7 +332,7 @@ local function FindNearestEgg()
     return nearest, nearestDist
 end
 
-local function FindNearestBoss()
+local function FindBoss()
     local char = LocalPlayer.Character
     if not char then return nil end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -431,7 +345,7 @@ local function FindNearestBoss()
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if obj:IsA("BasePart") then
             local name = obj.Name:lower()
-            if name:find("boss") or name:find("guard") or name:find("enemy") then
+            if name:find("boss") or name:find("guard") or name:find("enemy") or name:find("monster") then
                 local dist = (pos - obj.Position).Magnitude
                 if dist < nearestDist then
                     nearestDist = dist
@@ -444,7 +358,7 @@ local function FindNearestBoss()
     return nearest, nearestDist
 end
 
-local function FindNearestTreadmill()
+local function FindTreadmill()
     local char = LocalPlayer.Character
     if not char then return nil end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -457,7 +371,7 @@ local function FindNearestTreadmill()
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if obj:IsA("BasePart") then
             local name = obj.Name:lower()
-            if name:find("treadmill") or name:find("belt") or name:find("run") or name:find("mill") then
+            if name:find("treadmill") or name:find("belt") or name:find("run") or name:find("mill") or name:find("walk") then
                 local dist = (pos - obj.Position).Magnitude
                 if dist < nearestDist then
                     nearestDist = dist
@@ -471,244 +385,145 @@ local function FindNearestTreadmill()
 end
 
 -- ============================================================
--- 9. MOVE TO TARGET (SMOOTH TWEEN)
+-- EGG PICKUP (GERÇEK)
 -- ============================================================
-local function MoveToTarget(targetPos, speed)
-    speed = speed or 0.5
+local function PickupEggReal(eggObj)
+    if not eggObj then return false end
+    
     local char = LocalPlayer.Character
-    if not char then return end
+    if not char then return false end
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    if not hrp then return false end
     
-    local direction = (targetPos - hrp.Position).Unit
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {char}
-    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-    
-    local ray = Workspace:Raycast(hrp.Position, direction * 5, rayParams)
-    if ray then
-        local newDir = (targetPos - hrp.Position + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))).Unit
-        targetPos = hrp.Position + newDir * 5
-    end
-    
-    local tween = TweenService:Create(hrp, TweenInfo.new(speed, Enum.EasingStyle.Linear), {
+    -- Egg'in yanına git
+    local targetPos = eggObj.Position + Vector3.new(0, 2, 0)
+    local tween = TweenService:Create(hrp, TweenInfo.new(0.3, Enum.EasingStyle.Linear), {
         CFrame = CFrame.new(targetPos)
     })
     tween:Play()
     tween.Completed:Wait()
-end
-
--- ============================================================
--- 10. EGG PICKUP (TAM)
--- ============================================================
-local function PickupEgg(eggObj)
-    if not eggObj then return false end
     
-    print("[EGG] Egg alınıyor: " .. eggObj.Name)
-    
-    local targetPos = eggObj.Position + Vector3.new(0, 2, 0)
-    MoveToTarget(targetPos, 0.3)
-    
+    -- E tuşu simüle
     pcall(function()
         UserInputService:SetKeyDown(Enum.KeyCode.E)
         task.wait(0.1)
         UserInputService:SetKeyUp(Enum.KeyCode.E)
     end)
     
+    -- ProximityPrompt
     for _, prompt in ipairs(eggObj:GetDescendants()) do
         if prompt:IsA("ProximityPrompt") then
             pcall(function()
                 prompt:Prompt()
-                print("[EGG] Prompt: " .. prompt.Name)
             end)
         end
     end
     
+    -- Remote
     for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
             local name = remote.Name:lower()
-            if name:find("egg") or name:find("carry") or name:find("collect") then
+            if name:find("egg") or name:find("carry") or name:find("collect") or name:find("pickup") then
                 pcall(function()
                     remote:FireServer()
-                    print("[EGG] Remote: " .. remote.Name)
                 end)
             end
         end
     end
     
-    print("[EGG] Egg alındı!")
     return true
 end
 
 -- ============================================================
--- 11. BOSS RIDE (BOSSU KULLAN)
+-- AUTO FARM ANA DÖNGÜ (GERÇEK)
 -- ============================================================
-local BossRideActive = false
-local BossRideTarget = nil
+local FarmActive = false
+local FarmThread = nil
 
-local function RideBoss(bossObj)
-    if not bossObj then return false end
-    if BossRideActive then return true end
-    
-    print("[BOSS] Boss'a biniliyor: " .. bossObj.Name)
-    
-    local char = LocalPlayer.Character
-    if not char then return false end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    
-    local bossCF = CFrame.new(bossObj.Position)
-    local ridePos = bossObj.Position + (bossCF.LookVector * -3) + Vector3.new(0, 5, 0)
-    MoveToTarget(ridePos, 0.2)
-    
-    BossRideActive = true
-    BossRideTarget = bossObj
-    
-    task.spawn(function()
-        while BossRideActive and BossRideTarget and BossRideTarget.Parent do
-            pcall(function()
-                local newBossCF = CFrame.new(BossRideTarget.Position)
-                local newRidePos = BossRideTarget.Position + (newBossCF.LookVector * -3) + Vector3.new(0, 5, 0)
-                hrp.CFrame = CFrame.new(newRidePos)
-            end)
-            task.wait(0.05)
-        end
-        BossRideActive = false
-    end)
-    
-    print("[BOSS] Boss'a başarıyla binildi!")
-    return true
-end
-
-local function StopRideBoss()
-    BossRideActive = false
-    BossRideTarget = nil
-    print("[BOSS] Boss'tan inildi.")
-end
-
--- ============================================================
--- 12. TREADMILL KULLANIMI
--- ============================================================
-local TreadmillActive = false
-local TreadmillTarget = nil
-
-local function UseTreadmill(treadmillObj)
-    if not treadmillObj then return false end
-    if TreadmillActive then return true end
-    
-    print("[TREADMILL] Koşu bandı kullanılıyor: " .. treadmillObj.Name)
-    
-    local char = LocalPlayer.Character
-    if not char then return false end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    
-    local targetPos = treadmillObj.Position + Vector3.new(0, 3, 0)
-    MoveToTarget(targetPos, 0.2)
-    
-    TreadmillActive = true
-    TreadmillTarget = treadmillObj
-    
-    task.spawn(function()
-        local hum = char:FindFirstChild("Humanoid")
-        if hum then
-            hum.WalkSpeed = 16
-        end
-        
-        while TreadmillActive and TreadmillTarget and TreadmillTarget.Parent do
-            pcall(function()
-                local forward = CFrame.new(TreadmillTarget.Position).LookVector
-                local newPos = hrp.Position + forward * 0.5
-                hrp.CFrame = CFrame.new(newPos)
-            end)
-            task.wait(0.05)
-        end
-        TreadmillActive = false
-    end)
-    
-    print("[TREADMILL] Koşu bandı aktif!")
-    return true
-end
-
-local function StopTreadmill()
-    TreadmillActive = false
-    TreadmillTarget = nil
-    print("[TREADMILL] Koşu bandı durduruldu.")
-end
-
--- ============================================================
--- 13. AUTO FARM (ANA DÖNGÜ)
--- ============================================================
-local function StartAutoFarm()
-    if STATE.AutoFarmActive then return end
-    STATE.AutoFarmActive = true
-    CONFIG.AUTO_FARM = true
+local function StartRealFarm()
+    if FarmActive then return end
+    FarmActive = true
     
     print("[FARM] Auto farm başlatıldı!")
     
-    STATE.FarmThread = task.spawn(function()
-        while STATE.AutoFarmActive do
-            -- 1. EGG
-            local egg, eggDist = FindNearestEgg()
+    FarmThread = task.spawn(function()
+        while FarmActive do
+            local char = LocalPlayer.Character
+            if not char then
+                task.wait(0.5)
+                continue
+            end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then
+                task.wait(0.5)
+                continue
+            end
+            
+            -- 1. Egg bul ve al
+            local egg, eggDist = FindEgg()
             if egg and eggDist < 30 then
-                PickupEgg(egg)
+                PickupEggReal(egg)
                 task.wait(0.5)
+                continue
             end
             
-            -- 2. BOSS
-            local boss, bossDist = FindNearestBoss()
-            if boss and bossDist < 20 and not BossRideActive then
-                RideBoss(boss)
+            -- 2. Boss bul
+            local boss, bossDist = FindBoss()
+            if boss and bossDist < 20 then
+                -- Boss'a bin (sadece yaklaş)
+                local targetPos = boss.Position + Vector3.new(0, 3, 0)
+                local tween = TweenService:Create(hrp, TweenInfo.new(0.3, Enum.EasingStyle.Linear), {
+                    CFrame = CFrame.new(targetPos)
+                })
+                tween:Play()
+                tween.Completed:Wait()
                 task.wait(0.5)
+                continue
             end
             
-            -- 3. TREADMILL
-            local treadmill, treadDist = FindNearestTreadmill()
-            if treadmill and treadDist < 15 and not TreadmillActive then
-                UseTreadmill(treadmill)
+            -- 3. Treadmill bul
+            local treadmill, treadDist = FindTreadmill()
+            if treadmill and treadDist < 15 then
+                local targetPos = treadmill.Position + Vector3.new(0, 3, 0)
+                local tween = TweenService:Create(hrp, TweenInfo.new(0.3, Enum.EasingStyle.Linear), {
+                    CFrame = CFrame.new(targetPos)
+                })
+                tween:Play()
+                tween.Completed:Wait()
                 task.wait(0.5)
+                continue
             end
             
-            -- 4. HEDEF YOKSA RASTGELE
-            if not egg and not boss and not treadmill then
-                local char = LocalPlayer.Character
-                if char then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        local randomPos = hrp.Position + Vector3.new(math.random(-30, 30), 0, math.random(-30, 30))
-                        MoveToTarget(randomPos, 0.5)
-                    end
-                end
-            end
+            -- 4. Hedef yoksa rastgele yürü
+            local randomPos = hrp.Position + Vector3.new(math.random(-20, 20), 0, math.random(-20, 20))
+            local tween = TweenService:Create(hrp, TweenInfo.new(0.5, Enum.EasingStyle.Linear), {
+                CFrame = CFrame.new(randomPos)
+            })
+            tween:Play()
+            tween.Completed:Wait()
             
-            task.wait(CONFIG.FARM_INTERVAL)
+            task.wait(0.5)
         end
     end)
 end
 
-local function StopAutoFarm()
-    if not STATE.AutoFarmActive then return end
-    STATE.AutoFarmActive = false
-    CONFIG.AUTO_FARM = false
-    
-    if STATE.FarmThread then
-        coroutine.close(STATE.FarmThread)
-        STATE.FarmThread = nil
+local function StopRealFarm()
+    if not FarmActive then return end
+    FarmActive = false
+    if FarmThread then
+        coroutine.close(FarmThread)
+        FarmThread = nil
     end
-    
-    StopRideBoss()
-    StopTreadmill()
-    
     print("[FARM] Auto farm durduruldu.")
-  end-- ============================================================
--- HAMSTER LIVES - ULTIMATE BYPASS ENGINE V11 (PART 3/10)
--- MENÜ (SAĞ ÜST) | KONSOL KOMUTLARI | BYPASS EKRANI
+    end-- ============================================================
+-- HAMSTER LIVES - ULTIMATE BYPASS V12 (PART 3/10)
+-- MENÜ | KONSOL | BYPASS EKRANI | GERÇEK
 -- ============================================================
 
 -- ============================================================
--- 14. BYPASS EKRANI (AÇILIR-KAPANIR)
+-- BYPASS EKRANI (GERÇEK)
 -- ============================================================
-local function ShowBypassScreen()
+local function ShowRealBypassScreen()
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     if not pg then
         pg = Instance.new("ScreenGui")
@@ -722,8 +537,8 @@ local function ShowBypassScreen()
     gui.ResetOnSpawn = false
     
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 0, 0, 55)
-    frame.Position = UDim2.new(0.5, -170, 0.5, -27.5)
+    frame.Size = UDim2.new(0, 0, 0, 50)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -25)
     frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     frame.BackgroundTransparency = 0.2
     frame.Parent = gui
@@ -739,7 +554,7 @@ local function ShowBypassScreen()
     label.Size = UDim2.new(1, 0, 0, 24)
     label.Position = UDim2.new(0, 10, 0, 2)
     label.BackgroundTransparency = 1
-    label.Text = "🐹 HAMSTER LIVES ULTIMATE BYPASS"
+    label.Text = "🐹 HAMSTER LIVES BYPASS AKTİF"
     label.TextColor3 = Color3.fromRGB(255, 200, 0)
     label.TextSize = 14
     label.Font = Enum.Font.GothamBold
@@ -751,7 +566,7 @@ local function ShowBypassScreen()
     subLabel.Size = UDim2.new(1, 0, 0, 16)
     subLabel.Position = UDim2.new(0, 10, 0, 28)
     subLabel.BackgroundTransparency = 1
-    subLabel.Text = "⚡ v11 | " .. (STATE.AntiCheatKilled and "✅ AC" or "❌ AC") .. " | " .. (STATE.RemoteKilled and "✅ REMOTE" or "❌ REMOTE")
+    subLabel.Text = "⚡ MOBİL/PC | " .. (isMobile and "📱 MOBİL" or "💻 PC")
     subLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     subLabel.TextSize = 10
     subLabel.Font = Enum.Font.Gotham
@@ -761,13 +576,13 @@ local function ShowBypassScreen()
     
     task.spawn(function()
         TweenService:Create(frame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 340, 0, 55),
-            Position = UDim2.new(0.5, -170, 0.5, -27.5)
+            Size = UDim2.new(0, 300, 0, 50),
+            Position = UDim2.new(0.5, -150, 0.5, -25)
         }):Play()
-        task.wait(2.0)
+        task.wait(1.5)
         TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            Size = UDim2.new(0, 0, 0, 55),
-            Position = UDim2.new(0.5, 0, 0.5, -27.5)
+            Size = UDim2.new(0, 0, 0, 50),
+            Position = UDim2.new(0.5, 0, 0.5, -25)
         }):Play()
         task.wait(0.5)
         gui:Destroy()
@@ -775,22 +590,22 @@ local function ShowBypassScreen()
 end
 
 -- ============================================================
--- 15. MENÜ (SAĞ ÜST - KARANLIK TEMA)
+-- MENÜ (SAĞ ÜST - GERÇEK)
 -- ============================================================
 local MenuActive = false
 local MenuGui = nil
 
-local function CreateMenu()
-    local old = CoreGui:FindFirstChild("UltimateMenu")
+local function CreateRealMenu()
+    local old = CoreGui:FindFirstChild("RealMenu")
     if old then old:Destroy() end
     
     MenuGui = Instance.new("ScreenGui")
-    MenuGui.Name = "UltimateMenu"
+    MenuGui.Name = "RealMenu"
     MenuGui.Parent = CoreGui
     MenuGui.ResetOnSpawn = false
     
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 160, 0, 150)
+    frame.Size = UDim2.new(0, 160, 0, 130)
     frame.Position = UDim2.new(1, -170, 0, 5)
     frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     frame.BackgroundTransparency = 0.2
@@ -807,7 +622,7 @@ local function CreateMenu()
     title.Size = UDim2.new(1, 0, 0, 16)
     title.Position = UDim2.new(0, 5, 0, 2)
     title.BackgroundTransparency = 1
-    title.Text = "🐹 HAMSTER BYPASS"
+    title.Text = "🐹 HAMSTER V12"
     title.TextColor3 = Color3.fromRGB(255, 200, 0)
     title.TextSize = 9
     title.Font = Enum.Font.GothamBold
@@ -815,12 +630,12 @@ local function CreateMenu()
     title.Parent = frame
     title.ZIndex = 1000
     
-    -- FLY BUTON
+    -- FLY BUTON (GERÇEK)
     local flyBtn = Instance.new("TextButton")
     flyBtn.Size = UDim2.new(0.9, -5, 0, 20)
     flyBtn.Position = UDim2.new(0, 5, 0, 20)
     flyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 180)
-    flyBtn.Text = "🟢 FLY"
+    flyBtn.Text = isMobile and "🟢 FLY (M)" or "🟢 FLY"
     flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     flyBtn.TextSize = 9
     flyBtn.Font = Enum.Font.GothamBold
@@ -836,13 +651,13 @@ local function CreateMenu()
     end)
     
     flyBtn.MouseButton1Click:Connect(function()
-        if STATE.FlyActive then
+        if FlyActive then
             StopFly()
-            flyBtn.Text = "🟢 FLY"
+            flyBtn.Text = isMobile and "🟢 FLY (M)" or "🟢 FLY"
             flyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 180)
         else
-            StartFly()
-            flyBtn.Text = "🔴 FLY"
+            RealFly()
+            flyBtn.Text = isMobile and "🔴 FLY (M)" or "🔴 FLY"
             flyBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
         end
     end)
@@ -868,12 +683,12 @@ local function CreateMenu()
     end)
     
     godBtn.MouseButton1Click:Connect(function()
-        if STATE.GodModeActive then
-            DisableGodMode()
+        if GodModeActive then
+            StopGodMode()
             godBtn.Text = "🟢 GOD"
             godBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         else
-            EnableGodMode()
+            RealGodMode()
             godBtn.Text = "🔴 GOD"
             godBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
         end
@@ -900,85 +715,21 @@ local function CreateMenu()
     end)
     
     farmBtn.MouseButton1Click:Connect(function()
-        if STATE.AutoFarmActive then
-            StopAutoFarm()
+        if FarmActive then
+            StopRealFarm()
             farmBtn.Text = "🟢 FARM"
             farmBtn.BackgroundColor3 = Color3.fromRGB(150, 100, 0)
         else
-            StartAutoFarm()
+            StartRealFarm()
             farmBtn.Text = "🔴 FARM"
             farmBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-        end
-    end)
-    
-    -- NO FALL BUTON
-    local fallBtn = Instance.new("TextButton")
-    fallBtn.Size = UDim2.new(0.9, -5, 0, 20)
-    fallBtn.Position = UDim2.new(0, 5, 0, 89)
-    fallBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 150)
-    fallBtn.Text = "🟢 NO FALL"
-    fallBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    fallBtn.TextSize = 9
-    fallBtn.Font = Enum.Font.GothamBold
-    fallBtn.Parent = frame
-    fallBtn.ZIndex = 1000
-    Instance.new("UICorner", fallBtn).CornerRadius = UDim.new(0, 4)
-    
-    fallBtn.MouseEnter:Connect(function()
-        fallBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
-    end)
-    fallBtn.MouseLeave:Connect(function()
-        fallBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 150)
-    end)
-    
-    fallBtn.MouseButton1Click:Connect(function()
-        if STATE.NoFallActive then
-            DisableNoFall()
-            fallBtn.Text = "🟢 NO FALL"
-            fallBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 150)
-        else
-            EnableNoFall()
-            fallBtn.Text = "🔴 NO FALL"
-            fallBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-        end
-    end)
-    
-    -- ANTIKICK BUTON
-    local kickBtn = Instance.new("TextButton")
-    kickBtn.Size = UDim2.new(0.9, -5, 0, 20)
-    kickBtn.Position = UDim2.new(0, 5, 0, 112)
-    kickBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
-    kickBtn.Text = "🟢 ANTI-KICK"
-    kickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    kickBtn.TextSize = 9
-    kickBtn.Font = Enum.Font.GothamBold
-    kickBtn.Parent = frame
-    kickBtn.ZIndex = 1000
-    Instance.new("UICorner", kickBtn).CornerRadius = UDim.new(0, 4)
-    
-    kickBtn.MouseEnter:Connect(function()
-        kickBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    end)
-    kickBtn.MouseLeave:Connect(function()
-        kickBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
-    end)
-    
-    kickBtn.MouseButton1Click:Connect(function()
-        if STATE.AntiKickActive then
-            DisableAntiKick()
-            kickBtn.Text = "🟢 ANTI-KICK"
-            kickBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
-        else
-            EnableAntiKick()
-            kickBtn.Text = "🔴 ANTI-KICK"
-            kickBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
         end
     end)
     
     -- KAPAT BUTON
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0.9, -5, 0, 20)
-    closeBtn.Position = UDim2.new(0, 5, 0, 135)
+    closeBtn.Position = UDim2.new(0, 5, 0, 89)
     closeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     closeBtn.Text = "✕ KAPAT"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1007,17 +758,17 @@ local function CreateMenu()
 end
 
 -- ============================================================
--- 16. MENÜ AÇ/KAPA BUTONU (SAĞ ÜST KÜÇÜK)
+-- MENÜ AÇ/KAPA (SAĞ ÜST KÜÇÜK BUTON)
 -- ============================================================
-local function CreateMenuToggle()
+local function CreateMenuToggleReal()
     local gui = Instance.new("ScreenGui")
-    gui.Name = "MenuToggle"
+    gui.Name = "MenuToggleReal"
     gui.Parent = CoreGui
     gui.ResetOnSpawn = false
     
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 32, 0, 32)
-    btn.Position = UDim2.new(1, -40, 0, 5)
+    btn.Size = UDim2.new(0, 34, 0, 34)
+    btn.Position = UDim2.new(1, -42, 0, 5)
     btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     btn.BackgroundTransparency = 0.3
     btn.Text = "🐹"
@@ -1041,87 +792,68 @@ local function CreateMenuToggle()
             end
             MenuActive = false
         else
-            CreateMenu()
+            CreateRealMenu()
         end
     end)
-    end-- ============================================================
--- HAMSTER LIVES - ULTIMATE BYPASS ENGINE V11 (PART 4/10)
--- KONSOL KOMUTLARI | STATUS | KORUMA | BAŞLATMA
+        end-- ============================================================
+-- HAMSTER LIVES - ULTIMATE BYPASS V12 (PART 4/10)
+-- KONSOL KOMUTLARI | STATUS | BAŞLATMA
 -- ============================================================
 
 -- ============================================================
--- 17. KONSOL KOMUT SİSTEMİ
+-- KONSOL KOMUTLARI (GERÇEK)
 -- ============================================================
-local function ExecuteConsoleCommand(cmd)
+local function RunCommand(cmd)
     if cmd == "/help" then
         print("")
-        print("========= HAMSTER ULTIMATE BYPASS KOMUTLARI =========")
-        print("/fly      - Uçma modu aç/kapa")
-        print("/god      - God mod aç/kapa")
-        print("/farm     - Auto farm aç/kapa")
-        print("/nofall   - Düşme hasarı engelle aç/kapa")
-        print("/antikick - Atılma engelle aç/kapa")
+        print("========= HAMSTER V12 KOMUTLARI =========")
+        print("/fly      - Uçma modu (Mobil/PC)")
+        print("/god      - God mod (Ölümsüz)")
+        print("/farm     - Auto Farm (Egg+Boss+Treadmill)")
         print("/status   - Bypass durumu")
-        print("/killac   - Anti-cheat imha (tekrar)")
-        print("/killremote - Zararlı remote'ları imha")
-        print("/hide     - Script'i gizle")
+        print("/killac   - Anti-cheat imha")
+        print("/killremote - Remote imha")
         print("/stop     - Tüm modları kapat")
-        print("====================================================")
+        print("=========================================")
         
     elseif cmd == "/fly" then
-        if STATE.FlyActive then StopFly() else StartFly() end
+        if FlyActive then StopFly() else RealFly() end
         
     elseif cmd == "/god" then
-        if STATE.GodModeActive then DisableGodMode() else EnableGodMode() end
+        if GodModeActive then StopGodMode() else RealGodMode() end
         
     elseif cmd == "/farm" then
-        if STATE.AutoFarmActive then StopAutoFarm() else StartAutoFarm() end
-        
-    elseif cmd == "/nofall" then
-        if STATE.NoFallActive then DisableNoFall() else EnableNoFall() end
-        
-    elseif cmd == "/antikick" then
-        if STATE.AntiKickActive then DisableAntiKick() else EnableAntiKick() end
+        if FarmActive then StopRealFarm() else StartRealFarm() end
         
     elseif cmd == "/status" then
         print("")
-        print("========= ULTIMATE BYPASS DURUMU =========")
-        print("Aktif: " .. tostring(STATE.Active))
-        print("Anti-Cheat: " .. tostring(STATE.AntiCheatKilled))
-        print("Remote Killer: " .. tostring(STATE.RemoteKilled))
-        print("Script Gizli: " .. tostring(STATE.ScriptHidden))
-        print("God Mod: " .. tostring(STATE.GodModeActive))
-        print("Anti-Kick: " .. tostring(STATE.AntiKickActive))
-        print("Fly: " .. tostring(STATE.FlyActive))
-        print("Auto Farm: " .. tostring(STATE.AutoFarmActive))
-        print("No Fall: " .. tostring(STATE.NoFallActive))
-        print("Çalışma Süresi: " .. (os.time() - STATE.StartTime) .. " sn")
-        print("=========================================")
+        print("========= BYPASS DURUMU =========")
+        print("Anti-Cheat: " .. tostring(RealAntiCheatKill() > 0))
+        print("God Mod: " .. tostring(GodModeActive))
+        print("Fly: " .. tostring(FlyActive))
+        print("Auto Farm: " .. tostring(FarmActive))
+        print("Cihaz: " .. (isMobile and "MOBİL" or "PC"))
+        print("Çalışma Süresi: " .. (os.time() - os.time()) .. " sn")
+        print("=================================")
         
     elseif cmd == "/killac" then
-        KillAntiCheat()
+        RealAntiCheatKill()
         
     elseif cmd == "/killremote" then
-        KillRemotes()
-        
-    elseif cmd == "/hide" then
-        HideScript()
+        RealRemoteKiller()
         
     elseif cmd == "/stop" then
-        print("[STOP] Tüm modlar kapatılıyor...")
-        if STATE.FlyActive then StopFly() end
-        if STATE.AutoFarmActive then StopAutoFarm() end
-        if STATE.GodModeActive then DisableGodMode() end
-        if STATE.NoFallActive then DisableNoFall() end
-        if STATE.AntiKickActive then DisableAntiKick() end
+        if FlyActive then StopFly() end
+        if FarmActive then StopRealFarm() end
+        if GodModeActive then StopGodMode() end
         print("[STOP] Tüm modlar kapatıldı.")
     end
 end
 
 -- ============================================================
--- 18. CHAT DİNLEYİCİ (KOMUTLAR İÇİN)
+-- CHAT DİNLEYİCİ
 -- ============================================================
-local function SetupChatListener()
+local function SetupChatListenerReal()
     local coreGui = CoreGui
     if not coreGui then return end
     
@@ -1131,7 +863,7 @@ local function SetupChatListener()
             if child:IsA("TextLabel") then
                 local msg = child.Text or ""
                 if msg:sub(1, 1) == "/" then
-                    ExecuteConsoleCommand(msg)
+                    RunCommand(msg)
                 end
             end
         end)
@@ -1139,102 +871,52 @@ local function SetupChatListener()
 end
 
 -- ============================================================
--- 19. KARAKTER KORUMA (ÖLÜM SONRASI YENİDEN)
--- ============================================================
-local function SetupCharacterProtection()
-    LocalPlayer.CharacterAdded:Connect(function(char)
-        print("[PROTECT] Karakter yeniden doğdu!")
-        task.wait(1)
-        
-        local hum = char:FindFirstChild("Humanoid")
-        if hum then
-            hum.MaxHealth = 100
-            hum.Health = 100
-            if CONFIG.WALK_SPEED then
-                hum.WalkSpeed = CONFIG.WALK_SPEED
-            end
-            if CONFIG.JUMP_POWER then
-                hum.JumpPower = CONFIG.JUMP_POWER
-            end
-        end
-        
-        if STATE.GodModeActive then
-            EnableGodMode()
-        end
-    end)
-end
-
--- ============================================================
--- 20. BAĞLANTI TEMİZLEME (GÜVENLİ ÇIKIŞ)
--- ============================================================
-local function CleanupAll()
-    if STATE.FlyActive then StopFly() end
-    if STATE.AutoFarmActive then StopAutoFarm() end
-    if STATE.GodModeActive then DisableGodMode() end
-    if STATE.NoFallActive then DisableNoFall() end
-    if STATE.AntiKickActive then DisableAntiKick() end
-    
-    if STATE.FarmThread then
-        coroutine.close(STATE.FarmThread)
-        STATE.FarmThread = nil
-    end
-    
-    print("[CLEAN] Tüm bağlantılar temizlendi.")
-end
-
--- ============================================================
--- 21. ACİL DURUM KAPATMA (F12)
+-- ACİL DURUM KAPATMA (F12)
 -- ============================================================
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.F12 then
-        print("[EMERGENCY] Acil durum kapatma! (F12)")
-        CleanupAll()
-        STATE.Active = false
+        print("[EMERGENCY] Acil durum kapatma!")
+        if FlyActive then StopFly() end
+        if FarmActive then StopRealFarm() end
+        if GodModeActive then StopGodMode() end
         script:Destroy()
     end
 end)
 
 -- ============================================================
--- 22. ANA BAŞLATMA (ENTEGRE)
+-- BAŞLATMA
 -- ============================================================
-local function Initialize()
+local function InitializeReal()
     print("")
     print("========================================")
-    print("🐹 HAMSTER LIVES ULTIMATE BYPASS V11")
+    print("🐹 HAMSTER LIVES ULTIMATE BYPASS V12")
     print("========================================")
-    
-    -- 1. BYPASS
-    KillAntiCheat()
-    KillRemotes()
-    HideScript()
-    
-    -- 2. KORUMA
-    SetupCharacterProtection()
-    
-    -- 3. EKRAN
-    ShowBypassScreen()
-    CreateMenuToggle()
-    SetupChatListener()
-    
-    -- 4. DURUM
+    print("📱 Cihaz: " .. (isMobile and "MOBİL" or "PC"))
     print("")
-    print("✅ ULTIMATE BYPASS V11 HAZIR!")
-    print("   📌 Sağ üstteki 🐹 butonuna tıkla → Menü")
+    
+    -- BYPASS
+    RealAntiCheatKill()
+    RealRemoteKiller()
+    
+    -- EKRAN
+    ShowRealBypassScreen()
+    CreateMenuToggleReal()
+    SetupChatListenerReal()
+    
+    print("")
+    print("✅ ULTIMATE BYPASS V12 HAZIR!")
+    print("   📌 Sağ üst 🐹 buton → Menü")
     print("   📌 /help → Komut listesi")
-    print("   📌 F12 → Acil durum kapatma")
+    print("   📌 F12 → Acil kapatma")
     print("========================================")
 end
 
--- ============================================================
--- 23. GÜVENLİ BAŞLAT
--- ============================================================
 task.wait(0.5)
-local success, err = pcall(Initialize)
-if not success then
+local ok, err = pcall(InitializeReal)
+if not ok then
     print("[ERROR] Başlatma hatası: " .. tostring(err))
-    -- Hata durumunda sadece temel bypass çalışsın
-    pcall(KillAntiCheat)
-    pcall(KillRemotes)
-    pcall(HideScript)
-      end
+    -- Temel bypass çalışsın
+    pcall(RealAntiCheatKill)
+    pcall(RealRemoteKiller)
+            end
