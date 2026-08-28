@@ -1,14 +1,13 @@
 -- ============================================================
--- HAMSTER LIVES - WHITELIST KONTROL SİSTEMİ (HIZLI)
+-- HAMSTER LIVES - WHITELIST KONTROL SİSTEMİ (ANINDA GEÇİŞ)
 -- ============================================================
 
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 -- ============================================================
--- İZİN VERİLEN KULLANICILAR (BURAYA EKLE/ÇIKAR)
+-- İZİN VERİLEN KULLANICILAR
 -- ============================================================
 local ALLOWED_USERS = {
     "Yamanxct",
@@ -16,7 +15,7 @@ local ALLOWED_USERS = {
 }
 
 -- ============================================================
--- WHITELIST KONTROLÜ (HIZLI)
+-- WHITELIST KONTROLÜ (ANINDA)
 -- ============================================================
 local function IsUserAllowed()
     local username = LocalPlayer.Name
@@ -29,7 +28,7 @@ local function IsUserAllowed()
 end
 
 -- ============================================================
--- WHITELIST GUI (KONTROL EKRANI - HIZLI GEÇİŞ)
+-- WHITELIST GUI (KONTROL EKRANI - 0.3 SANİYE)
 -- ============================================================
 local whitelistGui = Instance.new("ScreenGui")
 whitelistGui.Name = "WhitelistGUI"
@@ -61,7 +60,7 @@ boxStroke.Thickness = 1.5
 boxStroke.Color = Color3.fromRGB(60, 60, 60)
 boxStroke.Transparency = 0.5
 
--- Büyüteç
+-- Büyüteç (🔍) - sadece gösterip kaldır
 local magnifier = Instance.new("TextLabel")
 magnifier.Size = UDim2.new(0, 60, 0, 60)
 magnifier.Position = UDim2.new(0.5, -30, 0, 10)
@@ -73,21 +72,7 @@ magnifier.Font = Enum.Font.GothamBold
 magnifier.Parent = box
 magnifier.ZIndex = 2
 
--- Büyüteç animasyonu (sadece 1 kez büyüyüp küçül, sonra hızlıca kontrol et)
-task.spawn(function()
-    if not magnifier or not magnifier.Parent then return end
-    TweenService:Create(magnifier, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-        TextSize = 60
-    }):Play()
-    task.wait(0.3)
-    if not magnifier.Parent then return end
-    TweenService:Create(magnifier, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-        TextSize = 40
-    }):Play()
-    task.wait(0.3)
-end)
-
--- "Kontrol ediliyorsunuz..." yazısı (kısa süreli)
+-- "Kontrol ediliyorsunuz..." (0.3 saniye görünür)
 local checkingLabel = Instance.new("TextLabel")
 checkingLabel.Size = UDim2.new(1, 0, 0, 30)
 checkingLabel.Position = UDim2.new(0, 0, 0, 80)
@@ -99,65 +84,34 @@ checkingLabel.Font = Enum.Font.GothamBold
 checkingLabel.Parent = box
 checkingLabel.ZIndex = 2
 
--- Durum mesajı
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -20, 0, 40)
-statusLabel.Position = UDim2.new(0, 10, 0, 120)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = ""
-statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-statusLabel.TextSize = 13
-statusLabel.Font = Enum.Font.GothamBold
-statusLabel.TextWrapped = true
-statusLabel.TextXAlignment = Enum.TextXAlignment.Center
-statusLabel.Parent = box
-statusLabel.ZIndex = 2
-
--- Devam Butonu (sadece yetkisizler için gerekli değil, ama yine de kalsın)
-local continueBtn = Instance.new("TextButton")
-continueBtn.Size = UDim2.new(0, 120, 0, 35)
-continueBtn.Position = UDim2.new(0.5, -60, 0, 130)
-continueBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-continueBtn.Text = "DEVAM"
-continueBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-continueBtn.TextSize = 14
-continueBtn.Font = Enum.Font.GothamBold
-continueBtn.Visible = false
-continueBtn.Parent = box
-continueBtn.ZIndex = 3
-Instance.new("UICorner", continueBtn).CornerRadius = UDim.new(0, 6)
-
--- Hover efekti
-continueBtn.MouseEnter:Connect(function()
-    continueBtn.BackgroundColor3 = Color3.fromRGB(0, 220, 0)
-end)
-continueBtn.MouseLeave:Connect(function()
-    continueBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-end)
-
 -- ============================================================
--- WHITELIST KONTROL FONKSİYONU (OTOMATİK GEÇİŞ)
+-- WHITELIST KONTROL FONKSİYONU (0.3 SANİYE SONRA KARAR VER)
 -- ============================================================
 local function StartWhitelistCheck(callback)
-    local allowed = IsUserAllowed()
+    -- 0.3 saniye bekle (büyüteç gözüksün diye)
+    task.wait(0.3)
     
-    -- 1 saniye bekle (büyüteç animasyonu için)
-    task.wait(0.6)
-    
-    if allowed then
-        -- Yetkili: direkt geç, butona gerek yok
+    if IsUserAllowed() then
+        -- Yetkili: GUI'yi hemen kapat, callback'i çağır
         whitelistGui:Destroy()
         if callback then callback() end
     else
-        -- Yetkisiz: hata mesajı göster, script durdur
+        -- Yetkisiz: mesaj göster, buton yok, script durur
         magnifier:Destroy()
         checkingLabel:Destroy()
         
+        local statusLabel = Instance.new("TextLabel")
+        statusLabel.Size = UDim2.new(1, -20, 0, 40)
+        statusLabel.Position = UDim2.new(0, 10, 0, 120)
+        statusLabel.BackgroundTransparency = 1
         statusLabel.Text = "❌ Bu scriptin sahibi değilsiniz.\nLütfen scripti satın alın."
         statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-        
-        -- Buton gösterme, script burada durur
-        continueBtn.Visible = false
+        statusLabel.TextSize = 13
+        statusLabel.Font = Enum.Font.GothamBold
+        statusLabel.TextWrapped = true
+        statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+        statusLabel.Parent = box
+        statusLabel.ZIndex = 2
     end
 end
 
@@ -952,7 +906,6 @@ end)
 local function popIn(el, delay)
 	local originalSize = el.Size
 	el.Size = UDim2.new(originalSize.X.Scale * 0.5, originalSize.X.Offset * 0.5, originalSize.Y.Scale * 0.5, originalSize.Y.Offset * 0.5)
-	local goalTransparency = 0
 	local isText = el:IsA("TextLabel") or el:IsA("TextButton")
 	if isText then
 		el.TextTransparency = 1
@@ -974,7 +927,6 @@ end
 
 local function showHUD()
 	hudHolder.Visible = true
-
 	popIn(roleLabel, 0)
 	popIn(hudToggle, 0.08)
 	popIn(tabButtons.v1, 0.16)
@@ -1041,7 +993,7 @@ local function playFullSequence()
 end
 
 -- ============================================================
--- WHITELIST KONTROLÜNÜ BAŞLAT (ORİJİNAL playFullSequence YERİNE)
+-- WHITELIST KONTROLÜNÜ BAŞLAT (0.3 SANİYE SONRA GEÇER)
 -- ============================================================
 local function onWhitelistPassed()
     screenGui.Visible = true
