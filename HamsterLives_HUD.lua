@@ -1,7 +1,177 @@
--- LocalScript
--- HAMSTER LIVES - HUD + V1 / V2 / V3 SEÇİCİ SİSTEM
--- Giriş: ışınlar + patlama -> HUD (üstte, hafif sağda) -> HUD altında V1|V2|V3 sekmeleri
--- Herkese açık - "ROL: HAMSTER" sadece belirli kullanıcı adı için KOZMETİK rozet (kısıtlama değil)
+-- ============================================================
+-- HAMSTER LIVES - WHITELIST KONTROL SİSTEMİ (BAŞA EKLENDİ)
+-- ============================================================
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+-- ============================================================
+-- İZİN VERİLEN KULLANICILAR (BURAYA EKLE/ÇIKAR)
+-- ============================================================
+local ALLOWED_USERS = {
+    "Yamanxct",
+    "usgwheiahwe"
+    -- Yeni kullanıcı eklemek için buraya isim ekleyin
+}
+
+-- ============================================================
+-- WHITELIST KONTROLÜ
+-- ============================================================
+local function IsUserAllowed()
+    local username = LocalPlayer.Name
+    for _, allowed in ipairs(ALLOWED_USERS) do
+        if username == allowed then
+            return true
+        end
+    end
+    return false
+end
+
+-- ============================================================
+-- WHITELIST GUI (KONTROL EKRANI)
+-- ============================================================
+local whitelistGui = Instance.new("ScreenGui")
+whitelistGui.Name = "WhitelistGUI"
+whitelistGui.ResetOnSpawn = false
+whitelistGui.IgnoreGuiInset = true
+whitelistGui.DisplayOrder = 1000
+whitelistGui.Parent = CoreGui
+
+-- Siyah arka plan (tam ekran)
+local bg = Instance.new("Frame")
+bg.Size = UDim2.new(1, 0, 1, 0)
+bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+bg.BackgroundTransparency = 0.1
+bg.Parent = whitelistGui
+bg.ZIndex = 0
+
+-- Ana kutu (orta, dikdörtgen)
+local box = Instance.new("Frame")
+box.Size = UDim2.new(0, 300, 0, 200)
+box.Position = UDim2.new(0.5, -150, 0.5, -100)
+box.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+box.BackgroundTransparency = 0.2
+box.Parent = whitelistGui
+box.ZIndex = 1
+Instance.new("UICorner", box).CornerRadius = UDim.new(0, 12)
+
+local boxStroke = Instance.new("UIStroke", box)
+boxStroke.Thickness = 1.5
+boxStroke.Color = Color3.fromRGB(60, 60, 60)
+boxStroke.Transparency = 0.5
+
+-- Büyüteç (🔍)
+local magnifier = Instance.new("TextLabel")
+magnifier.Size = UDim2.new(0, 60, 0, 60)
+magnifier.Position = UDim2.new(0.5, -30, 0, 10)
+magnifier.BackgroundTransparency = 1
+magnifier.Text = "🔍"
+magnifier.TextColor3 = Color3.fromRGB(255, 255, 255)
+magnifier.TextSize = 50
+magnifier.Font = Enum.Font.GothamBold
+magnifier.Parent = box
+magnifier.ZIndex = 2
+
+-- Büyüteç animasyonu (büyüyüp küçül)
+task.spawn(function()
+    while magnifier and magnifier.Parent do
+        TweenService:Create(magnifier, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            TextSize = 60
+        }):Play()
+        task.wait(0.8)
+        if not magnifier.Parent then break end
+        TweenService:Create(magnifier, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            TextSize = 40
+        }):Play()
+        task.wait(0.8)
+    end
+end)
+
+-- "Kontrol ediliyorsunuz..." yazısı
+local checkingLabel = Instance.new("TextLabel")
+checkingLabel.Size = UDim2.new(1, 0, 0, 30)
+checkingLabel.Position = UDim2.new(0, 0, 0, 80)
+checkingLabel.BackgroundTransparency = 1
+checkingLabel.Text = "Kontrol ediliyorsunuz..."
+checkingLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+checkingLabel.TextSize = 14
+checkingLabel.Font = Enum.Font.GothamBold
+checkingLabel.Parent = box
+checkingLabel.ZIndex = 2
+
+-- Durum mesajı (sonradan doldurulacak)
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 40)
+statusLabel.Position = UDim2.new(0, 10, 0, 120)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.TextSize = 13
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextWrapped = true
+statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+statusLabel.Parent = box
+statusLabel.ZIndex = 2
+
+-- Devam Butonu (başlangıçta gizli)
+local continueBtn = Instance.new("TextButton")
+continueBtn.Size = UDim2.new(0, 120, 0, 35)
+continueBtn.Position = UDim2.new(0.5, -60, 0, 130)
+continueBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+continueBtn.Text = "DEVAM"
+continueBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+continueBtn.TextSize = 14
+continueBtn.Font = Enum.Font.GothamBold
+continueBtn.Visible = false
+continueBtn.Parent = box
+continueBtn.ZIndex = 3
+Instance.new("UICorner", continueBtn).CornerRadius = UDim.new(0, 6)
+
+-- Hover efekti
+continueBtn.MouseEnter:Connect(function()
+    continueBtn.BackgroundColor3 = Color3.fromRGB(0, 220, 0)
+end)
+continueBtn.MouseLeave:Connect(function()
+    continueBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+end)
+
+-- ============================================================
+-- WHITELIST KONTROL FONKSİYONU
+-- ============================================================
+local function StartWhitelistCheck(callback)
+    local allowed = IsUserAllowed()
+    
+    if allowed then
+        -- Yetkili: büyüteç ve kontrol yazısını kaldır, devam butonunu göster
+        magnifier:Destroy()
+        checkingLabel:Destroy()
+        
+        statusLabel.Text = "✅ Hoş geldiniz, " .. LocalPlayer.Name .. "!"
+        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+        
+        continueBtn.Visible = true
+        continueBtn.MouseButton1Click:Connect(function()
+            whitelistGui:Destroy()
+            if callback then callback() end
+        end)
+    else
+        -- Yetkisiz: hata mesajı göster, script durdur
+        magnifier:Destroy()
+        checkingLabel:Destroy()
+        
+        statusLabel.Text = "❌ Bu scriptin sahibi değilsiniz.\nLütfen scripti satın alın."
+        statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+        
+        -- Buton gösterme, script burada durur
+        continueBtn.Visible = false
+    end
+end
+
+-- ============================================================
+-- ORİJİNAL HAMSTER LIVES HUD KODU (BAŞLANGIÇ)
+-- ============================================================
 
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
@@ -17,7 +187,7 @@ local camera = workspace.CurrentCamera
 local LocalPlayer = player
 
 ------------------------------------------------
--- KOZMETİK ROZET (herkes menüyü kullanır, bu sadece bir etiket)
+-- KOZMETİK ROZET
 ------------------------------------------------
 local COSMETIC_ROLE_USERNAME = "Yamanxct"
 local hasSpecialRole = (LocalPlayer.Name == COSMETIC_ROLE_USERNAME)
@@ -56,6 +226,7 @@ screenGui.Name = "HamsterLivesHUD"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.DisplayOrder = 999
+screenGui.Visible = false   -- WHITELIST KONTROLÜ BİTENE KADAR GİZLİ
 screenGui.Parent = playerGui
 
 local function getCenterAndCorners()
@@ -250,14 +421,11 @@ local function createExplosion(center, onDone)
 	task.delay(0.5, function()
 		if onDone then onDone() end
 	end)
-end
-
+end------------------------------------------------
+-- HUD (üstte, hafif sağda)
 ------------------------------------------------
--- HUD (üstte, hafif sağda) - ARKA PLANSIZ, BOŞLUKTA DURAN AYRI ELEMANLAR
-------------------------------------------------
-local HUD_X_OFFSET = 0.60 -- ekranın %60'ı - hafif sağa kaykık
+local HUD_X_OFFSET = 0.60
 
--- Görünmez kök referans (sadece konumlandırma için, kendi arka planı/kenarlığı yok)
 local hudHolder = Instance.new("Frame")
 hudHolder.Name = "HUD"
 hudHolder.AnchorPoint = Vector2.new(0.5, 0)
@@ -269,7 +437,6 @@ hudHolder.ZIndex = 40
 hudHolder.Visible = false
 hudHolder.Parent = screenGui
 
--- "ROL: HAMSTER" yazısı - solda, büyükçe, arka plansız
 local roleLabel = Instance.new("TextLabel")
 roleLabel.Size = UDim2.new(0, 150, 0, 28)
 roleLabel.Position = UDim2.new(0, 0, 0, 0)
@@ -288,7 +455,6 @@ roleLabelStroke.Color = Color3.fromRGB(0, 0, 0)
 roleLabelStroke.Transparency = 0.3
 roleLabelStroke.Parent = roleLabel
 
--- Menü Aç/Kapa butonu - ROL yazısının hemen sağında, büyükçe, kendi başına bir kutu
 local hudToggle = Instance.new("TextButton")
 hudToggle.Size = UDim2.new(0, 42, 0, 32)
 hudToggle.Position = UDim2.new(0, 158, 0, -2)
@@ -308,7 +474,6 @@ hudToggleStroke.Color = Color3.fromRGB(255, 120, 120)
 hudToggleStroke.Transparency = 0.4
 hudToggleStroke.Parent = hudToggle
 
--- V1 / V2 / V3 kutucukları - ROL satırının altında, sağa doğru kaykık, her biri kendi kutusu
 local tabHolder = Instance.new("Frame")
 tabHolder.Size = UDim2.new(0, 210, 0, 26)
 tabHolder.Position = UDim2.new(0, 50, 0, 34)
@@ -350,8 +515,7 @@ tabButtons.v2 = makeTabButton("V2")
 tabButtons.v3 = makeTabButton("V3")
 
 ------------------------------------------------
--- ALT PANEL (V1/V2/V3 içeriğinin gösterildiği ana kutu - bu hâlâ çerçeveli,
--- çünkü içinde server listesi/scroll var; sadece üst HUD çerçevesiz)
+-- ALT PANEL
 ------------------------------------------------
 local panelHolder = Instance.new("Frame")
 panelHolder.Name = "VersionPanel"
@@ -381,7 +545,7 @@ local menuOpen = false
 local currentVersion = "v1"
 
 ------------------------------------------------
--- İçerik konteynerları (her versiyon kendi frame'ine sahip, tek görünür olan gösterilir)
+-- İçerik konteynerları
 ------------------------------------------------
 local v1Container = Instance.new("Frame")
 v1Container.Name = "V1Container"
@@ -411,7 +575,7 @@ v3Container.Visible = false
 v3Container.Parent = panelHolder
 
 ------------------------------------------------
--- V1: KARANLIK TEMA SERVER FINDER (herkese açık server listesi)
+-- V1: KARANLIK TEMA SERVER FINDER
 ------------------------------------------------
 local v1Scanning = false
 local v1Servers = {}
@@ -520,7 +684,7 @@ local function V1_Build()
 end
 
 ------------------------------------------------
--- V2: NEON / AYDINLIK MİNİMAL TEMA SERVER FINDER (aynı mantık, farklı görsel)
+-- V2: NEON TEMA
 ------------------------------------------------
 local v2Scanning = false
 local v2Servers = {}
@@ -530,7 +694,6 @@ local function V2_Build()
 	for _, c in ipairs(v2Container:GetChildren()) do c:Destroy() end
 	v2Servers = {}
 
-	-- Aydınlık arka plan katmanı (sadece bu container içinde)
 	local bgLight = Instance.new("Frame")
 	bgLight.Size = UDim2.new(1, 0, 1, 0)
 	bgLight.BackgroundColor3 = Color3.fromRGB(245, 248, 255)
@@ -651,7 +814,7 @@ local function V2_Build()
 end
 
 ------------------------------------------------
--- V3: COMING SOON + HAFİF ANİMASYON
+-- V3: COMING SOON
 ------------------------------------------------
 local function V3_Build()
 	for _, c in ipairs(v3Container:GetChildren()) do c:Destroy() end
@@ -688,7 +851,6 @@ local function V3_Build()
 		end
 	end)
 
-	-- birkaç yörüngeli küçük nokta (hafif animasyon)
 	for i = 1, 3 do
 		local dot = Instance.new("Frame")
 		dot.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -712,9 +874,7 @@ local function V3_Build()
 			end
 		end)
 	end
-end
-
-------------------------------------------------
+	end------------------------------------------------
 -- SEKME GEÇİŞ MANTIĞI
 ------------------------------------------------
 local function selectVersion(version)
@@ -757,7 +917,7 @@ tabButtons.v3.MouseButton1Click:Connect(function()
 end)
 
 ------------------------------------------------
--- MENÜ AÇ/KAPA (HUD üstündeki buton, alt paneli açar/kapatır)
+-- MENÜ AÇ/KAPA
 ------------------------------------------------
 local function openPanel()
 	menuOpen = true
@@ -823,7 +983,6 @@ end
 local function showHUD()
 	hudHolder.Visible = true
 
-	-- Her eleman kendi başına, boşlukta ayrı ayrı belirir (art arda küçük gecikmelerle)
 	popIn(roleLabel, 0)
 	popIn(hudToggle, 0.08)
 	popIn(tabButtons.v1, 0.16)
@@ -889,7 +1048,12 @@ local function playFullSequence()
 	end)
 end
 
-------------------------------------------------
--- BAŞLAT
-------------------------------------------------
-playFullSequence()
+-- ============================================================
+-- WHITELIST KONTROLÜNÜ BAŞLAT (ORİJİNAL playFullSequence YERİNE)
+-- ============================================================
+local function onWhitelistPassed()
+    screenGui.Visible = true
+    playFullSequence()
+end
+
+StartWhitelistCheck(onWhitelistPassed)
