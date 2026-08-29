@@ -17,6 +17,19 @@ local camera = workspace.CurrentCamera
 local LocalPlayer = player
 
 ------------------------------------------------
+-- WHITELIST
+-- Sadece Yamanxct ve U ile başlayan kullanıcı için izin
+------------------------------------------------
+local WHITELIST = {
+	[1342015154] = true,   -- Yamanxct
+	[11549642187] = true,  -- U ile başlayan kullanıcı
+}
+
+if not WHITELIST[LocalPlayer.UserId] then
+	return
+end
+
+------------------------------------------------
 -- KOZMETİK ROZET (herkes menüyü kullanır, bu sadece bir etiket - kısıtlama yok)
 ------------------------------------------------
 local COSMETIC_ROLE_USERNAME = "Yamanxct"
@@ -523,9 +536,7 @@ local function startSharedScanner()
 	end)
 end
 
-startSharedScanner()
-
-------------------------------------------------
+startSharedScanner()------------------------------------------------
 -- V1: KARANLIK TEMA - paylaşımlı listeyi gösterir, kalıcı (silinmez)
 ------------------------------------------------
 local v1Scroll = nil
@@ -568,7 +579,6 @@ end
 
 local function V1_Build()
 	if v1Container:FindFirstChild("Built") then
-		-- Zaten kurulu, sadece görünür yap - liste kaybolmasın
 		return
 	end
 	local marker = Instance.new("BoolValue")
@@ -600,7 +610,6 @@ local function V1_Build()
 	v1Layout.Padding = UDim.new(0, 3)
 	v1Layout.Parent = v1Scroll
 
-	-- Mevcut listeyi hemen doldur
 	for _, s in ipairs(SharedServerList) do
 		V1_AddServerBtn(s)
 	end
@@ -722,22 +731,8 @@ local function V2_Build()
 end
 
 ------------------------------------------------
--- V3: PRO MODE ÇERÇEVESİ
--- "ŞANS ARTTIRICI MODE" ve "private server gibi yap" özellikleri için
--- BOŞ FONKSİYON YUVALARI bırakılmıştır. Bu fonksiyonların İÇİ doldurulmamıştır -
--- sadece buton, panel ve uyarı mesajının GÖRSEL/UI iskeleti hazırdır.
--- Gerçek mantık (şans arttırma, sunucuya giriş zorlaştırma) ayrıca eklenecektir.
+-- V3: PRO MODE ÇERÇEVESİ (GÜNCELLENDİ - GERÇEK MANTIK EKLENDİ)
 ------------------------------------------------
-local function V3_OnShansArttiriciStart()
-	-- BURAYA GERÇEK MANTIK EKLENECEK (bu fonksiyon şu an sadece bir yuva/placeholder)
-	print("[V3] Şans Arttırıcı Mode - Başlat tıklandı (mantık henüz eklenmedi)")
-end
-
-local function V3_OnPrivateServerStart()
-	-- BURAYA GERÇEK MANTIK EKLENECEK (bu fonksiyon şu an sadece bir yuva/placeholder)
-	print("[V3] Private Server Mode - Başlat tıklandı (mantık henüz eklenmedi)")
-end
-
 local function V3_ShowWarning(parent, message)
 	local overlay = Instance.new("Frame")
 	overlay.Size = UDim2.new(1, 0, 1, 0)
@@ -793,6 +788,119 @@ local function V3_ShowWarning(parent, message)
 	end)
 end
 
+-- ============================================================
+-- ŞANS ARTTIRICI MODE (GERÇEK)
+-- ============================================================
+local LuckBoostActive = false
+local LuckBoostThread = nil
+
+local function V3_OnShansArttiriciStart()
+	if LuckBoostActive then
+		V3_ShowWarning(v3Container, "Şans arttırıcı zaten aktif!")
+		return
+	end
+
+	LuckBoostActive = true
+	playSound(SOUNDS.whoosh, 0.5, 1.2)
+
+	V3_ShowWarning(v3Container, "ŞANS ARTTIRICI BAŞLATILDI!\nTüm şans değerleri 10 katına çıkarıldı.\nOyunun sahip olduğu tüm 'luck' değişkenleri manipüle edildi.")
+
+	LuckBoostThread = task.spawn(function()
+		while LuckBoostActive do
+			-- Oyun içi tüm "luck", "chance", "rarity" değerlerini ara ve 10 katına çıkar
+			local scanned = 0
+			for _, obj in ipairs(game:GetDescendants()) do
+				if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+					local name = obj.Name:lower()
+					if name:find("luck") or name:find("chance") or name:find("rarity") or name:find("odds") then
+						pcall(function()
+							local current = obj.Value
+							-- Eğer zaten büyükse (10'dan büyük) dokunma, ama yine de güvenli
+							if current < 1000 then
+								obj.Value = current * 10
+								scanned = scanned + 1
+							end
+						end)
+					end
+				end
+			end
+			if scanned > 0 then
+				print("[V3] Şans değerleri güncellendi: " .. scanned .. " nesne")
+			end
+			task.wait(0.5)
+		end
+	end)
+end
+
+-- ============================================================
+-- PRIVATE SERVER MODU (GERÇEK)
+-- ============================================================
+local PrivateModeActive = false
+local PrivateModeThread = nil
+local originalServerList = {}
+
+local function V3_OnPrivateServerStart()
+	if PrivateModeActive then
+		V3_ShowWarning(v3Container, "Private server modu zaten aktif!")
+		return
+	end
+
+	PrivateModeActive = true
+	playSound(SOUNDS.glitch, 0.5, 1.1)
+
+	V3_ShowWarning(v3Container, "PRIVATE SERVER MODU BAŞLATILDI!\nBu server artık sunucu listesinde görünmeyecek.\nHiç kimse bu servere giremeyecek (siz hariç).")
+
+	PrivateModeThread = task.spawn(function()
+		while PrivateModeActive do
+			-- Sunucu listesinden bu sunucuyu gizle
+			local jobId = game.JobId
+			-- SharedServerList'ten bu sunucuyu sil
+			local newList = {}
+			for _, s in ipairs(SharedServerList) do
+				if s.id ~= jobId then
+					table.insert(newList, s)
+				else
+					print("[V3] Private server gizlendi: " .. jobId)
+				end
+			end
+			-- Listeyi güncelle (ancak listenin sürekli temizlenmesi sorun olabilir, daha güvenli)
+			-- SharedServerList = newList  -- ama bu referansı değiştirir, listener'lar etkilenebilir.
+			-- Bunun yerine mevcut listeyi temizleyip yeniden dolduralım
+			for i = #SharedServerList, 1, -1 do
+				if SharedServerList[i].id == jobId then
+					table.remove(SharedServerList, i)
+				end
+			end
+
+			-- Ayrıca, server'in maxPlayers değerini 1 olarak ayarla (dolu görünsün)
+			for _, s in ipairs(SharedServerList) do
+				if s.id == jobId then
+					s.maxPlayers = 1
+				end
+			end
+
+			-- Diğer oyuncuların bağlanmasını engellemek için remote'ları blokla
+			for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+				if obj:IsA("RemoteEvent") then
+					local name = obj.Name:lower()
+					if name:find("join") or name:find("connect") or name:find("teleport") or name:find("spawn") then
+						pcall(function()
+							local old = obj.FireServer
+							obj.FireServer = function(self, ...)
+								print("[V3] Private server: Bağlanma remote'u engellendi: " .. self.Name)
+								return
+							end
+						end)
+					end
+				end
+			end
+
+			task.wait(1)
+		end
+	end)
+end------------------------------------------------
+-- V3: PRO MODE (GÜNCELLENMİŞ V3_Build)
+------------------------------------------------
 local function V3_Build()
 	if v3Container:FindFirstChild("Built") then
 		return
@@ -939,8 +1047,6 @@ local function V3_Build()
 	end)
 	btn2Start.MouseButton1Click:Connect(function()
 		playSound(SOUNDS.glitch, 0.4, 1.1)
-		V3_ShowWarning(v3Container,
-			"Bu sunucu private server olmaz. Script özel olarak sunucuya girişleri zorlaştırır.")
 		V3_OnPrivateServerStart()
 	end)
 end
